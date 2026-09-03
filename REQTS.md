@@ -1,6 +1,8 @@
 # ODCA — Requirements
 
-Version 1.0 — 2026-09-03
+Version 1.1 — 2026-09-03
+(1.1: startup cycle position matches a saved rule when possible — R-U1,
+R-B3.)
 
 This document specifies ODCA, an interactive viewer for a four-state,
 count-based, one-dimensional cellular automaton, in sufficient detail to
@@ -104,6 +106,10 @@ program must:
 4. Begin evolving and displaying immediately, in wrap mode.
 5. Load the persisted candidate stash (R-P2) and start the background
    search (R-S).
+6. Set the interesting-rule cycle position: if the loaded rule equals a
+   saved rule, on that rule's first occurrence with the unsaved slot
+   empty; otherwise on the unsaved slot, which holds the loaded rule
+   (R-B3).
 
 **R-U2 (display geometry).** The display is a grid of square cells,
 `cell_size` pixels on a side (default 4). Defaults: a 1200×800-pixel
@@ -205,11 +211,14 @@ one slot; the selected slot's rule becomes current per R-B1 (pushing undo
 per R-K4). Position output per R-O4.
 
 **R-B3 (the unsaved slot).** The unsaved slot holds the most recent rule
-that arrived from outside the saved set: the startup rule, or the last
-rule produced by `r` or `m`. When `r` or `m` fires, its new rule occupies
-the unsaved slot and the cycle position moves to that slot. At startup the
-cycle position is the unsaved slot; therefore the first `n` selects saved
-rule 0 and the first `p` selects saved rule n−1.
+that arrived from outside the saved set: the startup rule (unless it
+matched a saved rule, see R-U1 step 6), or the last rule produced by `r`
+or `m`. When `r` or `m` fires, its new rule occupies the unsaved slot and
+the cycle position moves to that slot. While the unsaved slot is empty —
+startup matched a saved rule and no `r`/`m` has fired yet — the cycle
+consists of the n saved rules only. When the cycle position starts on the
+unsaved slot, the first `n` selects saved rule 0 and the first `p`
+selects saved rule n−1.
 
 **R-B4 (empty keeper file).** If no saved rules exist, `n` and `p` print a
 notice (R-O5) and change nothing.

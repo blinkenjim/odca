@@ -15,10 +15,14 @@ Controls:
     m   mutate the rule: change one randomly chosen entry to a new state
     u   undo the last rule change (r or m); repeatable
     s   save the current rule to interesting-rules.txt
-    n   next saved interesting rule (first press selects rule 0); stepping
-        past the last saved rule returns to the unsaved rule
-    p   previous saved interesting rule (first press selects the last rule);
-        stepping back from rule 0 returns to the unsaved rule
+    n   next saved interesting rule; stepping past the last saved rule
+        returns to the unsaved rule, when one exists
+    p   previous saved interesting rule; stepping back from rule 0 returns
+        to the unsaved rule, when one exists
+
+At startup, if the loaded rule matches a saved rule the cycle position
+points at it (so n/p step to its neighbors); otherwise the position is the
+unsaved slot, so the first n selects rule 0 and the first p the last rule.
     i   initialize all cells to random contents
     +   speed up (halve the delay between generations)
     -   slow down (double the delay between generations)
@@ -98,8 +102,15 @@ class Viewer:
         self.undo_stack = []
         # The saved rules form a cycle with one extra slot for the "unsaved"
         # rule — the one running before browsing began. index None = on it.
-        self.interesting_index = None
-        self.unsaved_rule = rule
+        # If the startup rule is itself a saved rule, point the cycle at it
+        # and leave the unsaved slot empty until 'r' or 'm' fills it.
+        saved = load_interesting()
+        if rule in saved:
+            self.interesting_index = saved.index(rule)
+            self.unsaved_rule = None
+        else:
+            self.interesting_index = None
+            self.unsaved_rule = rule
         self.candidates = load_candidates()
         self.search = CandidateSearch()
         self._push(self.automaton.cells)
@@ -154,20 +165,23 @@ class Viewer:
             self._set_rule(self.undo_stack.pop())
 
     def select_interesting(self, step):
-        """Cycle through the saved rules plus the unsaved slot.
+        """Cycle through the saved rules plus the unsaved slot, if occupied.
 
         The cycle is [saved rule 0 .. n-1, unsaved rule]; index None means
         the unsaved slot, so from it 'n' selects rule 0 and 'p' rule n-1.
+        When no unsaved rule exists (startup matched a saved rule and no
+        'r'/'m' has fired), the cycle is just the n saved rules.
         """
         rules = load_interesting()
         if not rules:
             print("no saved interesting rules")
             return
         n = len(rules)
+        total = n + 1 if self.unsaved_rule is not None else n
         at = n if self.interesting_index is None else self.interesting_index
-        to = (at + step) % (n + 1)
+        to = (at + step) % total
         self.undo_stack.append(self.automaton.rule)
-        if to == n:
+        if to == n:  # only reachable when the unsaved slot is occupied
             self.interesting_index = None
             print("unsaved rule")
             self._set_rule(self.unsaved_rule)

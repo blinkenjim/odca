@@ -61,7 +61,10 @@ consume candidates.
 The `n`/`p` cycle includes one extra slot holding the unsaved rule that was
 running before browsing began: stepping past the last saved rule (or back
 from rule 0) returns to it. Pressing `r` or `m` makes the new rule occupy
-that unsaved slot and repositions the cycle on it.
+that unsaved slot and repositions the cycle on it. If the rule loaded at
+startup is itself a saved rule, the cycle starts positioned on it (and the
+unsaved slot stays empty until `r`/`m`), so `n` and `p` step to its
+neighbors rather than appearing to do nothing.
 
 Color sets: **0** is CoCo color set 0 (green, yellow, blue, red), **1** is
 CoCo color set 1 (buff, cyan, magenta, orange), **2** is the default set

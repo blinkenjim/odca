@@ -74,7 +74,8 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-7 | R-P2 | Candidate stash save/load round-trips in order; invalid lines are skipped. |
 | PT-8 | R-P3 | Keeper-file append matches the `rule <id>` line format exactly and preserves prior content; the loader returns saved rules in order and ignores non-conforming lines. |
 | PT-9 | R-K4 | Undo restores rules in LIFO order; undo on an empty stack is a no-op. |
-| PT-10 | R-B2, R-B3 | With a stubbed keeper file of k rules: first `n` selects rule 0; first `p` selects rule k−1; stepping past either end reaches the unsaved slot; after `m` (or `r`) the unsaved slot holds the new rule and the position is on it. |
+| PT-10 | R-B2, R-B3 | With a stubbed keeper file of k rules and a startup rule not in it: first `n` selects rule 0; first `p` selects rule k−1; stepping past either end reaches the unsaved slot; after `m` (or `r`) the unsaved slot holds the new rule and the position is on it. |
+| PT-10a | R-U1, R-B3 | With a startup rule equal to saved rule j: the cycle position starts at j (`n` selects j+1, `p` selects j−1), the cycle wraps over the k saved rules with no unsaved slot, and the unsaved slot reappears holding the new rule after `m`/`r`. |
 | PT-11 | R-S5 | Stopping a background search that was started terminates all workers; stopping one never started is safe. |
 | PT-12 | R-S2, R-S3 | Candidates delivered by workers are valid rules; the stash never exceeds its cap. |
 
