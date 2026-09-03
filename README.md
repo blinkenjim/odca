@@ -30,6 +30,15 @@ its own directory.
 
 Planned: `swift/` (SwiftUI), `cpp/`.
 
+## Versioning
+
+Semantic versioning throughout. The specification (`REQTS.md`) is the
+versioned source of truth: MAJOR = incompatible change, MINOR = new or
+changed behavior, PATCH = clarification only. Each implementation has its
+own semver (Python: `odca.__version__`) and declares the spec MAJOR.MINOR
+it implements; implementation-only fixes bump its PATCH independently.
+Releases are git-tagged (`v1.3.0`).
+
 ## Using the program
 
 On startup the program loads its previous rule (from `~/.odca/rule`, random
