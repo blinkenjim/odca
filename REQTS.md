@@ -1,8 +1,9 @@
 # ODCA — Requirements
 
-Version 1.2 — 2026-09-03
+Version 1.3 — 2026-09-03
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
-R-B3. 1.2: pause on spacebar — R-K10.)
+R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
+paused — R-K11.)
 
 This document specifies ODCA, an interactive viewer for a four-state,
 count-based, one-dimensional cellular automaton, in sufficient detail to
@@ -197,9 +198,14 @@ unshifted equivalent of `+` (e.g. `=` on US layouts) and keypad `+`/`-`.
 **R-K10 (spacebar — pause).** The spacebar freezes the display animation:
 no further generations are computed or shown until the spacebar is pressed
 again, which resumes at the normal rate with no catch-up burst (elapsed
-pause time is discarded). While paused, every key except the spacebar and
-`q` is ignored; `q` quits normally. Pausing does not stop the background
-search (R-S).
+pause time is discarded). While paused, every key except the spacebar,
+Return (R-K11), and `q` is ignored; `q` quits normally. Pausing does not
+stop the background search (R-S).
+
+**R-K11 (Return — single step).** While paused, Return computes and
+displays exactly one generation, and the program remains paused. When not
+paused, Return is ignored. Implementations should also accept keypad
+Enter.
 
 ---
 

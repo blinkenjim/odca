@@ -56,7 +56,8 @@ consume candidates.
 | +   | speed up (halve the delay between generations) |
 | -   | slow down (double the delay between generations) |
 | 0-9 | select a color set                           |
-| space | pause / resume (while paused, all keys but space and `q` are ignored) |
+| space | pause / resume (while paused, all keys but space, return, and `q` are ignored) |
+| return | while paused: single-step one generation, staying paused |
 | q   | quit                                         |
 
 The `n`/`p` cycle includes one extra slot holding the unsaved rule that was

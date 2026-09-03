@@ -27,7 +27,10 @@ unsaved slot, so the first n selects rule 0 and the first p the last rule.
     +   speed up (halve the delay between generations)
     -   slow down (double the delay between generations)
     0-9 select a color set (0: CoCo set 0, 1: CoCo set 1, 2: default)
-    spc pause / resume; while paused every key but space and q is ignored
+    spc pause / resume; while paused every key but space, return, and q
+        is ignored
+    ret while paused: compute and display one generation (single step),
+        remaining paused; ignored when not paused
 """
 
 import numpy as np
@@ -202,6 +205,8 @@ class Viewer:
         if self.paused:
             if key == pygame.K_SPACE:
                 self.paused = False
+            elif key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                self._push(self.automaton.step())  # single step, stay paused
             return True  # every other key is ignored while paused
         if key == pygame.K_SPACE:
             self.paused = True
