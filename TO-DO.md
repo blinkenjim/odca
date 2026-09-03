@@ -13,6 +13,13 @@
       the re-init trigger). Likely a mode that can be turned on and off.
 - [ ] Status region: a small text area at the top of the display showing
       the current rule ID, whether it has been saved, etc.
+- [ ] Extract the toolkit-free orchestration from Viewer into a session
+      layer (undo stack, interesting-rule cycle, pause/single-step state,
+      stash draining, timing arithmetic) behind a thin display abstraction
+      (open window, key events, present pixel grid, tick). Do this before
+      the first port so every port inherits the boundary as a blueprint.
+      Domain interfaces (Rule, Automaton, evaluate) already serve as the
+      abstraction over numpy; no array-level abstraction is wanted.
 - [ ] CI matrix (GitHub Actions, ubuntu + macos) running each
       implementation's headless test suite — set up once a second
       implementation exists
