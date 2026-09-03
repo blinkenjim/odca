@@ -27,6 +27,7 @@ unsaved slot, so the first n selects rule 0 and the first p the last rule.
     +   speed up (halve the delay between generations)
     -   slow down (double the delay between generations)
     0-9 select a color set (0: CoCo set 0, 1: CoCo set 1, 2: default)
+    spc pause / resume; while paused every key but space and q is ignored
 """
 
 import numpy as np
@@ -98,6 +99,7 @@ class Viewer:
         self.history = np.zeros((self.rows, self.cols), dtype=np.uint8)
         self.filled = 0
         self.delay = INITIAL_DELAY
+        self.paused = False
         self.palette = COLOR_SETS[DEFAULT_COLOR_SET]
         self.undo_stack = []
         # The saved rules form a cycle with one extra slot for the "unsaved"
@@ -197,6 +199,12 @@ class Viewer:
     def handle_key(self, key):
         if key == pygame.K_q:
             return False
+        if self.paused:
+            if key == pygame.K_SPACE:
+                self.paused = False
+            return True  # every other key is ignored while paused
+        if key == pygame.K_SPACE:
+            self.paused = True
         elif key == pygame.K_r:
             self.new_rule()
         elif key == pygame.K_m:
@@ -246,11 +254,14 @@ class Viewer:
 
             self._drain_search()
             accumulated += clock.tick(FPS) / 1000.0
-            steps = int(accumulated / self.delay)
-            accumulated -= steps * self.delay
-            # Cap per-frame work so a stall can't freeze the UI catching up.
-            for _ in range(min(steps, 2000)):
-                self._push(self.automaton.step())
+            if self.paused:
+                accumulated = 0.0  # no catch-up burst on resume
+            else:
+                steps = int(accumulated / self.delay)
+                accumulated -= steps * self.delay
+                # Cap per-frame work so a stall can't freeze the UI catching up.
+                for _ in range(min(steps, 2000)):
+                    self._push(self.automaton.step())
             self.draw(screen)
             pygame.display.set_caption(f"ODCA — rule {self.automaton.rule.id}")
             pygame.display.flip()

@@ -1,8 +1,8 @@
 # ODCA — Requirements
 
-Version 1.1 — 2026-09-03
+Version 1.2 — 2026-09-03
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
-R-B3.)
+R-B3. 1.2: pause on spacebar — R-K10.)
 
 This document specifies ODCA, an interactive viewer for a four-state,
 count-based, one-dimensional cellular automaton, in sufficient detail to
@@ -193,6 +193,13 @@ clamped to [1/16384 s, 8 s]. Implementations should also accept the
 unshifted equivalent of `+` (e.g. `=` on US layouts) and keypad `+`/`-`.
 
 **R-K9 (digits `0`–`9`).** Select the corresponding color set (R-U4).
+
+**R-K10 (spacebar — pause).** The spacebar freezes the display animation:
+no further generations are computed or shown until the spacebar is pressed
+again, which resumes at the normal rate with no catch-up burst (elapsed
+pause time is discarded). While paused, every key except the spacebar and
+`q` is ignored; `q` quits normally. Pausing does not stop the background
+search (R-S).
 
 ---
 
