@@ -1,6 +1,18 @@
 # ODCA to-do
 
 - [ ] Choose the remaining seven color sets (keys 3–9)
+- [ ] Hold-to-run: while paused, holding the Return key resumes the
+      animation at a slow rate; releasing Return returns to the paused
+      state (extends the single-step of R-K11)
+- [ ] Auto-reinitialize on "uninteresting" states: detect when the ODCA
+      has gone uninteresting and re-initialize cell contents as if 'i'
+      were pressed. Defining "uninteresting" is the tricky part; one
+      approach is to learn from the user's own 'i' presses — infer over
+      time what conditions precede them (e.g. if 'i' consistently follows
+      certain cell states disappearing from the state vector, use that as
+      the re-init trigger). Likely a mode that can be turned on and off.
+- [ ] Status region: a small text area at the top of the display showing
+      the current rule ID, whether it has been saved, etc.
 - [ ] CI matrix (GitHub Actions, ubuntu + macos) running each
       implementation's headless test suite — set up once a second
       implementation exists
