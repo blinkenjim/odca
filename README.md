@@ -45,6 +45,13 @@ candidates.
 | m   | mutate the rule: one entry changes to a new state |
 | u   | undo the last rule change (repeatable)       |
 | s   | save the current rule to interesting-rules.txt |
+| n   | next saved interesting rule (first press: rule 0) |
+| p   | previous saved interesting rule (first press: last rule) |
+
+The `n`/`p` cycle includes one extra slot holding the unsaved rule that was
+running before browsing began: stepping past the last saved rule (or back
+from rule 0) returns to it. Pressing `r` or `m` makes the new rule occupy
+that unsaved slot and repositions the cycle on it.
 | i   | initialize all cells to random contents      |
 | +   | speed up (halve the delay between generations) |
 | -   | slow down (double the delay between generations) |

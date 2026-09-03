@@ -15,6 +15,10 @@ Controls:
     m   mutate the rule: change one randomly chosen entry to a new state
     u   undo the last rule change (r or m); repeatable
     s   save the current rule to interesting-rules.txt
+    n   next saved interesting rule (first press selects rule 0); stepping
+        past the last saved rule returns to the unsaved rule
+    p   previous saved interesting rule (first press selects the last rule);
+        stepping back from rule 0 returns to the unsaved rule
     i   initialize all cells to random contents
     +   speed up (halve the delay between generations)
     -   slow down (double the delay between generations)
@@ -30,6 +34,7 @@ from .search import CandidateSearch
 from .store import (
     append_interesting,
     load_candidates,
+    load_interesting,
     load_rule,
     save_candidates,
     save_rule,
@@ -91,6 +96,10 @@ class Viewer:
         self.delay = INITIAL_DELAY
         self.palette = COLOR_SETS[DEFAULT_COLOR_SET]
         self.undo_stack = []
+        # The saved rules form a cycle with one extra slot for the "unsaved"
+        # rule — the one running before browsing began. index None = on it.
+        self.interesting_index = None
+        self.unsaved_rule = rule
         self.candidates = load_candidates()
         self.search = CandidateSearch()
         self._push(self.automaton.cells)
@@ -128,15 +137,44 @@ class Viewer:
             rule, tries = find_candidate(self.automaton.rng)
             if tries > 1:
                 print(f"discarded {tries - 1} rule{'s' if tries > 2 else ''}")
+        self._set_unsaved_rule(rule)
+
+    def _set_unsaved_rule(self, rule):
+        """Make `rule` current and the occupant of the cycle's unsaved slot."""
+        self.unsaved_rule = rule
+        self.interesting_index = None
         self._set_rule(rule)
 
     def mutate_rule(self):
         self.undo_stack.append(self.automaton.rule)
-        self._set_rule(self.automaton.rule.mutated(self.automaton.rng))
+        self._set_unsaved_rule(self.automaton.rule.mutated(self.automaton.rng))
 
     def undo(self):
         if self.undo_stack:
             self._set_rule(self.undo_stack.pop())
+
+    def select_interesting(self, step):
+        """Cycle through the saved rules plus the unsaved slot.
+
+        The cycle is [saved rule 0 .. n-1, unsaved rule]; index None means
+        the unsaved slot, so from it 'n' selects rule 0 and 'p' rule n-1.
+        """
+        rules = load_interesting()
+        if not rules:
+            print("no saved interesting rules")
+            return
+        n = len(rules)
+        at = n if self.interesting_index is None else self.interesting_index
+        to = (at + step) % (n + 1)
+        self.undo_stack.append(self.automaton.rule)
+        if to == n:
+            self.interesting_index = None
+            print("unsaved rule")
+            self._set_rule(self.unsaved_rule)
+        else:
+            self.interesting_index = to
+            print(f"interesting {to + 1}/{n}")
+            self._set_rule(rules[to])
 
     def init_cells(self):
         self.automaton.reset("random")
@@ -154,6 +192,10 @@ class Viewer:
         elif key == pygame.K_s:
             append_interesting(self.automaton.rule)
             print(f"saved rule {self.automaton.rule.id}")
+        elif key == pygame.K_n:
+            self.select_interesting(1)
+        elif key == pygame.K_p:
+            self.select_interesting(-1)
         elif key == pygame.K_i:
             self.init_cells()
         elif key in (pygame.K_PLUS, pygame.K_EQUALS, pygame.K_KP_PLUS):

@@ -29,6 +29,23 @@ def append_interesting(rule, path=INTERESTING_PATH):
         f.write(f"rule {rule.id}\n")
 
 
+def load_interesting(path=INTERESTING_PATH):
+    """Return the Rules in the keeper file, in order, skipping invalid lines."""
+    try:
+        lines = Path(path).read_text().splitlines()
+    except OSError:
+        return []
+    rules = []
+    for line in lines:
+        parts = line.split()
+        if len(parts) == 2 and parts[0] == "rule":
+            try:
+                rules.append(Rule.from_id(parts[1]))
+            except ValueError:
+                pass
+    return rules
+
+
 def load_candidates(path=CANDIDATES_PATH):
     """Return the saved candidate Rules, skipping any invalid lines."""
     try:

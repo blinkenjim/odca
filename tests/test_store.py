@@ -1,7 +1,7 @@
 import numpy as np
 
 from odca.automaton import Rule
-from odca.store import append_interesting, load_rule, save_rule
+from odca.store import append_interesting, load_interesting, load_rule, save_rule
 
 
 def test_save_and_load_round_trip(tmp_path):
@@ -27,6 +27,26 @@ def test_append_interesting_appends_in_keeper_format(tmp_path):
     rule = Rule.random(np.random.default_rng(6))
     append_interesting(rule, path)
     assert path.read_text() == f"rule 00000000000000000000\nrule {rule.id}\n"
+
+
+def test_load_interesting_round_trip(tmp_path):
+    path = tmp_path / "interesting-rules.txt"
+    rng = np.random.default_rng(7)
+    rules = [Rule.random(rng) for _ in range(3)]
+    for rule in rules:
+        append_interesting(rule, path)
+    assert load_interesting(path) == rules
+
+
+def test_load_interesting_skips_invalid_lines(tmp_path):
+    path = tmp_path / "interesting-rules.txt"
+    rule = Rule.random(np.random.default_rng(8))
+    path.write_text(f"# comment\nrule notarule\nrule {rule.id}\nstray line\n")
+    assert load_interesting(path) == [rule]
+
+
+def test_load_interesting_missing_file(tmp_path):
+    assert load_interesting(tmp_path / "nope") == []
 
 
 def test_save_overwrites_previous(tmp_path):
