@@ -11,8 +11,9 @@ import pytest
 
 from odca.automaton import COUNT_VECTORS, Automaton, Rule
 
+# Repo root (two levels above python/tests/) holds the shared vectors file.
 VECTORS = json.loads(
-    (Path(__file__).resolve().parent.parent / "conformance" / "vectors.json")
+    (Path(__file__).resolve().parent.parent.parent / "conformance" / "vectors.json")
     .read_text()
 )
 

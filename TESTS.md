@@ -49,8 +49,8 @@ note the reason in this file's history.
 **Runner contract.** Each implementation provides a runner that loads the
 file, executes every case (no skips), and fails with the case `name` on
 any mismatch, exiting nonzero. The runner should be part of the
-implementation's normal test suite. Reference: `tests/test_conformance.py`
-(Python, ~50 lines).
+implementation's normal test suite. Reference:
+`python/tests/test_conformance.py` (~50 lines).
 
 Coverage: R-M1–R-M9 (engine), including permutation invariance (paired
 reversed-row cases) and both edge modes.

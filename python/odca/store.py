@@ -6,7 +6,11 @@ from .automaton import Rule
 
 DEFAULT_PATH = Path.home() / ".odca" / "rule"
 CANDIDATES_PATH = Path.home() / ".odca" / "candidates"
-INTERESTING_PATH = Path(__file__).resolve().parent.parent / "interesting-rules.txt"
+# Repository root: python/odca/store.py -> python/odca -> python -> root.
+# The keeper file is shared by all implementations (R-P3).
+INTERESTING_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "interesting-rules.txt"
+)
 
 
 def load_rule(path=DEFAULT_PATH):

@@ -10,34 +10,39 @@ not on which cell holds which state. There are 20 possible count vectors, so
 a rule is a table of 20 next states: a rule space of 4²⁰ ≈ 1.1 trillion.
 
 A rule's shareable ID is its 20 next-states as base-4 digits. The lookup
-keeps the original's summing trick: states weighted 0, 1, 4, 16 make the
-plain neighborhood sum a unique index into the rule table.
+keeps the original's summing trick: weighted states make the plain
+neighborhood sum a unique index into the rule table.
 
-## Setup
+## Repository layout
 
-```sh
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
+This is a monorepo: the specification and conformance data live at the
+root and are shared by every implementation; each implementation lives in
+its own directory.
 
-## Run
+| path | contents |
+|------|----------|
+| `REQTS.md` | language-independent requirements — the program can be re-created from this document alone |
+| `TESTS.md` | normative test plan for all implementations |
+| `conformance/vectors.json` | golden engine vectors every implementation must pass |
+| `interesting-rules.txt` | the shared collection of saved rules (`rule <id>` per line) |
+| `python/` | the reference implementation (Python + pygame); see `python/README.md` |
+| `REQ-python.md` | implementation notes for the Python version |
 
-```sh
-.venv/bin/python -m odca
-```
+Planned: `swift/` (SwiftUI), `cpp/`.
+
+## Using the program
 
 On startup the program loads its previous rule (from `~/.odca/rule`, random
 on first run) and initializes all cells to random contents. Rule IDs are
-printed to the terminal at startup and whenever a new random rule is
-generated, so you can note down and revisit interesting ones.
+printed to the terminal at startup and whenever the rule changes.
 
 While the program runs, worker processes on all spare cores continuously
-generate and screen random rules; maybe-Class-IV finds are stashed so `r`
-answers instantly. The stash (up to 64 rules) persists across runs in
-`~/.odca/candidates`; once it is full the workers idle until you consume
-candidates.
+generate and screen random rules for possible Wolfram Class IV behavior;
+finds are stashed (up to 64, persisted in `~/.odca/candidates`) so `r`
+answers instantly. Once the stash is full the workers idle until you
+consume candidates.
 
-## Controls
+### Controls
 
 | Key | Action                                       |
 |-----|----------------------------------------------|
@@ -47,32 +52,18 @@ candidates.
 | s   | save the current rule to interesting-rules.txt |
 | n   | next saved interesting rule (first press: rule 0) |
 | p   | previous saved interesting rule (first press: last rule) |
-
-The `n`/`p` cycle includes one extra slot holding the unsaved rule that was
-running before browsing began: stepping past the last saved rule (or back
-from rule 0) returns to it. Pressing `r` or `m` makes the new rule occupy
-that unsaved slot and repositions the cycle on it.
 | i   | initialize all cells to random contents      |
 | +   | speed up (halve the delay between generations) |
 | -   | slow down (double the delay between generations) |
 | 0-9 | select a color set                           |
 | q   | quit                                         |
 
+The `n`/`p` cycle includes one extra slot holding the unsaved rule that was
+running before browsing began: stepping past the last saved rule (or back
+from rule 0) returns to it. Pressing `r` or `m` makes the new rule occupy
+that unsaved slot and repositions the cycle on it.
+
 Color sets: **0** is CoCo color set 0 (green, yellow, blue, red), **1** is
 CoCo color set 1 (buff, cyan, magenta, orange), **2** is the default set
 (near-black, off-white, amber, blue). Keys 3–9 are reserved for color sets
 yet to be chosen.
-
-## Tests
-
-```sh
-.venv/bin/python -m pytest
-```
-
-## Documentation
-
-- `REQTS.md` — language-independent requirements: the program can be
-  re-created from scratch from this document alone
-- `TESTS.md` — normative test plan; `conformance/vectors.json` holds the
-  golden engine vectors every implementation must pass
-- `REQ-python.md` — notes specific to this Python implementation

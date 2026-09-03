@@ -231,9 +231,9 @@ line, oldest first — the persisted form of the candidate stash (R-S4).
 Rewritten whenever the stash changes; read at startup. Invalid lines are
 skipped.
 
-**R-P3 (keeper file).** File `interesting-rules.txt` in the project root
-(the directory containing the program's source; an implementation may
-document a different fixed, user-visible location). Each saved rule is a
+**R-P3 (keeper file).** File `interesting-rules.txt` in the repository
+root, shared by all implementations (each must document how it anchors
+this path). Each saved rule is a
 line of the form `rule <id>`. `s` appends; the file is never otherwise
 modified by the program, and users may hand-edit it. Readers must ignore
 any line that is not exactly `rule` + whitespace + a valid rule ID, so

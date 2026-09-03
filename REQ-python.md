@@ -9,9 +9,11 @@ copy these choices, but they are known to work.
 ## Environment
 
 - Python ≥ 3.9 on macOS or Linux; dependencies: `numpy`, `pygame`,
-  `pytest` (see `requirements.txt`).
-- Setup: `python3 -m venv .venv && .venv/bin/pip install -r
-  requirements.txt`; run with `.venv/bin/python -m odca`.
+  `pytest` (see `python/requirements.txt`).
+- The implementation lives in the `python/` directory of the monorepo;
+  run all commands from there. Setup: `python3 -m venv .venv &&
+  .venv/bin/pip install -r requirements.txt`; run with
+  `.venv/bin/python -m odca`.
 
 ## Layout
 
@@ -23,6 +25,8 @@ copy these choices, but they are known to work.
 | `odca/store.py` | persistence paths and load/save/append (R-P) |
 | `odca/viewer.py` | pygame UI: display, keys, timing, cycle (R-U/K/B/O) |
 | `odca/__main__.py` | entry point (R-U1) |
+
+(Paths are relative to `python/`.)
 
 ## Implementation choices
 
@@ -54,6 +58,10 @@ copy these choices, but they are known to work.
   `K_KP_MINUS` (R-K8).
 - **RNG** (R-N1): `numpy.random.default_rng()` (PCG64). Worker processes
   seed from OS entropy so their streams differ.
+- **Keeper-file anchor** (R-P3): `store.INTERESTING_PATH` resolves three
+  levels up from `store.py` to the repository root, where
+  `interesting-rules.txt` is shared by all implementations. Every port
+  must make an equivalent anchoring decision.
 
 ## Testing notes (see TESTS.md for the normative plan)
 
