@@ -14,6 +14,7 @@ Controls:
         are discarded and regenerated until a maybe-Class-IV rule passes
     m   mutate the rule: change one randomly chosen entry to a new state
     u   undo the last rule change (r or m); repeatable
+    s   save the current rule to interesting-rules.txt
     i   initialize all cells to random contents
     +   speed up (halve the delay between generations)
     -   slow down (double the delay between generations)
@@ -26,7 +27,13 @@ import pygame
 from .automaton import Automaton, Rule
 from .classify import find_candidate
 from .search import CandidateSearch
-from .store import load_candidates, load_rule, save_candidates, save_rule
+from .store import (
+    append_interesting,
+    load_candidates,
+    load_rule,
+    save_candidates,
+    save_rule,
+)
 
 # Color sets, bound to the number keys; each maps states 0-3 to RGB, with
 # state 0 as the background. None = not chosen yet. CoCo colors follow the
@@ -144,6 +151,9 @@ class Viewer:
             self.mutate_rule()
         elif key == pygame.K_u:
             self.undo()
+        elif key == pygame.K_s:
+            append_interesting(self.automaton.rule)
+            print(f"saved rule {self.automaton.rule.id}")
         elif key == pygame.K_i:
             self.init_cells()
         elif key in (pygame.K_PLUS, pygame.K_EQUALS, pygame.K_KP_PLUS):

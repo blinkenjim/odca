@@ -44,6 +44,7 @@ candidates.
 | r   | new random rule, screened for maybe-Class-IV behavior (ID printed) |
 | m   | mutate the rule: one entry changes to a new state |
 | u   | undo the last rule change (repeatable)       |
+| s   | save the current rule to interesting-rules.txt |
 | i   | initialize all cells to random contents      |
 | +   | speed up (halve the delay between generations) |
 | -   | slow down (double the delay between generations) |

@@ -44,6 +44,7 @@ class CandidateSearch:
         ]
 
     def start(self):
+        self._started = True
         for p in self._processes:
             p.start()
 
@@ -58,6 +59,8 @@ class CandidateSearch:
 
     def stop(self):
         self._stop.set()
+        if not getattr(self, "_started", False):
+            return
         for p in self._processes:
             p.join(timeout=1.0)
         for p in self._processes:
