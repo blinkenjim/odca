@@ -68,3 +68,11 @@ yet to be chosen.
 ```sh
 .venv/bin/python -m pytest
 ```
+
+## Documentation
+
+- `REQTS.md` — language-independent requirements: the program can be
+  re-created from scratch from this document alone
+- `TESTS.md` — normative test plan; `conformance/vectors.json` holds the
+  golden engine vectors every implementation must pass
+- `REQ-python.md` — notes specific to this Python implementation
