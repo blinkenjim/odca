@@ -1,7 +1,7 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-04):** Python 2.13.0 and Swift 2.14.0 have feature
-parity (auto-init is now on by default) (the Swift catch-up ported auto-init with all detectors and
+**YOU ARE HERE (2026-09-04):** Python 2.15.0 and Swift 2.16.0 have feature
+parity (auto-init on by default; continuous scrolling below 30 gen/s) (the Swift catch-up ported auto-init with all detectors and
 Brent's, paused 's' and the screen counter, and file-backed color sets
 with c/C/S). Next: (a) audition all 45 palettes (colorsets/audition.png)
 and finalize the slots; (b) the vision items below, starting with the

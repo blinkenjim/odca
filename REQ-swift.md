@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.14.0 — 2026-09-04 (feature parity with Python 2.13.0)
+Version 2.16.0 — 2026-09-04 (feature parity with Python 2.15.0)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -29,9 +29,11 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   parallelism. The bounded hand-off queue is an `NSCondition`-based
   `BoundedQueue` (capacity 32); workers block on `put` when full (R-S2)
   with a 0.25 s timeout so they notice the stop flag (R-S5).
-- **Rendering**: `Session.history` → RGBA byte buffer → `CGImage` once per
-  frame, displayed via SwiftUI `Image` with `.interpolation(.none)` for
-  crisp cells. No per-cell views.
+- **Rendering**: `Session.history` (rows + 1 rows) → RGBA byte buffer →
+  `CGImage` once per frame, displayed via SwiftUI `Image` with
+  `.interpolation(.none)` for crisp cells, one row taller than the window
+  and offset by `-scrollOffset * cellSize` inside a clipped frame (R-U3).
+  No per-cell views.
 - **Keyboard**: an `NSEvent.addLocalMonitorForEvents(.keyDown)` monitor
   (reliable regardless of focus within the window); Command-modified keys
   pass through to the system. Keypad Enter/+/− map like their main-row

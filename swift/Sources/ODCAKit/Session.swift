@@ -32,6 +32,7 @@ public final class Session {
     public static let maxDelay = 8.0
     public static let maxCandidates = 64  // R-S3
     public static let stepCap = 2000  // per-tick catch-up cap (R-U5)
+    public static let smoothScrollDelay = 2 * Session.initialDelay  // slower: continuous scrolling (R-U3)
     public static let screenSpeedup = 8.0  // paused 's' zips at delay / 8 (R-K13)
     public static let repeatScreens = 10  // repetition window in screens (R-A1)
     public static let minorityFraction = 0.10  // a producible state below this share is a minority (R-A1)
@@ -63,7 +64,8 @@ public final class Session {
     public let cols: Int
     public let rows: Int
     public private(set) var automaton: Automaton
-    /// The most recent generations, oldest first, at most `rows` entries.
+    /// The most recent generations, oldest first, at most `rows + 1` entries:
+    /// one more than the display, so continuous scrolling has a row to slide in.
     public private(set) var history: [[UInt8]] = []
     public private(set) var delay = Session.initialDelay
     public private(set) var paused = false
@@ -84,6 +86,7 @@ public final class Session {
     let search: CandidateSearch
     var rng: Xoshiro256
     private var accumulated = 0.0
+    private var zipAccumulated = 0.0
     private var counted = 0  // generations since the screen counter started
     private var arrangement: [Int: Int] = [:]  // slot -> index into arrangements
 
@@ -138,7 +141,17 @@ public final class Session {
 
     private func pushRow(_ row: [UInt8]) {
         history.append(row)
-        if history.count > rows { history.removeFirst() }
+        if history.count > rows + 1 { history.removeFirst() }
+    }
+
+    /// How far the display is scrolled into the top history row, in cells
+    /// (R-U3): 0 while the buffer is filling; 1 (newest row fully shown) when
+    /// paused or at fast speeds; else the elapsed fraction of the current
+    /// delay, so the picture slides up one cell per delay.
+    public var scrollOffset: Double {
+        if history.count <= rows { return 0 }
+        if paused || delay <= Session.smoothScrollDelay { return 1 }
+        return min(accumulated / delay, 1)
     }
 
     // MARK: - Colors (R-U4, R-K15, R-K16)
@@ -270,20 +283,21 @@ public final class Session {
     /// Advance by elapsed wall-clock time (R-U5); call at ~60 Hz.
     public func tick(_ dt: Double) {
         drainSearch()
-        accumulated += dt
         if paused {
-            if screenRemaining > 0 {  // R-K13: zip a queued screenful
+            // The main accumulator is frozen while paused (no catch-up burst,
+            // R-K10); a queued screenful (R-K13) paces on its own accumulator.
+            if screenRemaining > 0 {
+                zipAccumulated += dt
                 let fast = delay / Session.screenSpeedup
-                let steps = min(Int(accumulated / fast), screenRemaining, Session.stepCap)
-                accumulated -= Double(steps) * fast
+                let steps = min(Int(zipAccumulated / fast), screenRemaining, Session.stepCap)
+                zipAccumulated -= Double(steps) * fast
                 for _ in 0..<steps { advance() }
                 screenRemaining -= steps
             }
-            if screenRemaining == 0 {
-                accumulated = 0  // no catch-up burst on resume (R-K10)
-            }
+            if screenRemaining == 0 { zipAccumulated = 0 }
             return
         }
+        accumulated += dt
         let steps = Int(accumulated / delay)
         accumulated -= Double(steps) * delay
         for _ in 0..<min(steps, Session.stepCap) { advance() }
@@ -387,6 +401,10 @@ public final class Session {
                 screenRemaining = 0
                 screenCounter = 0  // R-K14: resume (re)starts the screen counter
                 counted = 0
+                // Resume seamlessly: the paused view shows the newest row fully
+                // (offset 1); start at the next generation so the first tick
+                // computes it and the picture does not jump.
+                accumulated = delay
             case .ret:
                 advance()  // R-K11: single step, stay paused
             case .s:

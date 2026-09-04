@@ -14,6 +14,7 @@ final class ViewerModel: ObservableObject {
 
     let session: Session
     @Published var frame: CGImage?
+    @Published var scrollOffset = 0.0  // cells, see Session.scrollOffset (R-U3)
     @Published var title = "ODCA"
 
     private var timer: Timer?
@@ -52,14 +53,16 @@ final class ViewerModel: ObservableObject {
         lastTick = now
         session.tick(dt)
         frame = renderImage()
+        scrollOffset = session.scrollOffset
         title = "ODCA — rule \(session.ruleID)"  // R-U6
     }
 
-    /// R-U3: filled rows from the top, newest at the bottom of the filled
-    /// region, state-0 background below until the buffer fills.
+    /// R-U3: the image is one row taller than the window (rows + 1); the
+    /// view scrolls it up by scrollOffset cells. Filled rows from the top,
+    /// state-0 background below until the buffer fills.
     private func renderImage() -> CGImage? {
         let cols = Self.cols
-        let rows = Self.rows
+        let rows = Self.rows + 1
         let palette = session.palette  // arranged colors of the active set (R-U4)
         let background = palette[0]
         var pixels = [UInt8](repeating: 0, count: rows * cols * 4)

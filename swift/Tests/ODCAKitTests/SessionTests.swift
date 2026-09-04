@@ -180,10 +180,12 @@ final class SessionTests: XCTestCase {
         session2.tick(1.0)
         XCTAssertEqual(session2.automaton.generation, g0 + 60)
         _ = session2.handleKey(.space)
-        session2.tick(5.0)
+        session2.tick(5.0)  // paused: time discarded
         _ = session2.handleKey(.space)
+        session2.tick(0.0)  // resume computes exactly one generation, seamlessly (R-K10)
+        XCTAssertEqual(session2.automaton.generation, g0 + 61)
         session2.tick(0.0)
-        XCTAssertEqual(session2.automaton.generation, g0 + 60)
+        XCTAssertEqual(session2.automaton.generation, g0 + 61)
     }
 
     // MARK: PT-15..PT-17 auto-init
@@ -367,7 +369,8 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.space)
         _ = session.handleKey(.space)
         XCTAssertEqual(session.screenCounter, 0)
-        session.tick(session.delay * Double(session.rows - 1))
+        session.tick(0.0)  // the seamless-resume generation (R-K10)
+        session.tick(session.delay * Double(session.rows - 2))
         XCTAssertEqual(session.screenCounter, 0)
         session.tick(session.delay * 1.5)
         XCTAssertEqual(session.screenCounter, 1)
@@ -439,5 +442,33 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.space)
         _ = session.handleKey(.C)  // live while paused too
         XCTAssertTrue(lines.take().contains("arrangement 23/24"))
+    }
+
+    // MARK: PT-25 continuous scrolling (R-U3)
+
+    func testScrollOffsetSemantics() throws {
+        let session = makeSession(try makeStore())
+        _ = session.handleKey(.a)  // keep auto-init from re-seeding during the test
+        XCTAssertEqual(session.scrollOffset, 0)  // filling
+        session.tick(session.delay * Double(session.rows))
+        XCTAssertEqual(session.history.count, session.rows + 1)
+        XCTAssertEqual(session.scrollOffset, 1)  // default speed: discrete
+        _ = session.handleKey(.minus)
+        _ = session.handleKey(.minus)  // 4x the delay: continuous
+        XCTAssertGreaterThan(session.delay, Session.smoothScrollDelay)
+        session.tick(session.delay * 0.25)
+        XCTAssertEqual(session.scrollOffset, 0.25, accuracy: 1e-9)
+        session.tick(session.delay * 0.5)
+        XCTAssertEqual(session.scrollOffset, 0.75, accuracy: 1e-9)
+        let g = session.automaton.generation
+        session.tick(session.delay * 0.3)  // crosses a generation: wraps
+        XCTAssertEqual(session.automaton.generation, g + 1)
+        XCTAssertEqual(session.scrollOffset, 0.05, accuracy: 1e-9)
+        _ = session.handleKey(.space)
+        XCTAssertEqual(session.scrollOffset, 1)  // paused: newest row fully shown
+        _ = session.handleKey(.space)
+        session.tick(0.0)  // seamless resume
+        XCTAssertEqual(session.automaton.generation, g + 2)
+        XCTAssertEqual(session.scrollOffset, 0)
     }
 }
