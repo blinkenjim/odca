@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.0.0 — 2026-09-03
+Version 2.3.0 — 2026-09-03
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -80,6 +80,9 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-12 | R-S2, R-S3 | Candidates delivered by workers are valid rules; the stash never exceeds its cap. |
 | PT-13 | R-K10 | While paused, every command key except space, Return, and `q` is a no-op (rule, cells, speed, palette, and cycle state unchanged); space resumes; `q` still quits. |
 | PT-14 | R-K11 | While paused, Return advances the automaton exactly one generation per press and the program stays paused; when not paused, Return changes nothing. |
+| PT-15 | R-K12, R-A2 | With auto-init on and a rule whose rows repeat (e.g. the all-zero rule), the cells are re-initialized exactly when the `rows`-th consecutive boring generation is computed (generation counter returns to 0, reason `repeating` printed); with the mode off, nothing happens. |
+| PT-16 | R-A1, R-A2 | With a rule under which a producible state dies out, the re-initialization reason names that state as extinct. |
+| PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is off at startup. |
 
 ---
 

@@ -1,10 +1,11 @@
 # ODCA — Requirements
 
-Version 2.0.0 — 2026-09-03
+Version 2.3.0 — 2026-09-03
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
-the arrival of the Swift implementation; no behavioral change from 1.3.)
+the arrival of the Swift implementation; no behavioral change from 1.3.
+2.3.0: auto-initialization mode on `a` — R-K12, section 4a, R-O6.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -214,6 +215,10 @@ displays exactly one generation, and the program remains paused. When not
 paused, Return is ignored. Implementations should also accept keypad
 Enter.
 
+**R-K12 (`a` — auto-initialization).** Toggles auto-initialization mode
+(section 4a) and prints its new state (R-O6). The mode is off at startup
+and is not persisted.
+
 ---
 
 ## 4. The interesting-rule cycle (R-B)
@@ -242,6 +247,42 @@ selects saved rule n−1.
 
 **R-B4 (empty keeper file).** If no saved rules exist, `n` and `p` print a
 notice (R-O5) and change nothing.
+
+---
+
+## 4a. Auto-initialization (R-A)
+
+When enabled (R-K12), the program re-initializes the cells by itself once
+the automaton has become *uninteresting* — timed so that the last
+interesting row has just scrolled off the top of the display.
+
+**R-A1 (boring generation).** A computed generation is *boring* if either:
+- *extinction*: some state that the current rule can produce (i.e. that
+  appears among its 20 table entries) has zero cells in the row; or
+- *repetition*: the row is identical to a row produced within the
+  previous `rows` generations (the display height, R-U2) — the automaton
+  has died or entered a cycle of period at most `rows`.
+Generations are classified whenever they are computed, whether by timed
+evolution (R-U5) or single step (R-K11); the seed row itself is not
+classified.
+
+**R-A2 (trigger).** When the mode is on and the most recent `rows`
+consecutive generations were all boring — the display shows nothing but
+boring rows — the program re-initializes every cell exactly as `i` does
+(R-K6) and prints the reason (R-O6). The reason is the extinction, when
+present, else the repetition.
+
+**R-A3 (reset).** The consecutive-boring count and the repetition window
+reset on any rule change (R-B1) and on any re-initialization, manual or
+automatic; a non-boring generation resets the count. Consequently every
+new rule and every fresh seed gets a full screen of generations before it
+can be judged. The count is maintained whether or not the mode is on, so
+enabling the mode on an already-boring screen may trigger on the next
+generation.
+
+**R-A4 (interactions).** Nothing triggers while paused except through
+single steps, since no other generations are computed; the background
+search (R-S) is unaffected.
 
 ---
 
@@ -283,6 +324,10 @@ The program prints single-line, human-readable status to standard output:
   `interesting <i+1>/<n>`; selecting the unsaved slot: `unsaved rule`.
   Either precedes the R-O1 line.
 - **R-O5.** On `n`/`p` with no saved rules: `no saved interesting rules`.
+- **R-O6.** On `a`: `auto-init on` or `auto-init off`. On an automatic
+  re-initialization: `auto-init (<reason>)`, where reason is
+  `state <k> extinct` (or `states <k>, <l> extinct`, ascending) or
+  `repeating`; this precedes nothing else (cells change, the rule does not).
 
 ---
 

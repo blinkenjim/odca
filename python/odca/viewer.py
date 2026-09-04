@@ -33,6 +33,7 @@ FPS = 60  # display refresh rate; generation rate is governed by Session.delay
 
 _KEYS = {
     pygame.K_q: "q",
+    pygame.K_a: "a",
     pygame.K_r: "r",
     pygame.K_m: "m",
     pygame.K_u: "u",

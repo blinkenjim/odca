@@ -162,3 +162,71 @@ def test_undefined_color_set_ignored(make_store):  # R-K9
     assert s.color_set == 2
     s.handle_key("0")
     assert s.color_set == 0
+
+
+ALL_ZERO = Rule.from_id("0" * 20)
+# Every neighborhood -> 1 except three 3s -> 3: state 3 is producible but
+# any run of 3s shrinks from both ends each generation, so 3 dies out.
+KILLS_THREE = Rule([3] + [1] * 19)
+
+
+def test_auto_init_fires_when_screen_is_boring(make_store, capsys):  # PT-15
+    s = make_session(make_store(current=ALL_ZERO))
+    assert s.auto_init is False  # off at startup (R-K12)
+    s.handle_key("a")
+    assert s.auto_init and "auto-init on" in capsys.readouterr().out
+    # gen 1 is the first all-zero row; gen 2 onward repeats it. The 16th
+    # consecutive boring generation is gen 17, which must trigger.
+    for _ in range(16):
+        s.tick(1 / 60)
+    assert s.automaton.generation == 16
+    s.tick(1 / 60)
+    assert s.automaton.generation == 0  # re-initialized
+    assert "auto-init (repeating)" in capsys.readouterr().out
+    assert s.rule == ALL_ZERO  # rule untouched
+
+
+def test_auto_init_off_does_nothing(make_store, capsys):  # PT-15
+    s = make_session(make_store(current=ALL_ZERO))
+    for _ in range(40):
+        s.tick(1 / 60)
+    assert s.automaton.generation == 40
+    assert "auto-init" not in capsys.readouterr().out
+
+
+def test_auto_init_reports_extinction(make_store, capsys):  # PT-16
+    s = make_session(make_store(current=KILLS_THREE))
+    s.handle_key("a")
+    fired = False
+    for _ in range(200):
+        before = s.automaton.generation
+        s.tick(1 / 60)
+        if s.automaton.generation < before:
+            fired = True
+            break
+    assert fired
+    assert "auto-init (state 3 extinct)" in capsys.readouterr().out
+
+
+def test_boring_count_resets_on_rule_change_and_toggle_prints(make_store, capsys):  # PT-17
+    s = make_session(make_store(current=ALL_ZERO))
+    for _ in range(10):
+        s.tick(1 / 60)
+    assert s._boring_streak > 0
+    s.handle_key("m")
+    assert s._boring_streak == 0
+    s.handle_key("a")
+    s.handle_key("a")
+    out = capsys.readouterr().out
+    assert "auto-init on" in out and "auto-init off" in out
+    assert s.auto_init is False
+
+
+def test_auto_init_via_single_step_while_paused(make_store, capsys):  # R-A4
+    s = make_session(make_store(current=ALL_ZERO))
+    s.handle_key("a")
+    s.handle_key(" ")
+    for _ in range(17):
+        s.handle_key("\n")
+    assert s.automaton.generation == 0 and s.paused
+    assert "auto-init (repeating)" in capsys.readouterr().out

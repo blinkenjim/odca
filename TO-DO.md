@@ -4,7 +4,7 @@
 - [ ] Hold-to-run: while paused, holding the Return key resumes the
       animation at a slow rate; releasing Return returns to the paused
       state (extends the single-step of R-K11)
-- [ ] Auto-reinitialize on "uninteresting" states: detect when the ODCA
+- [x] (2.3.0, key 'a'; the learn-from-'i' idea was dropped) Auto-reinitialize on "uninteresting" states: detect when the ODCA
       has gone uninteresting and re-initialize cell contents as if 'i'
       were pressed. Defining "uninteresting" is the tricky part; one
       approach is to learn from the user's own 'i' presses — infer over

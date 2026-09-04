@@ -26,15 +26,20 @@ Keys (single characters):
         is ignored
     '\\n' (Return) while paused: compute and display one generation
         (single step), remaining paused; ignored when not paused
+    a   toggle auto-init (off at startup): once every row on screen is
+        boring — a state the rule can produce has gone extinct, or the
+        rows are repeating — re-initialize the cells as 'i' does
 
 At startup, if the loaded rule matches a saved rule the cycle position
 points at it (so n/p step to its neighbors); otherwise the position is the
 unsaved slot, so the first n selects rule 0 and the first p the last rule.
 """
 
+from collections import Counter, deque
+
 import numpy as np
 
-from .automaton import Automaton, Rule
+from .automaton import N_STATES, Automaton, Rule
 from .classify import find_candidate
 from .search import CandidateSearch
 from .store import Store
@@ -72,6 +77,11 @@ class Session:
         self.color_set = DEFAULT_COLOR_SET
         self.undo_stack = []
         self._accumulated = 0.0
+        self.auto_init = False  # R-K12: off at startup, not persisted
+        self._boring_streak = 0
+        self._boring_reason = None
+        self._recent_rows = deque()  # row bytes of the last `rows` generations
+        self._recent_counts = Counter()
 
         # The saved rules form a cycle with one extra slot for the "unsaved"
         # rule — the one running before browsing began. index None = on it.
@@ -111,6 +121,49 @@ class Session:
             self.history[:-1] = self.history[1:]
             self.history[-1] = row
 
+    def _advance(self):
+        """Compute one generation, display it, and apply auto-init (R-A)."""
+        row = self.automaton.step()
+        self._push(row)
+        self._observe(row)
+        if self.auto_init and self._boring_streak >= self.rows:
+            reason = self._boring_reason
+            self.init_cells()
+            print(f"auto-init ({reason})")  # R-O6
+
+    def _observe(self, row):
+        """Classify a computed generation as boring or not (R-A1)."""
+        key = row.tobytes()
+        repeating = self._recent_counts[key] > 0
+        self._recent_rows.append(key)
+        self._recent_counts[key] += 1
+        if len(self._recent_rows) > self.rows:
+            old = self._recent_rows.popleft()
+            self._recent_counts[old] -= 1
+            if self._recent_counts[old] == 0:
+                del self._recent_counts[old]
+        census = np.bincount(row, minlength=N_STATES)
+        producible = sorted(set(int(s) for s in self.automaton.rule.states))
+        extinct = [s for s in producible if census[s] == 0]
+        if extinct:
+            plural = "s" if len(extinct) > 1 else ""
+            reason = f"state{plural} {', '.join(map(str, extinct))} extinct"
+        elif repeating:
+            reason = "repeating"
+        else:
+            reason = None
+        if reason is None:
+            self._boring_streak = 0
+        else:
+            self._boring_streak += 1
+        self._boring_reason = reason
+
+    def _reset_boredom(self):  # R-A3
+        self._boring_streak = 0
+        self._boring_reason = None
+        self._recent_rows.clear()
+        self._recent_counts.clear()
+
     def tick(self, dt):
         """Advance by elapsed wall-clock seconds (R-U5); call at ~60 Hz."""
         self._drain_search()
@@ -121,7 +174,7 @@ class Session:
         steps = int(self._accumulated / self.delay)
         self._accumulated -= steps * self.delay
         for _ in range(min(steps, STEP_CAP)):
-            self._push(self.automaton.step())
+            self._advance()
 
     def _drain_search(self):
         if len(self.candidates) < MAX_CANDIDATES:
@@ -133,6 +186,7 @@ class Session:
 
     def _set_rule(self, rule):
         self.automaton.rule = rule
+        self._reset_boredom()
         self.store.save_rule(rule)
         print(f"rule {rule.id}")  # R-O1
 
@@ -170,6 +224,7 @@ class Session:
     def init_cells(self):  # R-K6
         self.automaton.reset("random")
         self._push(self.automaton.cells)
+        self._reset_boredom()
 
     def select_interesting(self, step):  # R-B2, R-B3
         """Cycle through the saved rules plus the unsaved slot, if occupied.
@@ -205,7 +260,7 @@ class Session:
             if key == KEY_SPACE:
                 self.paused = False
             elif key == KEY_RETURN:
-                self._push(self.automaton.step())  # R-K11: single step, stay paused
+                self._advance()  # R-K11: single step, stay paused
             return True
         if key == KEY_SPACE:
             self.paused = True
@@ -223,6 +278,9 @@ class Session:
             self.select_interesting(-1)
         elif key == "i":
             self.init_cells()
+        elif key == "a":  # R-K12
+            self.auto_init = not self.auto_init
+            print(f"auto-init {'on' if self.auto_init else 'off'}")  # R-O6
         elif key == "+":
             self.delay = max(self.delay / 2, MIN_DELAY)
         elif key == "-":
