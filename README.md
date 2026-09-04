@@ -71,7 +71,9 @@ consume candidates.
 | +   | speed up (halve the delay between generations) |
 | -   | slow down (double the delay between generations) |
 | 0-9 | select a color set                           |
-| space | pause / resume (while paused, all keys but space, return, `s`, and `q` are ignored); resuming starts a screen counter that prints `screen N` after every screenful |
+| c   | cycle the current color set through its 24 color-to-state arrangements |
+| S   | save the current color set (with its arrangement) to colorsets/colorsets.json |
+| space | pause / resume (while paused, all keys but space, return, `s`, `c`, `S`, and `q` are ignored); resuming starts a screen counter that prints `screen N` after every screenful |
 | return | while paused: single-step one generation, staying paused |
 | a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; off at startup |
 | q   | quit                                         |
@@ -84,7 +86,8 @@ startup is itself a saved rule, the cycle starts positioned on it (and the
 unsaved slot stays empty until `r`/`m`), so `n` and `p` step to its
 neighbors rather than appearing to do nothing.
 
-Color sets: **0** is CoCo color set 0 (green, yellow, blue, red), **1** is
-CoCo color set 1 (buff, cyan, magenta, orange), **2** is the default set
-(near-black, off-white, amber, blue). Keys 3–9 are palettes from
-coolors.co: **3** Meadow Sunflower Glow; **4** Candy Floss Dreams; **5** Fiery Ice Cream Delight; **6** Golden Autumn Twilight; **7** Midnight Sun Dance; **8** Seaside Serenity; **9** Cherry Blossom Sky.
+Color sets are loaded from `colorsets/colorsets.json` (shared by every
+implementation). **1** is the default set (near-black, off-white, amber,
+blue), active at startup; the others are palettes from coolors.co: **0** Ocean Sunset Vibes; **2** Meadow Sunflower Glow; **3** Candy Floss Dreams; **4** Fiery Ice Cream Delight; **5** Golden Autumn Twilight; **6** Midnight Sun Dance; **7** Seaside Serenity; **8** Cherry Blossom Sky; **9** Cotton Candy Skies.
+`c` cycles the current set through the 24 ways of assigning its four
+colors to the four states; `S` saves the current arrangement to the file.

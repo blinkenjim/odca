@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.9.0 — 2026-09-04
+Version 2.11.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -11,7 +11,9 @@ still alive — R-A1. 2.3.2: stagnation detector — R-A1, R-O6. 2.5.0:
 paused `s` zips one screenful — R-K13. 2.5.1: screen counter started by
 resume — R-K14, R-O7. 2.5.2: repetition window widened to 10 screens —
 R-A1. 2.7.0: cycles of any period detected by Brent's algorithm — R-A1,
-R-O8. 2.9.0: color sets 3–9 defined — R-U4.)
+R-O8. 2.9.0: color sets 3–9 defined — R-U4. 2.11.0: color sets
+rearranged and file-backed, `c` arranges, `S` saves — R-U4, R-K9,
+R-K15, R-K16, R-P4, R-O9, R-O10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -139,26 +141,31 @@ buffer scrolls: the oldest visible row is discarded and the new row enters
 at the bottom. The initial (seed) generation is displayed.
 
 **R-U4 (colors).** Each state maps to an RGB color through the active
-*color set*; state 0 is the background. Ten color-set slots exist, bound to
-the digit keys `0`–`9`, all defined (selecting an undefined slot, should
-a slot ever be vacated, is a silent no-op):
+*color set*: four colors in state order, state 0 the background. Ten
+slots exist, bound to the digit keys `0`–`9`, loaded at startup from the
+shared color sets file (R-P4); a slot the file does not define is
+undefined, and selecting it is a silent no-op. Slot 1 is the built-in
+default, `ODCA default`, defined even without the file, and is active at
+startup. The file as shipped defines:
 
 | slot | name | state 0 | state 1 | state 2 | state 3 |
 |------|------|---------|---------|---------|---------|
-| 0 | CoCo set 0 | green `#07FF00` | yellow `#FFFF00` | blue `#3B08FF` | red `#CC003B` |
-| 1 | CoCo set 1 | buff `#FFFFFF` | cyan `#07E399` | magenta `#FF1CFF` | orange `#FF8100` |
-| 2 | default | near-black `#121218` | off-white `#EBEBE1` | amber `#FFA136` | blue `#409CFF` |
-| 3 | Meadow Sunflower Glow | `#D6E0A2` | `#F6F4D5` | `#CFDEC0` | `#E5A07F` |
-| 4 | Candy Floss Dreams | `#F2AAA1` | `#F9F3DF` | `#C4F0E6` | `#B7D8DF` |
-| 5 | Fiery Ice Cream Delight | `#102F47` | `#C53A32` | `#E78531` | `#F3C15F` |
-| 6 | Golden Autumn Twilight | `#4D9CB9` | `#112F45` | `#F4BA41` | `#EC8B33` |
-| 7 | Midnight Sun Dance | `#041523` | `#2E606B` | `#FCEDD4` | `#EE8432` |
-| 8 | Seaside Serenity | `#E8ECEF` | `#304B74` | `#6C95B7` | `#ACCDEE` |
-| 9 | Cherry Blossom Sky | `#2B2D40` | `#8F99AC` | `#EEF2F4` | `#DC3C44` |
+| 0 | Ocean Sunset Vibes | `#325379` | `#DD5471` | `#F8D377` | `#62D3A3` |
+| 1 | ODCA default | `#121218` | `#EBEBE1` | `#FFA136` | `#409CFF` |
+| 2 | Meadow Sunflower Glow | `#D6E0A2` | `#F6F4D5` | `#CFDEC0` | `#E5A07F` |
+| 3 | Candy Floss Dreams | `#F2AAA1` | `#F9F3DF` | `#C4F0E6` | `#B7D8DF` |
+| 4 | Fiery Ice Cream Delight | `#102F47` | `#C53A32` | `#E78531` | `#F3C15F` |
+| 5 | Golden Autumn Twilight | `#4D9CB9` | `#112F45` | `#F4BA41` | `#EC8B33` |
+| 6 | Midnight Sun Dance | `#041523` | `#2E606B` | `#FCEDD4` | `#EE8432` |
+| 7 | Seaside Serenity | `#E8ECEF` | `#304B74` | `#6C95B7` | `#ACCDEE` |
+| 8 | Cherry Blossom Sky | `#2B2D40` | `#8F99AC` | `#EEF2F4` | `#DC3C44` |
+| 9 | Cotton Candy Skies | `#8AD4FB` | `#EE79A5` | `#F19C78` | `#F8D87F` |
 
-Slot 2 is active at startup. (CoCo values are the customary MC6847 VDG
-approximations; slots 3–9 are palettes from coolors.co, recorded with
-their sources in `colorsets/`.)
+Slots 0 and 2–9 are palettes from coolors.co, recorded with their
+sources in `colorsets/`. The set active in a slot may be *arranged* — its
+four colors assigned to the states in any of the 4! = 24 orders — with
+`c` (R-K15); the arrangement is per slot, kept for the session, and
+written to the file by `S` (R-K16).
 
 **R-U5 (timing).** Generation pacing is governed by a *delay* — the
 nominal time between generations — independent of the display refresh:
@@ -215,13 +222,16 @@ random state. The rule, scroll buffer, and all other state are unchanged
 clamped to [1/16384 s, 8 s]. Implementations should also accept the
 unshifted equivalent of `+` (e.g. `=` on US layouts) and keypad `+`/`-`.
 
-**R-K9 (digits `0`–`9`).** Select the corresponding color set (R-U4).
+**R-K9 (digits `0`–`9`).** Select the corresponding color set (R-U4); an
+undefined slot is a silent no-op.
 
 **R-K10 (spacebar — pause).** The spacebar freezes the display animation:
 no further generations are computed or shown until the spacebar is pressed
 again, which resumes at the normal rate with no catch-up burst (elapsed
 pause time is discarded). While paused, every key except the spacebar,
-Return (R-K11), `s` (R-K13), and `q` is ignored; `q` quits normally. Pausing does not
+Return (R-K11), `s` (R-K13), `c` (R-K15), `S` (R-K16), and `q` is
+ignored (the digits do nothing while paused); `q` quits normally. `c` and
+`S` touch only colors, never computation, so they remain live. Pausing does not
 stop the background search (R-S).
 
 **R-K11 (Return — single step).** While paused, Return computes and
@@ -242,6 +252,16 @@ generations have been computed — by timed evolution, single step, or a
 zipped screenful — the counter increments and its value is printed
 (R-O7). Pausing does not stop or reset the counter; only the next resume
 resets it. Before the first resume of a run the counter is inactive.
+
+**R-K15 (`c` — arrange colors).** Advance the active color set to the next
+of its 24 arrangements — the assignments of its four colors to states 0–3
+in lexicographic order of state permutations, starting from the set as
+loaded — wrapping after the 24th, and print the position (R-O9). Each
+slot keeps its own arrangement for the session.
+
+**R-K16 (`S`, shift-s — save color set).** Replace the active slot's
+colors with its current arrangement (which becomes arrangement 1 of 24),
+write all color sets to the file (R-P4), and print confirmation (R-O10).
 
 **R-K12 (`a` — auto-initialization).** Toggles auto-initialization mode
 (section 4a) and prints its new state (R-O6). The mode is off at startup
@@ -366,6 +386,16 @@ comments and notes are permitted.
 
 ---
 
+**R-P4 (color sets file).** File `colorsets/colorsets.json` in the
+repository root, shared by all implementations. JSON: an object with a
+`sets` array; each element has `slot` (integer 0–9), `name` (string), and
+`colors` (four strings `#RRGGBB`, states 0–3). Readers must ignore
+malformed elements and treat a missing or unparseable file as defining no
+slots; the built-in default (R-U4) always fills slot 1 unless the file
+defines it. `S` rewrites the file with every defined slot, sorted by slot.
+
+---
+
 ## 6. Terminal output (R-O)
 
 The program prints single-line, human-readable status to standard output:
@@ -387,7 +417,9 @@ The program prints single-line, human-readable status to standard output:
   (R-K14): `screen <n>`.
 - **R-O8.** When Brent's algorithm first detects a cycle since the last
   reset (R-A3), whether or not auto-initialization is on:
-  `cycle period <n>`. this precedes nothing else (cells change, the rule does not).
+  `cycle period <n>`.
+- **R-O9.** On `c`: `color set <slot> arrangement <k>/24`, k from 1.
+- **R-O10.** On `S`: `saved color set <slot> <name>`. this precedes nothing else (cells change, the rule does not).
 
 ---
 

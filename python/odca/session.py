@@ -21,10 +21,14 @@ Keys (single characters):
     i   initialize all cells to random contents
     +   speed up (halve the delay between generations)
     -   slow down (double the delay between generations)
-    0-9 select a color set (0: CoCo set 0, 1: CoCo set 1, 2: default,
-        3-9: named palettes, see REQTS R-U4)
-    ' ' pause / resume; while paused every key but space, Return, and q
-        is ignored
+    0-9 select a color set (loaded from colorsets/colorsets.json; 1 is the
+        default at startup)
+    c   cycle the current color set through the 24 ways of assigning its
+        four colors to the four states (each slot remembers its arrangement)
+    S   save the current color set, with its current arrangement, to
+        colorsets/colorsets.json
+    ' ' pause / resume; while paused every key but space, Return, s, c,
+        S, and q is ignored
     '\\n' (Return) while paused: compute and display one generation
         (single step), remaining paused; ignored when not paused
     s   while paused: run one screenful of generations at one eighth the
@@ -47,6 +51,7 @@ unsaved slot, so the first n selects rule 0 and the first p the last rule.
 """
 
 from collections import Counter, deque
+from itertools import permutations
 
 import numpy as np
 
@@ -55,8 +60,8 @@ from .classify import find_candidate
 from .search import CandidateSearch
 from .store import Store
 
-DEFINED_COLOR_SETS = 10  # slots 0-9 (R-U4)
-DEFAULT_COLOR_SET = 2
+DEFAULT_COLOR_SET = 1  # slot active at startup (R-U4)
+ARRANGEMENTS = list(permutations(range(4)))  # the 24 ways to assign 4 colors to 4 states
 INITIAL_DELAY = 1 / 60  # seconds between generations (R-U5)
 MIN_DELAY = 1 / 16384  # R-K8
 MAX_DELAY = 8.0
@@ -93,7 +98,9 @@ class Session:
         self.screen_remaining = 0  # generations still to zip after a paused 's'
         self.screen_counter = None  # screenfuls since the last resume; None = inactive
         self._counted = 0  # generations since the counter started
+        self.color_sets = self.store.load_color_sets()  # slot -> {name, colors} (R-P4)
         self.color_set = DEFAULT_COLOR_SET
+        self._arrangement = {}  # slot -> index into ARRANGEMENTS (R-K15)
         self.undo_stack = []
         self._accumulated = 0.0
         self.auto_init = False  # R-K12: off at startup, not persisted
@@ -132,6 +139,29 @@ class Session:
     @property
     def rule_id(self):
         return self.automaton.rule.id
+
+    def _arranged_colors(self, slot):
+        base = self.color_sets[slot]["colors"]
+        return [base[i] for i in ARRANGEMENTS[self._arrangement.get(slot, 0)]]
+
+    @property
+    def palette(self):
+        """Current color set as four (r, g, b) tuples, states 0-3, arranged."""
+        return [tuple(int(c[j:j + 2], 16) for j in (1, 3, 5))
+                for c in self._arranged_colors(self.color_set)]
+
+    def cycle_colors(self):  # R-K15
+        slot = self.color_set
+        index = (self._arrangement.get(slot, 0) + 1) % len(ARRANGEMENTS)
+        self._arrangement[slot] = index
+        print(f"color set {slot} arrangement {index + 1}/{len(ARRANGEMENTS)}")  # R-O9
+
+    def save_color_set(self):  # R-K16
+        slot = self.color_set
+        self.color_sets[slot]["colors"] = self._arranged_colors(slot)
+        self._arrangement[slot] = 0
+        self.store.save_color_sets(self.color_sets)
+        print(f"saved color set {slot} {self.color_sets[slot]['name']}")  # R-O10
 
     def start_search(self):
         self.search.start()
@@ -333,7 +363,7 @@ class Session:
         """Apply a single-character key; return False when the program should quit."""
         if key == "q":
             return False
-        if self.paused:  # R-K10: only space, Return, s, q are live
+        if self.paused:  # R-K10: only space, Return, s, c, S, q are live
             if key == KEY_SPACE:
                 self.paused = False
                 self.screen_remaining = 0
@@ -343,6 +373,10 @@ class Session:
                 self._advance()  # R-K11: single step, stay paused
             elif key == "s":
                 self.screen_remaining += self.rows  # R-K13: queue a screenful
+            elif key == "c":
+                self.cycle_colors()  # colors only: no computation involved
+            elif key == "S":
+                self.save_color_set()
             return True
         if key == KEY_SPACE:
             self.paused = True
@@ -367,7 +401,11 @@ class Session:
             self.delay = max(self.delay / 2, MIN_DELAY)
         elif key == "-":
             self.delay = min(self.delay * 2, MAX_DELAY)
+        elif key == "c":
+            self.cycle_colors()
+        elif key == "S":
+            self.save_color_set()
         elif len(key) == 1 and key.isdigit():
-            if int(key) < DEFINED_COLOR_SETS:
+            if int(key) in self.color_sets:  # R-K9: undefined slot is a no-op
                 self.color_set = int(key)
         return True

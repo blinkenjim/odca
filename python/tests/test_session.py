@@ -21,6 +21,7 @@ def make_store(tmp_path):
         store = Store(
             state_dir=tmp_path / "state",
             keeper_file=tmp_path / "interesting-rules.txt",
+            colorsets_file=tmp_path / "colorsets.json",
         )
         for rule in saved:
             store.append_interesting(rule)
@@ -98,14 +99,19 @@ def test_pause_modality(make_store):  # PT-13
     s = make_session(make_store(saved=FOUR))
     s.handle_key(" ")
     assert s.paused
-    state = (s.rule, s.delay, s.color_set, s.interesting_index, list(s.automaton.cells))
-    for key in "rmusinp+-1":
+    state = (s.rule, s.delay, s.color_set, s.palette, s.interesting_index, list(s.automaton.cells))
+    for key in "rmuinp+-0":
         assert s.handle_key(key) is True
-    assert (s.rule, s.delay, s.color_set, s.interesting_index, list(s.automaton.cells)) == state
+    assert (s.rule, s.delay, s.color_set, s.palette, s.interesting_index, list(s.automaton.cells)) == state
+    palette = s.palette
+    s.handle_key("c")  # colors are live while paused (R-K10)
+    assert s.palette != palette
+    s.handle_key("S")
+    assert s.store.load_color_sets()[1]["colors"][2] == "#409CFF"  # saved the arrangement
     s.handle_key(" ")
     assert not s.paused
-    s.handle_key("1")
-    assert s.color_set == 1  # keys live again
+    s.handle_key("+")
+    assert s.delay == state[1] / 2  # keys live again
     s.handle_key(" ")
     assert s.handle_key("q") is False  # q still quits while paused
 
@@ -156,12 +162,52 @@ def test_init_cells_pushes_row(make_store):  # R-K6
     assert s.automaton.generation == 0
 
 
-def test_every_digit_selects_a_color_set(make_store):  # R-K9
-    s = make_session(make_store())
-    assert s.color_set == 2
+def test_default_only_when_no_color_sets_file(make_store):  # R-K9, R-P4
+    s = make_session(make_store())  # temp store: no colorsets.json
+    assert s.color_set == 1 and set(s.color_sets) == {1}
+    assert s.palette == [(0x12, 0x12, 0x18), (0xEB, 0xEB, 0xE1), (0xFF, 0xA1, 0x36), (0x40, 0x9C, 0xFF)]
+    s.handle_key("7")
+    assert s.color_set == 1  # undefined slot: no-op
+
+
+def test_color_sets_load_from_file(make_store):  # R-U4, R-P4
+    store = make_store()
+    store.save_color_sets({0: {"name": "Zero", "colors": ["#000000", "#111111", "#222222", "#333333"]},
+                           5: {"name": "Five", "colors": ["#AAAAAA", "#BBBBBB", "#CCCCCC", "#DDDDDD"]}})
+    s = make_session(store)
+    assert set(s.color_sets) == {0, 1, 5}  # file slots plus the built-in default
     for d in "0123456789":
+        before = s.color_set
         s.handle_key(d)
-        assert s.color_set == int(d)
+        assert s.color_set == (int(d) if int(d) in (0, 1, 5) else before)
+    s.handle_key("5")
+    assert s.palette[0] == (0xAA, 0xAA, 0xAA)
+
+
+def test_cycle_arrangements_and_save(make_store, capsys):  # PT-23, PT-24
+    from odca.session import ARRANGEMENTS
+    store = make_store()
+    base = ["#000000", "#111111", "#222222", "#333333"]
+    store.save_color_sets({3: {"name": "Three", "colors": base}})
+    s = make_session(store)
+    s.handle_key("3")
+    assert len(ARRANGEMENTS) == 24 and ARRANGEMENTS[0] == (0, 1, 2, 3)
+    s.handle_key("c")
+    assert s.palette == [(0, 0, 0), (0x11, 0x11, 0x11), (0x33, 0x33, 0x33), (0x22, 0x22, 0x22)]  # (0,1,3,2)
+    assert "color set 3 arrangement 2/24" in capsys.readouterr().out
+    for _ in range(23):
+        s.handle_key("c")
+    assert s.palette == [(0, 0, 0), (0x11, 0x11, 0x11), (0x22, 0x22, 0x22), (0x33, 0x33, 0x33)]  # wrapped
+    s.handle_key("c")
+    s.handle_key("1")  # switch away and back: arrangement remembered per slot
+    s.handle_key("3")
+    assert s.palette[2] == (0x33, 0x33, 0x33)
+    s.handle_key("S")
+    assert "saved color set 3 Three" in capsys.readouterr().out
+    assert store.load_color_sets()[3]["colors"] == ["#000000", "#111111", "#333333", "#222222"]
+    s.handle_key("c")  # arrangement index restarted from the saved base
+    assert "arrangement 2/24" in capsys.readouterr().out
+    assert s.palette == [(0, 0, 0), (0x11, 0x11, 0x11), (0x22, 0x22, 0x22), (0x33, 0x33, 0x33)]
 
 
 ALL_ZERO = Rule.from_id("0" * 20)

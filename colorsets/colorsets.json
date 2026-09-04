@@ -1,0 +1,104 @@
+{
+ "sets": [
+  {
+   "slot": 0,
+   "name": "Ocean Sunset Vibes",
+   "colors": [
+    "#325379",
+    "#DD5471",
+    "#F8D377",
+    "#62D3A3"
+   ]
+  },
+  {
+   "slot": 1,
+   "name": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "slot": 2,
+   "name": "Meadow Sunflower Glow",
+   "colors": [
+    "#D6E0A2",
+    "#F6F4D5",
+    "#CFDEC0",
+    "#E5A07F"
+   ]
+  },
+  {
+   "slot": 3,
+   "name": "Candy Floss Dreams",
+   "colors": [
+    "#F2AAA1",
+    "#F9F3DF",
+    "#C4F0E6",
+    "#B7D8DF"
+   ]
+  },
+  {
+   "slot": 4,
+   "name": "Fiery Ice Cream Delight",
+   "colors": [
+    "#102F47",
+    "#C53A32",
+    "#E78531",
+    "#F3C15F"
+   ]
+  },
+  {
+   "slot": 5,
+   "name": "Golden Autumn Twilight",
+   "colors": [
+    "#4D9CB9",
+    "#112F45",
+    "#F4BA41",
+    "#EC8B33"
+   ]
+  },
+  {
+   "slot": 6,
+   "name": "Midnight Sun Dance",
+   "colors": [
+    "#041523",
+    "#2E606B",
+    "#FCEDD4",
+    "#EE8432"
+   ]
+  },
+  {
+   "slot": 7,
+   "name": "Seaside Serenity",
+   "colors": [
+    "#E8ECEF",
+    "#304B74",
+    "#6C95B7",
+    "#ACCDEE"
+   ]
+  },
+  {
+   "slot": 8,
+   "name": "Cherry Blossom Sky",
+   "colors": [
+    "#2B2D40",
+    "#8F99AC",
+    "#EEF2F4",
+    "#DC3C44"
+   ]
+  },
+  {
+   "slot": 9,
+   "name": "Cotton Candy Skies",
+   "colors": [
+    "#8AD4FB",
+    "#EE79A5",
+    "#F19C78",
+    "#F8D87F"
+   ]
+  }
+ ]
+}

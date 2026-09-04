@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 2.9.0 — 2026-09-04
+Version 2.11.0 — 2026-09-04
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -67,6 +67,12 @@ copy these choices, but they are known to work.
   `K_KP_MINUS` (R-K8).
 - **RNG** (R-N1): `numpy.random.default_rng()` (PCG64). Worker processes
   seed from OS entropy so their streams differ.
+- **Color sets** (R-U4, R-P4): `Session` loads `{slot: {name, colors}}`
+  via `Store.load_color_sets` (anchored to `colorsets/colorsets.json` at
+  the repo root, injectable for tests) and exposes `Session.palette`, the
+  active set's four RGB tuples after arrangement; `viewer.py` builds its
+  numpy palette from that each frame. `map_key` takes the pygame key code
+  plus `event.unicode` so shift-s (`S`) is distinguishable from `s`.
 - **Keeper-file anchor** (R-P3): `store.INTERESTING_PATH` resolves three
   levels up from `store.py` to the repository root, where
   `interesting-rules.txt` is shared by all implementations. Every port

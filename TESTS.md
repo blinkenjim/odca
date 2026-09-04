@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.9.0 — 2026-09-04
+Version 2.11.0 — 2026-09-04
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -78,7 +78,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-10a | R-U1, R-B3 | With a startup rule equal to saved rule j: the cycle position starts at j (`n` selects j+1, `p` selects j−1), the cycle wraps over the k saved rules with no unsaved slot, and the unsaved slot reappears holding the new rule after `m`/`r`. |
 | PT-11 | R-S5 | Stopping a background search that was started terminates all workers; stopping one never started is safe. |
 | PT-12 | R-S2, R-S3 | Candidates delivered by workers are valid rules; the stash never exceeds its cap. |
-| PT-13 | R-K10 | While paused, every command key except space, Return, and `q` is a no-op (rule, cells, speed, palette, and cycle state unchanged); space resumes; `q` still quits. |
+| PT-13 | R-K10 | While paused, every command key except space, Return, `s`, `c`, `S`, and `q` is a no-op (rule, cells, speed, palette slot, and cycle state unchanged), while `c` re-arranges colors and `S` saves; space resumes; `q` still quits. |
 | PT-14 | R-K11 | While paused, Return advances the automaton exactly one generation per press and the program stays paused; when not paused, Return changes nothing. |
 | PT-15 | R-K12, R-A2 | With auto-init on and a rule whose rows repeat (e.g. the all-zero rule), the cells are re-initialized exactly when the `rows`-th consecutive boring generation is computed (generation counter returns to 0, reason `repeating` printed); with the mode off, nothing happens. |
 | PT-16 | R-A1, R-A2 | With a rule under which a producible state dies out, the re-initialization reason names that state as extinct. |
@@ -88,6 +88,8 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-20 | R-K14 | No counter before the first resume; resume sets it to 0; after exactly `rows` further generations it reads 1 and `screen 1` is printed; generations from running, zipped screenfuls, and single steps all count; a further resume restarts it at 0. |
 | PT-21 | R-A1 | A row recurring exactly 10 × `rows` generations after its first appearance is boring (`repeating`); one recurring 10 × `rows` + 1 generations later is not. |
 | PT-22 | R-A1, R-O8 | Feeding a transient followed by a cycle of distinct rows whose period exceeds the repetition window, the detected period equals the true period exactly, `cycle period <n>` is printed once, subsequent reasons read `repeating (period <n>)`, and a rule change clears the detector; a short cycle (period 7) is likewise detected exactly. |
+| PT-23 | R-K15, R-K9 | With a stubbed color sets file: `c` yields the next lexicographic arrangement (first press swaps states 2 and 3), 24 presses return to the original, the arrangement is remembered per slot across slot switches, an undefined slot's digit is a no-op, and without a file only slot 1 exists. |
+| PT-24 | R-K16, R-P4 | `S` writes the active slot's arranged colors to the file (reloading shows them), resets its arrangement to 1, and the file loader tolerates malformed entries, out-of-range slots, and unparseable files, always supplying slot 1. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is off at startup. |
 
 ---
@@ -105,7 +107,9 @@ from `REQTS.md`.
   walks back through every `r`/`m`/`n`/`p` change (R-K3, R-K4).
 - **M-4** `+`/`-` speed the scroll up and down across the full range; the
   UI stays responsive at maximum speed (R-K8, R-U5, R-N2).
-- **M-5** `0`–`9` each switch palettes instantly (R-K9, R-U4).
+- **M-5** `0`–`9` each switch palettes instantly; `c` visibly re-colors
+  the screen; `S` then a restart shows the arranged colors (R-K9, R-K15,
+  R-K16, R-U4).
 - **M-6** `s` then `n`/`p`: the saved rule is reachable in the cycle; the
   wrap-to-unsaved behavior matches R-B2/R-B3.
 - **M-7** With the stash full and the program idle, worker CPU usage falls

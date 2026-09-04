@@ -9,8 +9,8 @@ mechanics for auditioning all 45 palettes (colorsets/audition.png) and
 finalize slots 3–9; (c) finish the auto-init review of the remaining
 saved rules if any are unchecked.
 
-- [x] (2.9.0, provisionally: the first seven of colorsets/candidates.json;
-      revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
+- [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
+      sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
 - [ ] Hold-to-run: while paused, holding the Return key resumes the
       animation at a slow rate; releasing Return returns to the paused
       state (extends the single-step of R-K11)

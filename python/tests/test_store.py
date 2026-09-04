@@ -56,3 +56,20 @@ def test_save_overwrites_previous(tmp_path):
     save_rule(first, path)
     save_rule(second, path)
     assert load_rule(path) == second
+
+
+def test_color_sets_round_trip_and_tolerance(tmp_path):  # PT-24
+    from odca.store import load_color_sets, save_color_sets
+    path = tmp_path / "colorsets.json"
+    assert set(load_color_sets(path)) == {1}  # missing file: default only
+    sets = {0: {"name": "A", "colors": ["#010203", "#040506", "#070809", "#0A0B0C"]},
+            1: {"name": "Mine", "colors": ["#000000", "#FFFFFF", "#FF0000", "#0000FF"]}}
+    save_color_sets(sets, path)
+    assert load_color_sets(path) == sets  # file's slot 1 overrides the built-in
+    path.write_text('{"sets": [{"slot": 4, "name": "bad", "colors": ["#12"]}, '
+                    '{"slot": 12, "name": "x", "colors": ["#000000", "#000000", "#000000", "#000000"]}, '
+                    '{"slot": 7, "name": "ok", "colors": ["#abcdef", "#000000", "#111111", "#222222"]}]}')
+    loaded = load_color_sets(path)
+    assert set(loaded) == {1, 7} and loaded[7]["colors"][0] == "#ABCDEF"
+    path.write_text("not json")
+    assert set(load_color_sets(path)) == {1}

@@ -1,5 +1,6 @@
 """Persistence (R-P): per-user state in ~/.odca/, the keeper file at the repo root."""
 
+import json
 from pathlib import Path
 
 from .automaton import Rule
@@ -8,9 +9,12 @@ DEFAULT_PATH = Path.home() / ".odca" / "rule"
 CANDIDATES_PATH = Path.home() / ".odca" / "candidates"
 # Repository root: python/odca/store.py -> python/odca -> python -> root.
 # The keeper file is shared by all implementations (R-P3).
-INTERESTING_PATH = (
-    Path(__file__).resolve().parent.parent.parent / "interesting-rules.txt"
-)
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+INTERESTING_PATH = _REPO_ROOT / "interesting-rules.txt"
+COLORSETS_PATH = _REPO_ROOT / "colorsets" / "colorsets.json"  # shared (R-P4)
+
+# Built-in fallback so the default slot always exists (R-U4).
+DEFAULT_COLOR_SETS = {1: {"name": "ODCA default", "colors": ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]}}
 
 
 def load_rule(path=DEFAULT_PATH):
@@ -50,6 +54,42 @@ def load_interesting(path=INTERESTING_PATH):
     return rules
 
 
+def _valid_color(c):
+    return (isinstance(c, str) and len(c) == 7 and c[0] == "#"
+            and all(ch in "0123456789abcdefABCDEF" for ch in c[1:]))
+
+
+def load_color_sets(path=COLORSETS_PATH):
+    """Return {slot: {'name', 'colors'}} from the color sets file (R-P4).
+
+    Malformed entries are skipped; the built-in default fills slot 1 unless
+    the file defines it. A missing or unreadable file yields the default only.
+    """
+    sets = {k: {"name": v["name"], "colors": list(v["colors"])}
+            for k, v in DEFAULT_COLOR_SETS.items()}
+    try:
+        entries = json.loads(Path(path).read_text()).get("sets", [])
+    except (OSError, ValueError, AttributeError):
+        return sets
+    for e in entries if isinstance(entries, list) else []:
+        try:
+            slot, name, colors = e["slot"], str(e["name"]), list(e["colors"])
+        except (KeyError, TypeError):
+            continue
+        if (isinstance(slot, int) and 0 <= slot <= 9 and len(colors) == 4
+                and all(_valid_color(c) for c in colors)):
+            sets[slot] = {"name": name, "colors": [c.upper() for c in colors]}
+    return sets
+
+
+def save_color_sets(sets, path=COLORSETS_PATH):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    entries = [{"slot": slot, "name": v["name"], "colors": list(v["colors"])}
+               for slot, v in sorted(sets.items())]
+    path.write_text(json.dumps({"sets": entries}, indent=1) + "\n")
+
+
 def load_candidates(path=CANDIDATES_PATH):
     """Return the saved candidate Rules, skipping any invalid lines."""
     try:
@@ -78,9 +118,10 @@ class Store:
     keeper file; tests point both at a temporary directory (R-P).
     """
 
-    def __init__(self, state_dir=None, keeper_file=None):
+    def __init__(self, state_dir=None, keeper_file=None, colorsets_file=None):
         self.state_dir = Path(state_dir) if state_dir else Path.home() / ".odca"
         self.keeper_file = Path(keeper_file) if keeper_file else INTERESTING_PATH
+        self.colorsets_file = Path(colorsets_file) if colorsets_file else COLORSETS_PATH
 
     @property
     def rule_file(self):
@@ -107,3 +148,9 @@ class Store:
 
     def load_interesting(self):
         return load_interesting(self.keeper_file)
+
+    def load_color_sets(self):
+        return load_color_sets(self.colorsets_file)
+
+    def save_color_sets(self, sets):
+        save_color_sets(sets, self.colorsets_file)
