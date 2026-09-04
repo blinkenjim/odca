@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.11.0 — 2026-09-04
+Version 2.11.1 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -13,7 +13,8 @@ resume — R-K14, R-O7. 2.5.2: repetition window widened to 10 screens —
 R-A1. 2.7.0: cycles of any period detected by Brent's algorithm — R-A1,
 R-O8. 2.9.0: color sets 3–9 defined — R-U4. 2.11.0: color sets
 rearranged and file-backed, `c` arranges, `S` saves — R-U4, R-K9,
-R-K15, R-K16, R-P4, R-O9, R-O10.)
+R-K15, R-K16, R-P4, R-O9, R-O10. 2.11.1: digits live while paused —
+R-K10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -229,9 +230,9 @@ undefined slot is a silent no-op.
 no further generations are computed or shown until the spacebar is pressed
 again, which resumes at the normal rate with no catch-up burst (elapsed
 pause time is discarded). While paused, every key except the spacebar,
-Return (R-K11), `s` (R-K13), `c` (R-K15), `S` (R-K16), and `q` is
-ignored (the digits do nothing while paused); `q` quits normally. `c` and
-`S` touch only colors, never computation, so they remain live. Pausing does not
+Return (R-K11), `s` (R-K13), `c` (R-K15), `S` (R-K16), the digits
+(R-K9), and `q` is ignored; `q` quits normally. The digits, `c`, and `S`
+touch only colors, never computation, so they remain live. Pausing does not
 stop the background search (R-S).
 
 **R-K11 (Return — single step).** While paused, Return computes and

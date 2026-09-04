@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.11.0 — 2026-09-04
+Version 2.11.1 — 2026-09-04
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -78,7 +78,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-10a | R-U1, R-B3 | With a startup rule equal to saved rule j: the cycle position starts at j (`n` selects j+1, `p` selects j−1), the cycle wraps over the k saved rules with no unsaved slot, and the unsaved slot reappears holding the new rule after `m`/`r`. |
 | PT-11 | R-S5 | Stopping a background search that was started terminates all workers; stopping one never started is safe. |
 | PT-12 | R-S2, R-S3 | Candidates delivered by workers are valid rules; the stash never exceeds its cap. |
-| PT-13 | R-K10 | While paused, every command key except space, Return, `s`, `c`, `S`, and `q` is a no-op (rule, cells, speed, palette slot, and cycle state unchanged), while `c` re-arranges colors and `S` saves; space resumes; `q` still quits. |
+| PT-13 | R-K10 | While paused, every command key except space, Return, `s`, `c`, `S`, the digits, and `q` is a no-op (rule, cells, speed, and cycle state unchanged), while the digits switch slots, `c` re-arranges colors, and `S` saves; space resumes; `q` still quits. |
 | PT-14 | R-K11 | While paused, Return advances the automaton exactly one generation per press and the program stays paused; when not paused, Return changes nothing. |
 | PT-15 | R-K12, R-A2 | With auto-init on and a rule whose rows repeat (e.g. the all-zero rule), the cells are re-initialized exactly when the `rows`-th consecutive boring generation is computed (generation counter returns to 0, reason `repeating` printed); with the mode off, nothing happens. |
 | PT-16 | R-A1, R-A2 | With a rule under which a producible state dies out, the re-initialization reason names that state as extinct. |

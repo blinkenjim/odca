@@ -100,14 +100,21 @@ def test_pause_modality(make_store):  # PT-13
     s.handle_key(" ")
     assert s.paused
     state = (s.rule, s.delay, s.color_set, s.palette, s.interesting_index, list(s.automaton.cells))
-    for key in "rmuinp+-0":
+    for key in "rmuinp+-":
         assert s.handle_key(key) is True
     assert (s.rule, s.delay, s.color_set, s.palette, s.interesting_index, list(s.automaton.cells)) == state
+    s.handle_key("7")  # undefined slot: still a no-op while paused
+    assert s.color_set == 1
     palette = s.palette
     s.handle_key("c")  # colors are live while paused (R-K10)
     assert s.palette != palette
     s.handle_key("S")
     assert s.store.load_color_sets()[1]["colors"][2] == "#409CFF"  # saved the arrangement
+    s.store.save_color_sets({**s.color_sets, 4: {"name": "Four", "colors": ["#010101"] * 4}})
+    s2 = make_session(s.store)
+    s2.handle_key(" ")
+    s2.handle_key("4")  # defined slot switches while paused
+    assert s2.paused and s2.color_set == 4
     s.handle_key(" ")
     assert not s.paused
     s.handle_key("+")

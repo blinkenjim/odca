@@ -28,7 +28,7 @@ Keys (single characters):
     S   save the current color set, with its current arrangement, to
         colorsets/colorsets.json
     ' ' pause / resume; while paused every key but space, Return, s, c,
-        S, and q is ignored
+        S, the digits, and q is ignored
     '\\n' (Return) while paused: compute and display one generation
         (single step), remaining paused; ignored when not paused
     s   while paused: run one screenful of generations at one eighth the
@@ -363,7 +363,7 @@ class Session:
         """Apply a single-character key; return False when the program should quit."""
         if key == "q":
             return False
-        if self.paused:  # R-K10: only space, Return, s, c, S, q are live
+        if self.paused:  # R-K10: only space, Return, s, c, S, digits, q are live
             if key == KEY_SPACE:
                 self.paused = False
                 self.screen_remaining = 0
@@ -377,6 +377,8 @@ class Session:
                 self.cycle_colors()  # colors only: no computation involved
             elif key == "S":
                 self.save_color_set()
+            elif len(key) == 1 and key.isdigit() and int(key) in self.color_sets:
+                self.color_set = int(key)  # colors only: live while paused
             return True
         if key == KEY_SPACE:
             self.paused = True
