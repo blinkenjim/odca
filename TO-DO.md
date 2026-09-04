@@ -49,7 +49,10 @@ saved rules if any are unchecked.
 
 ODCA presents patterns that derive from pure mathematics beautifully
 enough to make people think about the relationships between mathematics,
-nature, aesthetics, and the human condition. Roadmap, roughly in order:
+nature, aesthetics, and the human condition. Behaviors are part of the
+art too, not only colors: the auto-init filter — what counts as boring,
+and how and when to re-initialize — is a curated choice about what the
+viewer sees. Roadmap, roughly in order:
 
 - [ ] Many more color sets (well beyond ten slots) and a way to bind
       color sets to particular ODCA rules.
@@ -60,6 +63,14 @@ nature, aesthetics, and the human condition. Roadmap, roughly in order:
 - [ ] Layered ODCA: let some colors be transparent so another ODCA
       "beneath" shows through; possibly different color sets and even
       different execution rates per layer.
+- [ ] Scriptable screensaver mode (the interactive mode absorbs the same
+      ability): a declarative, not procedural, script language that can
+      intermix ODCA rules (the interesting ones), specify how rules
+      interact via transparency layering, choose transition effects, and
+      assign probabilities to rules, color sets, and intermixes so that
+      interesting sequences emerge naturally rather than being fixed.
+      Design the language before building; it will shape the layering
+      and transition work above.
 - [ ] Packaging for distribution: Linux, macOS, iPadOS (iOS not ruled out).
 - [ ] Open-source license (attribution + share-alike spirit; must be
       compatible with App Store distribution) and copyright notice.
