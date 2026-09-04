@@ -2,12 +2,12 @@
  "sets": [
   {
    "slot": 0,
-   "name": "Ocean Sunset Vibes",
+   "name": "Mysterious Midnight Magic",
    "colors": [
-    "#325379",
-    "#DD5471",
-    "#F8D377",
-    "#62D3A3"
+    "#4F5188",
+    "#D6C0FB",
+    "#8C7BD0",
+    "#2C2A48"
    ]
   },
   {
@@ -22,66 +22,46 @@
   },
   {
    "slot": 2,
-   "name": "Meadow Sunflower Glow",
+   "name": "Fiery Ice Cream Delight",
    "colors": [
-    "#D6E0A2",
-    "#F6F4D5",
-    "#CFDEC0",
-    "#E5A07F"
+    "#102F47",
+    "#E78531",
+    "#F3C15F",
+    "#C53A32"
    ]
   },
   {
    "slot": 3,
-   "name": "Candy Floss Dreams",
+   "name": "Golden Autumn Twilight",
    "colors": [
-    "#F2AAA1",
-    "#F9F3DF",
-    "#C4F0E6",
-    "#B7D8DF"
+    "#4D9CB9",
+    "#F4BA41",
+    "#EC8B33",
+    "#112F45"
    ]
   },
   {
    "slot": 4,
-   "name": "Fiery Ice Cream Delight",
-   "colors": [
-    "#102F47",
-    "#C53A32",
-    "#E78531",
-    "#F3C15F"
-   ]
-  },
-  {
-   "slot": 5,
-   "name": "Golden Autumn Twilight",
-   "colors": [
-    "#4D9CB9",
-    "#112F45",
-    "#F4BA41",
-    "#EC8B33"
-   ]
-  },
-  {
-   "slot": 6,
    "name": "Midnight Sun Dance",
    "colors": [
     "#041523",
-    "#2E606B",
     "#FCEDD4",
+    "#2E606B",
     "#EE8432"
    ]
   },
   {
-   "slot": 7,
+   "slot": 5,
    "name": "Seaside Serenity",
    "colors": [
-    "#E8ECEF",
     "#304B74",
-    "#6C95B7",
-    "#ACCDEE"
+    "#E8ECEF",
+    "#ACCDEE",
+    "#6C95B7"
    ]
   },
   {
-   "slot": 8,
+   "slot": 6,
    "name": "Cherry Blossom Sky",
    "colors": [
     "#2B2D40",
@@ -91,15 +71,232 @@
    ]
   },
   {
-   "slot": 9,
-   "name": "Cotton Candy Skies",
+   "slot": 7,
+   "name": "Ocean Sunset Vibes",
    "colors": [
-    "#8AD4FB",
-    "#EE79A5",
-    "#F19C78",
-    "#F8D87F"
+    "#325379",
+    "#DD5471",
+    "#F8D377",
+    "#62D3A3"
+   ]
+  },
+  {
+   "slot": 8,
+   "name": "Jungle Safari Adventure",
+   "colors": [
+    "#626C3E",
+    "#FDFAE3",
+    "#D4A369",
+    "#2B361C"
+   ]
+  },
+  {
+   "slot": 9,
+   "name": "Mystic Moonlight Shades",
+   "colors": [
+    "#333333",
+    "#A8A29D",
+    "#D3CCC8",
+    "#28262B"
+   ]
+  },
+  {
+   "name": "Oceanic Blue Hues",
+   "colors": [
+    "#527A9A",
+    "#F3FAEF",
+    "#B2D9DB",
+    "#233454"
+   ]
+  },
+  {
+   "name": "Mystic Ember Glow",
+   "colors": [
+    "#371719",
+    "#98481A",
+    "#CA8C47",
+    "#601C14"
+   ]
+  },
+  {
+   "name": "Magical Night Sky",
+   "colors": [
+    "#53307F",
+    "#C4A9F0",
+    "#9685CF",
+    "#200D31"
+   ]
+  },
+  {
+   "name": "Midnight Gold Sparkle",
+   "colors": [
+    "#000000",
+    "#EFA73E",
+    "#E5E5E5",
+    "#17213B"
+   ]
+  },
+  {
+   "name": "Earthy Forest Tones",
+   "colors": [
+    "#9CA182",
+    "#C8C1B0",
+    "#E7E4DC",
+    "#6A7354"
+   ]
+  },
+  {
+   "name": "Cozy Rustic Neutrals",
+   "colors": [
+    "#453F3B",
+    "#BBB8B2",
+    "#F4F3EE",
+    "#88817D"
+   ]
+  },
+  {
+   "name": "Deep Sea Adventure",
+   "colors": [
+    "#08151E",
+    "#213937",
+    "#EBD7B1",
+    "#B65120"
+   ]
+  },
+  {
+   "name": "Lemonade Disco Fever",
+   "colors": [
+    "#7A3CE3",
+    "#F5C144",
+    "#E8622C",
+    "#EA336F"
+   ]
+  },
+  {
+   "name": "Sandy Beach Sunset",
+   "colors": [
+    "#2E4552",
+    "#E3C577",
+    "#E8A66C",
+    "#4F9B8F"
+   ]
+  },
+  {
+   "name": "Earthy Coral Harmony",
+   "colors": [
+    "#D27F65",
+    "#F3F1E0",
+    "#8BB19C",
+    "#3E4059"
+   ]
+  },
+  {
+   "name": "Electric Midnight Glow",
+   "colors": [
+    "#F8D347",
+    "#202020",
+    "#4D4D4D",
+    "#FCEF5C"
+   ]
+  },
+  {
+   "name": "Fiesta Fun",
+   "colors": [
+    "#783915",
+    "#ECA453",
+    "#F4DEAB",
+    "#C55A2A"
+   ]
+  },
+  {
+   "name": "Turquoise Waters Adventure",
+   "colors": [
+    "#377E8E",
+    "#58C09C",
+    "#4BA596",
+    "#2C6489"
+   ]
+  },
+  {
+   "name": "Ocean Blue Horizon",
+   "colors": [
+    "#1F498C",
+    "#88A3C9",
+    "#DDE4ED",
+    "#4E7BAD"
+   ]
+  },
+  {
+   "name": "Ocean Pearl Blossom",
+   "colors": [
+    "#11235F",
+    "#5590C7",
+    "#FEFAFF",
+    "#C7415D"
+   ]
+  },
+  {
+   "name": "Vibrant Rainbow Burst",
+   "colors": [
+    "#F8D45D",
+    "#6BCBAE",
+    "#DC5068",
+    "#4D146A"
+   ]
+  },
+  {
+   "name": "Midnight Jungle Gold",
+   "colors": [
+    "#1B4543",
+    "#0E1618",
+    "#CBAD39",
+    "#F9F4D6"
+   ]
+  },
+  {
+   "name": "Dark Slate Whisper",
+   "colors": [
+    "#454C5C",
+    "#4E5668",
+    "#3C4251",
+    "#2F343F"
+   ]
+  },
+  {
+   "name": "Rustic Autumn Vibes",
+   "colors": [
+    "#B59660",
+    "#905B33",
+    "#66231F",
+    "#3F291B"
+   ]
+  },
+  {
+   "name": "Marine Fireworks",
+   "colors": [
+    "#50B1D4",
+    "#A2DEED",
+    "#03045A",
+    "#3375B1"
    ]
   }
  ],
- "dropped": []
+ "dropped": [
+  "Meadow Sunflower Glow",
+  "Candy Floss Dreams",
+  "Cotton Candy Skies",
+  "Cherry Blossom Dream",
+  "Vibrant Summer Seas",
+  "Berry Smoothie Delight",
+  "Cotton Candy Dreams",
+  "Ocean Breeze",
+  "Sun-kissed Citrus",
+  "Golden Fields Glow",
+  "Soft Peachy Dreams",
+  "Vintage Rose Garden",
+  "Soft Whispers",
+  "Peachy Coral Glow",
+  "Sunset Coral Reef",
+  "Forest Sun Citrus"
+ ]
 }

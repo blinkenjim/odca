@@ -1,9 +1,10 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-04):** Swift 2.20.0 has color set review mode
-(`--colorset-review`); Python 2.15.1 preserves the pool file but has not
-ported review mode (port = Python 2.19.0). Groundwork for screensaver
-mode: review the 45 palettes with the Swift app and form the pool (the Swift catch-up ported auto-init with all detectors and
+**YOU ARE HERE (2026-09-04):** the pool is reviewed: 30 color sets kept,
+16 dropped (colorsets/colorsets.json). Swift 2.22.0 adds screensaver
+review mode (`--screensaver-review <file>`) for composing rule/color-set
+pairs; Python 2.15.1 has neither review mode yet (port = Python 2.19.0).
+Next: compose the first screensaver file (the Swift catch-up ported auto-init with all detectors and
 Brent's, paused 's' and the screen counter, and file-backed color sets
 with c/C/S). Next: (a) audition all 45 palettes (colorsets/audition.png)
 and finalize the slots; (b) the vision items below, starting with the
@@ -11,6 +12,10 @@ declarative screensaver script design.
 
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
+- [ ] Key bindings are getting hard to remember and inconsistent across
+      modes (normal, color-set review, screensaver review each overload
+      s/S/X/N/P). Rethink them as a whole: a consistent scheme, maybe a
+      help key or on-screen hint, and a single table in REQTS.
 - [ ] Hold-to-run: while paused, holding the Return key resumes the
       animation at a slow rate; releasing Return returns to the paused
       state (extends the single-step of R-K11)

@@ -155,7 +155,7 @@ final class PropertyTests: XCTestCase {
         let reference = Store.repoRoot.appendingPathComponent("colorsets/colorsets.json")
         let original = try String(contentsOf: reference, encoding: .utf8)
         let store = try tempStore()
-        store.saveColorSets(Store(colorSetsFile: reference).loadColorSets())
+        store.saveColorSetFile(Store(colorSetsFile: reference).loadColorSetFile())
         XCTAssertEqual(try String(contentsOf: store.colorSetsFile, encoding: .utf8), original)
     }
 
@@ -190,5 +190,26 @@ final class PropertyTests: XCTestCase {
         try "{\"palettes\": [{\"index\": 0, \"name\": \"A\", \"colors\": [\"#0a0a0a\", \"#000000\", \"#000000\", \"#000000\"]}, {\"name\": \"bad\", \"colors\": [\"#12\"]}]}"
             .write(to: store.candidatePalettesFile, atomically: true, encoding: .utf8)
         XCTAssertEqual(store.loadCandidatePalettes(), [ColorSetEntry(slot: nil, name: "A", colors: ["#0A0A0A", "#000000", "#000000", "#000000"])])
+    }
+
+    // R-P5: screensaver file round trip, tolerance, and Python-compatible layout.
+    func testScreensaverFileRoundTrip() throws {
+        let store = try tempStore()
+        let url = store.stateDir.appendingPathComponent("saver.json")
+        XCTAssertNil(Store.loadScreensaver(url))  // missing
+        let pairs = [ScreensaverPair(rule: String(repeating: "0123", count: 5), colorset: "A", colors: ["#000000", "#111111", "#222222", "#333333"]),
+                     ScreensaverPair(rule: String(repeating: "3", count: 20), colorset: "B \"quoted\"", colors: ["#AAAAAA", "#BBBBBB", "#CCCCCC", "#DDDDDD"])]
+        Store.saveScreensaver(pairs, to: url)
+        XCTAssertEqual(Store.loadScreensaver(url), pairs)
+        let text = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(text.hasPrefix("{\n \"pairs\": [\n  {\n   \"rule\": \"01230123012301230123\",\n   \"colorset\": \"A\",\n   \"colors\": [\n    \"#000000\","))
+        Store.saveScreensaver([], to: url)
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "{\n \"pairs\": []\n}\n")
+        try "{\"pairs\": [{\"rule\": \"bad\", \"colorset\": \"x\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}, {\"rule\": \"00000000000000000000\", \"colorset\": \"ok\", \"colors\": [\"#0a0a0a\", \"#000000\", \"#000000\", \"#000000\"]}]}"
+            .write(to: url, atomically: true, encoding: .utf8)
+        XCTAssertEqual(Store.loadScreensaver(url)!.map(\.colorset), ["ok"])
+        XCTAssertEqual(Store.loadScreensaver(url)!.first!.colors[0], "#0A0A0A")
+        try "not json".write(to: url, atomically: true, encoding: .utf8)
+        XCTAssertEqual(Store.loadScreensaver(url), [])
     }
 }

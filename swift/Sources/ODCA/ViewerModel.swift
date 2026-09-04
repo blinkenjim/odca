@@ -22,8 +22,18 @@ final class ViewerModel: ObservableObject {
     private var keyMonitor: Any?
 
     private init() {
-        let review = CommandLine.arguments.contains("--colorset-review")  // R-V1
-        session = Session(cols: Self.cols, rows: Self.rows, reviewMode: review)
+        let args = CommandLine.arguments
+        let review = args.contains("--colorset-review")  // R-V1
+        var screensaver: URL?
+        if let i = args.firstIndex(of: "--screensaver-review") {  // R-W1
+            if i + 1 < args.count {
+                screensaver = URL(fileURLWithPath: args[i + 1])
+            } else {
+                print("usage: odca --screensaver-review <file.json>")
+            }
+        }
+        session = Session(cols: Self.cols, rows: Self.rows, reviewMode: review,
+                          screensaverFile: screensaver)
         session.startSearch()
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
@@ -109,7 +119,9 @@ final class ViewerModel: ObservableObject {
         case "S": return .S  // shift-s (R-K16)
         case "N": return .N  // review: next (R-V3)
         case "P": return .P  // review: previous
-        case "X": return .X  // review: drop (R-V4)
+        case "X": return .X  // review: drop (R-V4, R-W5)
+        case "[": return .poolPrev  // screensaver review: previous pool set (R-W3)
+        case "]": return .poolNext
         case "+", "=": return .plus  // '=' is unshifted '+' on US layouts (R-K8)
         case "-": return .minus
         case " ": return .space

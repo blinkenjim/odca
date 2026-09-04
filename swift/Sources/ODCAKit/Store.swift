@@ -125,42 +125,76 @@ public struct Store {
         return file
     }
 
-    /// Writes the same layout as Python's json.dumps(indent=1) so a save
-    /// from either implementation leaves the shared file byte-stable.
-    public func saveColorSetFile(_ file: ColorSetFile) {
-        func quoted(_ s: String) -> String {
-            var out = "\""
-            for scalar in s.unicodeScalars {
-                switch scalar {
-                case "\"": out += "\\\""
-                case "\\": out += "\\\\"
-                case "\n": out += "\\n"
-                default:
-                    if scalar.value < 0x20 || scalar.value > 0x7E {
-                        out += String(format: "\\u%04x", scalar.value)
-                    } else {
-                        out.unicodeScalars.append(scalar)
-                    }
+    // JSON writing in the layout of Python's json.dumps(indent=1), so a
+    // save from either implementation leaves shared files byte-stable.
+    static func quoted(_ s: String) -> String {
+        var out = "\""
+        for scalar in s.unicodeScalars {
+            switch scalar {
+            case "\"": out += "\\\""
+            case "\\": out += "\\\\"
+            case "\n": out += "\\n"
+            default:
+                if scalar.value < 0x20 || scalar.value > 0x7E {
+                    out += String(format: "\\u%04x", scalar.value)
+                } else {
+                    out.unicodeScalars.append(scalar)
                 }
             }
-            return out + "\""
         }
-        func list(_ items: [String], indent: String) -> String {
-            items.isEmpty ? "[]"
-                : "[\n" + items.map { indent + " " + $0 }.joined(separator: ",\n") + "\n" + indent + "]"
-        }
+        return out + "\""
+    }
+
+    static func list(_ items: [String], indent: String) -> String {
+        items.isEmpty ? "[]"
+            : "[\n" + items.map { indent + " " + $0 }.joined(separator: ",\n") + "\n" + indent + "]"
+    }
+
+    private func write(_ text: String, to url: URL) {
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? text.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    public func saveColorSetFile(_ file: ColorSetFile) {
+        let quoted = Store.quoted
         let sets = file.sets.map { e -> String in
             var lines: [String] = []
             if let slot = e.slot { lines.append("   \"slot\": \(slot)") }
             lines.append("   \"name\": \(quoted(e.name))")
-            lines.append("   \"colors\": " + list(e.colors.map(quoted), indent: "   "))
+            lines.append("   \"colors\": " + Store.list(e.colors.map(quoted), indent: "   "))
             return "{\n" + lines.joined(separator: ",\n") + "\n  }"
         }
-        let text = "{\n \"sets\": " + list(sets, indent: " ")
-            + ",\n \"dropped\": " + list(file.dropped.map(quoted), indent: " ") + "\n}\n"
+        let text = "{\n \"sets\": " + Store.list(sets, indent: " ")
+            + ",\n \"dropped\": " + Store.list(file.dropped.map(quoted), indent: " ") + "\n}\n"
+        write(text, to: colorSetsFile)
+    }
+
+    // R-P5: screensaver file — an ordered list of rule / color set pairs.
+    public static func loadScreensaver(_ url: URL) -> [ScreensaverPair]? {
+        guard let data = try? Data(contentsOf: url) else { return nil }  // missing
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [] }
+        var pairs: [ScreensaverPair] = []
+        for case let dict as [String: Any] in (root["pairs"] as? [Any]) ?? [] {
+            guard let rule = dict["rule"] as? String, (try? Rule(id: rule)) != nil,
+                  let name = dict["colorset"] as? String,
+                  let colors = dict["colors"] as? [String], colors.count == 4,
+                  colors.allSatisfy(validColor) else { continue }
+            pairs.append(ScreensaverPair(rule: rule, colorset: name, colors: colors.map { $0.uppercased() }))
+        }
+        return pairs
+    }
+
+    public static func saveScreensaver(_ pairs: [ScreensaverPair], to url: URL) {
+        let entries = pairs.map { p -> String in
+            "{\n   \"rule\": \(quoted(p.rule)),\n   \"colorset\": \(quoted(p.colorset)),\n"
+            + "   \"colors\": " + list(p.colors.map(quoted), indent: "   ") + "\n  }"
+        }
+        let text = "{\n \"pairs\": " + list(entries, indent: " ") + "\n}\n"
         try? FileManager.default.createDirectory(
-            at: colorSetsFile.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? text.write(to: colorSetsFile, atomically: true, encoding: .utf8)
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? text.write(to: url, atomically: true, encoding: .utf8)
     }
 
     /// {slot: ColorSet} for the digit-bound sets; slot 1 always present (R-U4).
@@ -227,5 +261,18 @@ public struct ColorSetFile: Equatable {
     public init(sets: [ColorSetEntry], dropped: [String]) {
         self.sets = sets
         self.dropped = dropped
+    }
+}
+
+/// One screensaver entry: a rule with a color set, colors already arranged (R-P5).
+public struct ScreensaverPair: Equatable {
+    public var rule: String
+    public var colorset: String
+    public var colors: [String]
+
+    public init(rule: String, colorset: String, colors: [String]) {
+        self.rule = rule
+        self.colorset = colorset
+        self.colors = colors
     }
 }

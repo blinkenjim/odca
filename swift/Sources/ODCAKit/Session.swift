@@ -60,7 +60,8 @@ public final class Session {
     public enum Key: Equatable {
         case q, r, m, u, s, i, n, p, a
         case c, C, S  // arrange colors forward / backward, save color set
-        case N, P, X  // color set review: next, previous, drop (R-V)
+        case N, P, X  // review modes: next, previous, drop (R-V, R-W)
+        case poolPrev, poolNext  // '[' / ']': step through the color set pool (R-W3)
         case plus, minus, space, ret
         case digit(Int)
     }
@@ -85,6 +86,13 @@ public final class Session {
     public private(set) var reviewIndex = 0
     public private(set) var droppedNames: [String] = []
     private var reviewArrangement: [String: Int] = [:]
+    // Screensaver review mode (R-W): the file, its pairs, and the active set.
+    public let screensaverFile: URL?
+    public private(set) var pairs: [ScreensaverPair] = []
+    public private(set) var pairIndex: Int?
+    public private(set) var activeSet: ColorSetEntry?  // the set in use (any pool member)
+    private var activeArrangement = 0
+    private var pool: [ColorSetEntry] = []  // whole pool in review order for [ / ]
     public private(set) var undoStack: [Rule] = []
     public private(set) var interestingIndex: Int?
     public private(set) var unsavedRule: Rule?
@@ -113,13 +121,15 @@ public final class Session {
     public init(
         cols: Int, rows: Int, store: Store = Store(),
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
-        reviewMode: Bool = false, output: @escaping (String) -> Void = { print($0) }
+        reviewMode: Bool = false, screensaverFile: URL? = nil,
+        output: @escaping (String) -> Void = { print($0) }
     ) {
         self.cols = cols
         self.rows = rows
         self.store = store
         self.search = search
-        self.reviewMode = reviewMode
+        self.reviewMode = reviewMode && screensaverFile == nil  // R-W1: screensaver wins
+        self.screensaverFile = screensaverFile
         self.output = output
         var rng = rng
 
@@ -146,7 +156,10 @@ public final class Session {
         pushRow(automaton.cells)
         output("rule \(rule.id)")
         if reviewMode { loadReview() }
+        if let url = screensaverFile { loadScreensaver(url) }
     }
+
+    public var screensaverMode: Bool { screensaverFile != nil }
 
     public var ruleID: String { automaton.rule.id }
 
@@ -185,13 +198,26 @@ public final class Session {
         return Session.arrangements[reviewArrangement[e.name] ?? 0].map { e.colors[$0] }
     }
 
+    private func arrangedActiveColors() -> [String] {
+        let base = activeSet?.colors ?? colorSets[colorSet]!.colors
+        return Session.arrangements[activeArrangement].map { base[$0] }
+    }
+
     /// The active color set as four RGB colors, states 0-3, after arrangement.
     public var palette: [RGB] {
-        (reviewMode ? arrangedReviewColors() : arrangedColors(colorSet)).map { RGB(hex: $0) }
+        let colors = reviewMode ? arrangedReviewColors()
+            : screensaverMode ? arrangedActiveColors() : arrangedColors(colorSet)
+        return colors.map { RGB(hex: $0) }
     }
 
     private func cycleColors(_ step: Int) {
         let n = Session.arrangements.count
+        if screensaverMode {
+            activeArrangement = ((activeArrangement + step) % n + n) % n
+            let name = activeSet?.name ?? colorSets[colorSet]!.name
+            output("color set \(name) arrangement \(activeArrangement + 1)/\(n)")  // R-O9
+            return
+        }
         if reviewMode {
             guard let e = reviewEntry else { return }
             let index = (((reviewArrangement[e.name] ?? 0) + step) % n + n) % n
@@ -264,20 +290,20 @@ public final class Session {
             output("review wrapped")
         }
         announceReview()
+        saveReview()  // R-V5: every drop is saved at once
     }
 
     /// Write the kept sets: the first ten in review order own the digit
-    /// keys (1-9, 0), arrangements are baked in, dropped names recorded.
+    /// keys (1-9, 0), the rest are pool-only, dropped names recorded.
+    /// Arrangements made during review are preview only (R-V6).
     private func saveReview() {  // R-V5
         var kept: [ColorSetEntry] = []
         for (i, e) in reviewEntries.enumerated() {
             var entry = e
-            entry.colors = Session.arrangements[reviewArrangement[e.name] ?? 0].map { e.colors[$0] }
             entry.slot = i < Session.keyOrder.count ? Session.keyOrder[i] : nil
             kept.append(entry)
         }
         reviewEntries = kept
-        reviewArrangement.removeAll()
         let ordered = kept.filter { $0.slot != nil }.sorted { $0.slot! < $1.slot! }
             + kept.filter { $0.slot == nil }
         store.saveColorSetFile(ColorSetFile(sets: ordered, dropped: droppedNames))
@@ -285,9 +311,106 @@ public final class Session {
         output("saved \(kept.count) color sets, \(droppedNames.count) dropped")  // R-O11
     }
 
+    // MARK: - Screensaver review (R-W)
+
+    /// The whole pool in review order: digit-bound sets by key, then the rest.
+    private func poolOrder() -> [ColorSetEntry] {
+        let file = store.loadColorSetFile()
+        var slotted = file.sets.filter { $0.slot != nil }
+        if !slotted.contains(where: { $0.slot == 1 }) {
+            let d = Store.defaultColorSets[1]!
+            slotted.append(ColorSetEntry(slot: 1, name: d.name, colors: d.colors))
+        }
+        slotted.sort { Session.keyRank($0.slot!) < Session.keyRank($1.slot!) }
+        return slotted + file.sets.filter { $0.slot == nil }
+    }
+
+    private func loadScreensaver(_ url: URL) {  // R-W1, R-W2
+        pool = poolOrder()
+        let d = colorSets[colorSet]!
+        activeSet = ColorSetEntry(slot: colorSet, name: d.name, colors: d.colors)
+        if let loaded = Store.loadScreensaver(url) {
+            pairs = loaded
+        } else {
+            pairs = []
+            Store.saveScreensaver(pairs, to: url)  // a new, empty file
+        }
+        output("screensaver \(url.lastPathComponent): \(pairs.count) pairs")
+        if !pairs.isEmpty { activatePair(0) }
+    }
+
+    private func currentPair() -> ScreensaverPair {
+        let name = activeSet?.name ?? colorSets[colorSet]!.name
+        return ScreensaverPair(rule: automaton.rule.id, colorset: name, colors: arrangedActiveColors())
+    }
+
+    private func activatePair(_ index: Int) {  // R-W2
+        let pair = pairs[index]
+        pairIndex = index
+        if let rule = try? Rule(id: pair.rule), rule != automaton.rule {
+            undoStack.append(automaton.rule)
+            setRule(rule)
+        }
+        activeSet = ColorSetEntry(slot: nil, name: pair.colorset, colors: pair.colors)
+        activeArrangement = 0  // stored colors are already arranged
+        output("screensaver \(index + 1)/\(pairs.count) \(pair.rule) \(pair.colorset)")  // R-O12
+    }
+
+    private func screensaverStep(_ step: Int) {  // R-W2: no wrap
+        guard !pairs.isEmpty else { return }
+        let next = (pairIndex ?? -1) + step
+        guard (0..<pairs.count).contains(next) else {
+            output("screensaver end")
+            return
+        }
+        activatePair(next)
+    }
+
+    private func saveScreensaver() {
+        if let url = screensaverFile { Store.saveScreensaver(pairs, to: url) }
+    }
+
+    private func savePair() {  // R-W4: 's' overwrites the pair under review
+        guard let i = pairIndex else {
+            output("no pair under review")
+            return
+        }
+        pairs[i] = currentPair()
+        saveScreensaver()
+        output("saved pair \(i + 1)/\(pairs.count)")  // R-O12
+    }
+
+    private func appendPair() {  // R-W4: 'S' appends; the review position is unchanged
+        pairs.append(currentPair())
+        saveScreensaver()
+        output("added pair \(pairs.count)/\(pairs.count)")  // R-O12
+    }
+
+    private func deletePair() {  // R-W5
+        guard let i = pairIndex else { return }
+        pairs.remove(at: i)
+        saveScreensaver()
+        output("deleted pair \(i + 1)/\(pairs.count + 1)")  // R-O12
+        if pairs.isEmpty {
+            pairIndex = nil
+        } else {
+            activatePair(min(i, pairs.count - 1))
+        }
+    }
+
+    private func poolStep(_ step: Int) {  // R-W3: '[' / ']' walk the whole pool
+        guard screensaverMode, !pool.isEmpty else { return }
+        let current = pool.firstIndex { $0.name == activeSet?.name } ?? -1
+        let n = pool.count
+        let index = ((current + step) % n + n) % n
+        activeSet = ColorSetEntry(slot: pool[index].slot, name: pool[index].name, colors: pool[index].colors)
+        activeArrangement = 0
+        output("color set \(pool[index].name)")  // R-O12
+    }
+
     /// Call at program exit; in review mode this saves the kept sets (R-V5).
     public func finish() {
-        if reviewMode { saveReview() }
+        if reviewMode { saveReview() }  // screensaver mode saves as it goes
     }
 
     private func saveColorSet() {
@@ -299,7 +422,12 @@ public final class Session {
 
     private func selectColorSet(_ slot: Int) {
         if reviewMode { return }  // R-V1: digit keys are disabled during review
-        if colorSets[slot] != nil { colorSet = slot }  // R-K9: undefined slot is a no-op
+        guard let set = colorSets[slot] else { return }  // R-K9: undefined slot is a no-op
+        colorSet = slot
+        if screensaverMode {
+            activeSet = ColorSetEntry(slot: slot, name: set.name, colors: set.colors)
+            activeArrangement = 0
+        }
     }
 
     /// Color keys shared by the paused and running states (R-K10).
@@ -307,10 +435,13 @@ public final class Session {
         switch key {
         case .c: cycleColors(1)
         case .C: cycleColors(-1)
-        case .S: if reviewMode { saveReview() } else { saveColorSet() }
-        case .N: if reviewMode { reviewStep(1) }
-        case .P: if reviewMode { reviewStep(-1) }
-        case .X: if reviewMode { dropReview() }
+        case .S:
+            if screensaverMode { appendPair() } else if !reviewMode { saveColorSet() }
+        case .N: if screensaverMode { screensaverStep(1) } else if reviewMode { reviewStep(1) }
+        case .P: if screensaverMode { screensaverStep(-1) } else if reviewMode { reviewStep(-1) }
+        case .X: if screensaverMode { deletePair() } else if reviewMode { dropReview() }
+        case .poolPrev: poolStep(-1)
+        case .poolNext: poolStep(1)
         case .digit(let d): selectColorSet(d)
         default: return false
         }
@@ -559,7 +690,7 @@ public final class Session {
         case .u:
             undo()
         case .s:
-            saveInteresting()
+            if screensaverMode { savePair() } else { saveInteresting() }  // R-W4
         case .i:
             initCells()
         case .n:
@@ -569,7 +700,7 @@ public final class Session {
         case .a:  // R-K12
             autoInit.toggle()
             output("auto-init \(autoInit ? "on" : "off")")  // R-O6
-        case .c, .C, .S, .N, .P, .X, .digit:
+        case .c, .C, .S, .N, .P, .X, .poolPrev, .poolNext, .digit:
             _ = handleColorKey(key)
         case .plus:
             delay = max(delay / 2, Session.minDelay)

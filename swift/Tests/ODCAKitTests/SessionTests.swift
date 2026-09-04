@@ -22,11 +22,11 @@ final class SessionTests: XCTestCase {
 
     /// A session whose terminal output is captured into `lines`.
     func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil,
-                     review: Bool = false) -> Session {
+                     review: Bool = false, screensaver: URL? = nil) -> Session {
         let sink: (String) -> Void = lines.map { l in { l.all.append($0) } } ?? { print($0) }
         return Session(cols: 32, rows: 16, store: store,
                        search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed),
-                       reviewMode: review, output: sink)
+                       reviewMode: review, screensaverFile: screensaver, output: sink)
     }
 
     final class Lines { var all: [String] = []; func take() -> String { defer { all.removeAll() }; return all.joined(separator: "\n") } }
@@ -527,26 +527,28 @@ final class SessionTests: XCTestCase {
         let lines = Lines()
         let store = try reviewStore()
         let session = makeSession(store, lines: lines, review: true)
-        _ = session.handleKey(.c)  // arrange S1: (0,1,3,2)
+        _ = session.handleKey(.c)  // arrange S1: preview only, never saved (R-V6)
         _ = session.handleKey(.N)
-        _ = session.handleKey(.X)  // drop S2: advances to S3
+        _ = session.handleKey(.X)  // drop S2: advances to S3 and saves at once
         var out = lines.take()
         XCTAssertTrue(out.contains("dropped S2") && out.contains("review 2/12 S3"))
+        XCTAssertTrue(out.contains("saved 12 color sets, 2 dropped"))
+        XCTAssertEqual(store.loadColorSetFile().dropped, ["Rejected", "S2"])
         XCTAssertEqual(session.palette[0], RGB(hex: "#1E1E1E"))  // S3 = grey(30)
         for _ in 0..<10 { _ = session.handleKey(.N) }  // to CandC (last)
         _ = session.handleKey(.X)  // drop the last: wraps to the start
         out = lines.take()
         XCTAssertTrue(out.contains("dropped CandC") && out.contains("review wrapped") && out.contains("review 1/11 S1"))
-
-        _ = session.handleKey(.S)
-        XCTAssertTrue(lines.take().contains("saved 11 color sets, 3 dropped"))
+        XCTAssertTrue(out.contains("saved 11 color sets, 3 dropped"))  // auto-saved on drop
+        _ = session.handleKey(.S)  // no binding in review mode: nothing printed
+        XCTAssertEqual(lines.take(), "")
         let file = store.loadColorSetFile()
         XCTAssertEqual(file.dropped, ["Rejected", "S2", "CandC"])
         let bySlot = Dictionary(uniqueKeysWithValues: file.sets.compactMap { e in e.slot.map { ($0, e.name) } })
         // Slots rotate down: S3 takes key 2 ... S0 takes key 9, PoolA fills key 0.
         XCTAssertEqual(bySlot, [1: "S1", 2: "S3", 3: "S4", 4: "S5", 5: "S6", 6: "S7", 7: "S8", 8: "S9", 9: "S0", 0: "PoolA"])
         XCTAssertEqual(file.sets.filter { $0.slot == nil }.map(\.name), ["CandB"])
-        XCTAssertEqual(file.sets.first { $0.name == "S1" }!.colors, ["#0A0A0A", "#0B0B0B", "#0D0D0D", "#0C0C0C"])  // baked
+        XCTAssertEqual(file.sets.first { $0.name == "S1" }!.colors, grey(10))  // arrangement not baked
 
         // A second review run reloads the same order and does not resurrect drops.
         let again = makeSession(store, review: true)
@@ -570,5 +572,92 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(store.loadColorSetFile().dropped, ["Rejected"])
         session.finish()  // no review: nothing written
         XCTAssertEqual(store.loadColorSetFile().sets.count, 11)
+    }
+
+    // MARK: PT-28 screensaver review mode (R-W)
+
+    func testScreensaverReviewLifecycle() throws {
+        let lines = Lines()
+        let store = try reviewStore()
+        let file = store.stateDir.deletingLastPathComponent().appendingPathComponent("saver.json")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+        let session = makeSession(store, lines: lines, screensaver: file)
+        XCTAssertTrue(session.screensaverMode && !session.reviewMode)
+        XCTAssertEqual(Store.loadScreensaver(file), [])  // a new, empty file was created
+        XCTAssertNil(session.pairIndex)
+        XCTAssertTrue(lines.take().contains("screensaver saver.json: 0 pairs"))
+        let rule0 = session.automaton.rule
+
+        _ = session.handleKey(.N)  // nothing to step through
+        XCTAssertEqual(lines.take(), "")
+        _ = session.handleKey(.s)
+        XCTAssertTrue(lines.take().contains("no pair under review"))
+
+        _ = session.handleKey(.digit(3))  // S3 = grey(30)
+        _ = session.handleKey(.c)  // arranged (0,1,3,2)
+        _ = session.handleKey(.S)  // append pair 1; position unchanged
+        XCTAssertTrue(lines.take().contains("added pair 1/1"))
+        XCTAssertNil(session.pairIndex)
+        var saved = Store.loadScreensaver(file)!
+        XCTAssertEqual(saved.count, 1)
+        XCTAssertEqual(saved[0].rule, rule0.id)
+        XCTAssertEqual(saved[0].colorset, "S3")
+        XCTAssertEqual(saved[0].colors, ["#1E1E1E", "#1F1F1F", "#212121", "#202020"])
+
+        _ = session.handleKey(.m)  // a different rule, then append pair 2 with pool set via ']'
+        let rule1 = session.automaton.rule
+        _ = session.handleKey(.poolNext)  // from S3 to S4
+        XCTAssertTrue(lines.take().contains("color set S4"))
+        _ = session.handleKey(.S)
+        XCTAssertEqual(Store.loadScreensaver(file)!.count, 2)
+
+        _ = session.handleKey(.N)  // activates pair 1: rule0, S3 arranged
+        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(session.automaton.rule, rule0)
+        XCTAssertEqual(session.palette.map(\.r), [0x1E, 0x1F, 0x21, 0x20])
+        XCTAssertTrue(lines.take().contains("screensaver 1/2 \(rule0.id) S3"))
+        _ = session.handleKey(.P)  // no wrap at the start
+        XCTAssertTrue(lines.take().contains("screensaver end"))
+        XCTAssertEqual(session.pairIndex, 0)
+
+        _ = session.handleKey(.digit(5))  // modify pair 1's color set and save in place
+        _ = session.handleKey(.s)
+        XCTAssertTrue(lines.take().contains("saved pair 1/2"))
+        saved = Store.loadScreensaver(file)!
+        XCTAssertEqual(saved[0].colorset, "S5")
+        XCTAssertEqual(saved[0].colors, grey(50))
+        XCTAssertEqual(saved[1].rule, rule1.id)
+
+        _ = session.handleKey(.N)  // pair 2
+        XCTAssertEqual(session.automaton.rule, rule1)
+        _ = session.handleKey(.N)
+        XCTAssertTrue(lines.take().contains("screensaver end"))
+        _ = session.handleKey(.X)  // delete the last: shows the previous
+        XCTAssertTrue(lines.take().contains("deleted pair 2/2"))
+        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(Store.loadScreensaver(file)!.count, 1)
+        _ = session.handleKey(.X)
+        XCTAssertNil(session.pairIndex)
+        XCTAssertEqual(Store.loadScreensaver(file), [])
+
+        // Startup with a non-empty file activates pair 1.
+        Store.saveScreensaver([ScreensaverPair(rule: rule1.id, colorset: "S7", colors: grey(70))], to: file)
+        let again = makeSession(store, screensaver: file)
+        XCTAssertEqual(again.pairIndex, 0)
+        XCTAssertEqual(again.automaton.rule, rule1)
+        XCTAssertEqual(again.palette[0], RGB(hex: "#464646"))
+        _ = again.handleKey(.poolPrev)  // '[' walks the pool backward from S7
+        XCTAssertEqual(again.palette[0], RGB(hex: "#3C3C3C"))  // S6
+    }
+
+    func testScreensaverKeysInertOutsideMode() throws {
+        let session = makeSession(try reviewStore())
+        XCTAssertFalse(session.screensaverMode)
+        let palette = session.palette
+        _ = session.handleKey(.poolNext)
+        XCTAssertEqual(session.palette, palette)
+        _ = session.handleKey(.N)
+        _ = session.handleKey(.X)
+        XCTAssertEqual(session.pairs, [])
     }
 }

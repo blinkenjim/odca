@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.20.0 — 2026-09-04 (color set review mode; ahead of Python)
+Version 2.22.0 — 2026-09-04 (color set and screensaver review modes; ahead of Python)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -67,6 +67,11 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   the dropped list), and `Store.loadCandidatePalettes` reads
   `colorsets/candidates.json`. `ViewerModel.shutDown` calls
   `Session.finish()` so exit saves.
+- **Screensaver review** (R-W): `Session(screensaverFile:)` from
+  `--screensaver-review <file>`; `Store.loadScreensaver`/`saveScreensaver`
+  handle the pairs file (R-P5) in the shared JSON layout via the static
+  `quoted`/`list` helpers. In this mode the palette comes from
+  `Session.activeSet` (any pool member) rather than a digit slot.
 - **Engine**: plain loops over `[UInt8]` rows — native code needs no numpy
   equivalent; the 0/1/4/16 weighted-sum lookup and 49-slot dense table
   match the reference. Conformance vectors certify equality.

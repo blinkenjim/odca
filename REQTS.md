@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.20.0 — 2026-09-04
+Version 2.22.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -20,7 +20,9 @@ scrolling at slow speeds, seamless resume — R-U3, R-K10. 2.15.1:
 clarify that refresh follows the display, not a fixed 60 Hz — R-U5.
 2.20.0: the color sets file becomes the pool, with a dropped list —
 R-P4; color set review mode behind `--colorset-review` — section 4b;
-developer flags permitted — section 10.)
+developer flags permitted — section 10. 2.22.0: screensaver review mode
+and file — section 4c, R-P5; color set review saves on every drop and
+no longer bakes arrangements — R-V5, R-V6.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -409,21 +411,67 @@ end and prints `review wrapped` first. Both keys are live while paused,
 like the other color keys (R-K10).
 
 **R-V4 (`X` — drop).** Remove the current set from the review list, add
-its name to the dropped list, print `dropped <name>`, and display the
-next kept set (wrapping to the first, with the wrap message, if the
-dropped set was last). Subsequent `N`/`P` skip dropped sets. Dropping a
-digit-bound set is allowed; slots are reassigned on save (R-V5).
+its name to the dropped list, print `dropped <name>`, display the next
+kept set (wrapping to the first, with the wrap message, if the dropped
+set was last), and save (R-V5). Subsequent `N`/`P` skip dropped sets.
+Dropping a digit-bound set is allowed; slots are reassigned on save.
 
-**R-V5 (save).** `S`, and program exit, write the kept sets to the color
-sets file (R-P4): the first ten kept sets in review order are bound to
-the digit keys in the order 1, 2, …, 9, 0 — so dropping a bound set
+**R-V5 (save).** Every drop, and program exit, write the kept sets to the
+color sets file (R-P4): the first ten kept sets in review order are bound
+to the digit keys in the order 1, 2, …, 9, 0 — so dropping a bound set
 rotates the later ones down and fills the top key from the pool — and the
-rest are pool-only. Each kept set is written with its current arrangement
-(R-K15) baked in, as the normal `S` would. The dropped list is written in
-full. Prints `saved <k> color sets, <d> dropped`.
+rest are pool-only. The dropped list is written in full. Prints `saved <k>
+color sets, <d> dropped`. `S` has no binding in this mode.
 
-**R-V6 (arrangement).** `c`/`C` arrange the set under review; the
-arrangement is remembered per set for the session.
+**R-V6 (arrangement).** `c`/`C` arrange the set under review for preview
+only, remembered per set for the session and never written to the pool;
+arrangements are recorded in screensaver pairs instead (section 4c).
+
+---
+
+## 4c. Screensaver review mode (R-W)
+
+A hidden mode for composing a screensaver file (R-P5): an ordered list of
+rule / color set pairs, each pair carrying its colors already arranged.
+
+**R-W1 (entry).** Started by the command-line flag
+`--screensaver-review <file>`. If the file does not exist it is created
+empty; otherwise its pairs are loaded. If both review flags are given,
+this mode wins and color set review is not entered. On entry the program
+prints `screensaver <file>: <n> pairs` and, if the list is non-empty,
+activates pair 1. Every ordinary key keeps its meaning except as redefined
+below; the pool of color sets is the one loaded at startup (R-P4).
+
+**R-W2 (`N` / `P` — step).** Activate the next / previous pair: set its
+rule (as a rule change, R-B1, so undo applies) and make its stored colors
+the active color set, at arrangement 1; the cells are not re-seeded. The
+list does not wrap: at either end print `screensaver end` and stay. Pairs
+appended during the session are reached in turn. With an empty list the
+keys do nothing.
+
+**R-W3 (choosing colors).** The digit keys select their bound sets as
+usual; `[` and `]` step backward and forward through the whole pool in
+review order (digit-bound sets by key, then pool-only sets), wrapping,
+and print `color set <name>`. Selecting a set resets its arrangement to
+1; `c`/`C` arrange the active set. Together with `r`, `m`, `n`, `p`, and
+`u`, this composes the pair that `s` or `S` records: the current rule,
+the active set's name, and its arranged colors.
+
+**R-W4 (`s` / `S` — record).** `s` overwrites the pair under review with
+the composed pair (`no pair under review` if none is active); `S`
+appends the composed pair to the end of the list without changing the
+review position. Both write the file immediately. In this mode `s` does
+not append to the keeper file (R-K5) and `S` does not save a color set
+(R-K16).
+
+**R-W5 (`X` — delete).** Remove the pair under review, write the file, and
+activate the pair now at that position (the previous one if the last was
+removed); if the list becomes empty, no pair is under review and the
+current rule keeps running.
+
+**R-W6 (pause).** `S`, `N`, `P`, `X`, `[`, `]`, and the digits remain live
+while paused, like the other color keys (R-K10); `s` while paused keeps
+its pause meaning (R-K13).
 
 ---
 
@@ -469,6 +517,13 @@ first, sorted by slot number, then the pool in order. The raw source of
 candidate palettes is `colorsets/candidates.json` (an object with a
 `palettes` array of `name` + `colors`), which the program only reads.
 
+**R-P5 (screensaver file).** A JSON file named on the command line
+(R-W1): an object with a `pairs` array; each pair has `rule` (a rule ID,
+R-M8), `colorset` (the color set's name, for reference), and `colors`
+(four `#RRGGBB` strings, states 0–3, already arranged), so a screensaver
+plays even if the pool is later edited. Malformed pairs are skipped; an
+unparseable file loads as empty. Written in the same layout as R-P4.
+
 ---
 
 ## 6. Terminal output (R-O)
@@ -499,7 +554,12 @@ The program prints single-line, human-readable status to standard output:
   `review <i>/<n> <name>` (1-based position among the kept sets); `review
   wrapped` before a step that wraps; `dropped <name>` on `X`; `review
   empty` when nothing is left; `saved <k> color sets, <d> dropped` on
-  save. Arrangement messages (R-O9) name the set instead of a slot. this precedes nothing else (cells change, the rule does not).
+  save. Arrangement messages (R-O9) name the set instead of a slot.
+- **R-O12.** In screensaver review mode (section 4c): on entry
+  `screensaver <file>: <n> pairs`; on activation `screensaver <i>/<n>
+  <rule> <colorset>`; `screensaver end` at either end; `saved pair <i>/<n>`,
+  `added pair <n>/<n>`, `deleted pair <i>/<n>`, `no pair under review`;
+  `color set <name>` on `[`/`]`. Arrangement messages (R-O9) name the set. this precedes nothing else (cells change, the rule does not).
 
 ---
 
@@ -597,7 +657,8 @@ loses one update (loaders already tolerate malformed content, R-P).
 
 - No command-line arguments are required for ordinary use, and no
   configuration files or menus; hidden developer flags (such as
-  `--colorset-review`, section 4b) are permitted.
+  `--colorset-review`, section 4b, and `--screensaver-review <file>`,
+  section 4c) are permitted.
 - No vertical-sync guarantee; visible tearing is acceptable.
 - No reproducibility of random sequences across runs, languages, or
   machines.

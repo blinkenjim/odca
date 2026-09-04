@@ -94,4 +94,7 @@ blue), active at startup; the others are palettes from coolors.co: **0** Ocean S
 colors to the four states; `S` saves the current arrangement to the file.
 The file is also the pool of every kept color set; a hidden review mode
 (`--colorset-review`, Swift for now) steps through the whole pool with
-`N`/`P`, drops sets with `X`, and saves the kept sets with `S` or on exit.
+`N`/`P` and drops sets with `X`, saving as it goes. A second hidden mode,
+`--screensaver-review <file>`, composes a screensaver file of rule and
+color set pairs: `N`/`P` step through pairs, `[`/`]` walk the pool, `s`
+saves the pair under review, `S` appends a new one, `X` deletes.
