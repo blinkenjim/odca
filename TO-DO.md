@@ -1,13 +1,13 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-04):** Python is at 2.9.0 (auto-init filter
-2.3–2.7 reviewed and working; color sets 3–9 provisionally filled with the
-first seven of colorsets/candidates.json). Next: (a) the Swift catch-up
-release, porting 2.1–2.9 (session layer is already there; auto-init,
-paused 's', screen counter, Brent's, color sets are not); (b) decide the
-mechanics for auditioning all 45 palettes (colorsets/audition.png) and
-finalize slots 3–9; (c) finish the auto-init review of the remaining
-saved rules if any are unchecked.
+**YOU ARE HERE (2026-09-04, late):** Python is at 2.11.2: color sets are
+file-backed (colorsets/colorsets.json; slot 1 default, coolors.co
+palettes in 0 and 2-9), with c/C arranging colors and S saving, all live
+while paused. Seven commits (2.9.0 through the vision notes) are
+committed locally but NOT pushed. Next: (a) push; (b) the Swift catch-up
+release porting 2.3-2.11 (auto-init filter, paused s, screen counter,
+Brent's, file-backed color sets and c/C/S); (c) audition all 45 palettes
+and finalize the slots; (d) then the vision items below.
 
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
