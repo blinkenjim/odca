@@ -333,3 +333,21 @@ def test_screen_counter_runs_from_resume(make_store, capsys):  # PT-20
     assert s.screen_counter == 5
     s.handle_key(" ")  # resume again: restart from 0
     assert s.screen_counter == 0
+
+
+def test_repetition_window_spans_ten_screens(make_store):  # R-A1
+    from odca.session import REPEAT_SCREENS
+    s = make_session(make_store(current=Rule.from_id("0123" * 5)))
+    rng = np.random.default_rng(9)
+    rows = [rng.integers(0, 4, 32).astype(np.uint8) for _ in range(REPEAT_SCREENS * s.rows)]
+    for row in rows:
+        s._observe(row)  # all distinct, all four states present: nothing boring
+    assert s._boring_streak == 0
+    s._observe(rows[0])  # recurs exactly REPEAT_SCREENS screens later: still in window
+    assert s._boring_streak == 1 and s._boring_reason == "repeating"
+    s._reset_boredom()
+    for row in rows:
+        s._observe(row)
+    s._observe(rng.integers(0, 4, 32).astype(np.uint8))  # pushes rows[0] out of the window
+    s._observe(rows[0])
+    assert s._boring_streak == 0  # forgotten: beyond ten screens

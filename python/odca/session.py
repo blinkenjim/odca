@@ -59,6 +59,7 @@ INITIAL_DELAY = 1 / 60  # seconds between generations (R-U5)
 MIN_DELAY = 1 / 16384  # R-K8
 MAX_DELAY = 8.0
 MAX_CANDIDATES = 64  # stash cap; background workers throttle once full (R-S3)
+REPEAT_SCREENS = 10  # a row recurring within this many screens is repeating (R-A1)
 MINORITY_FRACTION = 0.10  # a producible state below this share is a minority (R-A1)
 STAGNATION_SCREENS = 4  # minority population steady this many screens -> stagnant
 STAGNATION_SWING = 0.25  # (max - min) / mean below this counts as steady
@@ -96,7 +97,7 @@ class Session:
         self.auto_init = False  # R-K12: off at startup, not persisted
         self._boring_streak = 0
         self._boring_reason = None
-        self._recent_rows = deque()  # row bytes of the last `rows` generations
+        self._recent_rows = deque()  # row bytes of the last REPEAT_SCREENS screens
         self._recent_counts = Counter()
         # minority-state cell counts over the last STAGNATION_SCREENS screens
         self._minority_counts = deque(maxlen=STAGNATION_SCREENS * rows)
@@ -160,7 +161,7 @@ class Session:
         repeating = self._recent_counts[key] > 0
         self._recent_rows.append(key)
         self._recent_counts[key] += 1
-        if len(self._recent_rows) > self.rows:
+        if len(self._recent_rows) > REPEAT_SCREENS * self.rows:
             old = self._recent_rows.popleft()
             self._recent_counts[old] -= 1
             if self._recent_counts[old] == 0:

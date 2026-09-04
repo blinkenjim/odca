@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.5.1 — 2026-09-03
+Version 2.5.2 — 2026-09-03
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -9,7 +9,8 @@ the arrival of the Swift implementation; no behavioral change from 1.3.
 2.3.1: an extinction does not count while another minority state is
 still alive — R-A1. 2.3.2: stagnation detector — R-A1, R-O6. 2.5.0:
 paused `s` zips one screenful — R-K13. 2.5.1: screen counter started by
-resume — R-K14, R-O7.)
+resume — R-K14, R-O7. 2.5.2: repetition window widened to 10 screens —
+R-A1.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -283,8 +284,10 @@ interesting row has just scrolled off the top of the display.
   say); the extinction counts only once such groups have vanished, so the
   user sees the collision; or
 - *repetition*: the row is identical to a row produced within the
-  previous `rows` generations (the display height, R-U2) — the automaton
-  has died or entered a cycle of period at most `rows`; or
+  previous 10 × `rows` generations (ten display heights, R-U2) — the
+  automaton has died or entered a cycle of period at most ten screens.
+  A cycle is recognized only after one full period has elapsed, so the
+  trigger follows lock-in by one period plus the screenful dwell; or
 - *stagnation*: the minority population — the total number of cells in
   living-minority states — has held steady over the previous 4 × `rows`
   generations: its swing (maximum minus minimum, divided by its mean) is
