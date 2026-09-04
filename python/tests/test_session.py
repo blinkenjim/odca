@@ -156,12 +156,12 @@ def test_init_cells_pushes_row(make_store):  # R-K6
     assert s.automaton.generation == 0
 
 
-def test_undefined_color_set_ignored(make_store):  # R-K9
+def test_every_digit_selects_a_color_set(make_store):  # R-K9
     s = make_session(make_store())
-    s.handle_key("7")
     assert s.color_set == 2
-    s.handle_key("0")
-    assert s.color_set == 0
+    for d in "0123456789":
+        s.handle_key(d)
+        assert s.color_set == int(d)
 
 
 ALL_ZERO = Rule.from_id("0" * 20)

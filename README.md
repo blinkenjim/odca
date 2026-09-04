@@ -86,5 +86,5 @@ neighbors rather than appearing to do nothing.
 
 Color sets: **0** is CoCo color set 0 (green, yellow, blue, red), **1** is
 CoCo color set 1 (buff, cyan, magenta, orange), **2** is the default set
-(near-black, off-white, amber, blue). Keys 3–9 are reserved for color sets
-yet to be chosen.
+(near-black, off-white, amber, blue). Keys 3–9 are palettes from
+coolors.co: **3** Meadow Sunflower Glow; **4** Candy Floss Dreams; **5** Fiery Ice Cream Delight; **6** Golden Autumn Twilight; **7** Midnight Sun Dance; **8** Seaside Serenity; **9** Cherry Blossom Sky.

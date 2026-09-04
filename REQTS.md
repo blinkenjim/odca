@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.7.0 — 2026-09-03
+Version 2.9.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -11,7 +11,7 @@ still alive — R-A1. 2.3.2: stagnation detector — R-A1, R-O6. 2.5.0:
 paused `s` zips one screenful — R-K13. 2.5.1: screen counter started by
 resume — R-K14, R-O7. 2.5.2: repetition window widened to 10 screens —
 R-A1. 2.7.0: cycles of any period detected by Brent's algorithm — R-A1,
-R-O8.)
+R-O8. 2.9.0: color sets 3–9 defined — R-U4.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -140,17 +140,25 @@ at the bottom. The initial (seed) generation is displayed.
 
 **R-U4 (colors).** Each state maps to an RGB color through the active
 *color set*; state 0 is the background. Ten color-set slots exist, bound to
-the digit keys `0`–`9`. Three are defined; the rest are reserved
-(selecting an undefined slot is a silent no-op):
+the digit keys `0`–`9`, all defined (selecting an undefined slot, should
+a slot ever be vacated, is a silent no-op):
 
 | slot | name | state 0 | state 1 | state 2 | state 3 |
 |------|------|---------|---------|---------|---------|
 | 0 | CoCo set 0 | green `#07FF00` | yellow `#FFFF00` | blue `#3B08FF` | red `#CC003B` |
 | 1 | CoCo set 1 | buff `#FFFFFF` | cyan `#07E399` | magenta `#FF1CFF` | orange `#FF8100` |
 | 2 | default | near-black `#121218` | off-white `#EBEBE1` | amber `#FFA136` | blue `#409CFF` |
+| 3 | Meadow Sunflower Glow | `#D6E0A2` | `#F6F4D5` | `#CFDEC0` | `#E5A07F` |
+| 4 | Candy Floss Dreams | `#F2AAA1` | `#F9F3DF` | `#C4F0E6` | `#B7D8DF` |
+| 5 | Fiery Ice Cream Delight | `#102F47` | `#C53A32` | `#E78531` | `#F3C15F` |
+| 6 | Golden Autumn Twilight | `#4D9CB9` | `#112F45` | `#F4BA41` | `#EC8B33` |
+| 7 | Midnight Sun Dance | `#041523` | `#2E606B` | `#FCEDD4` | `#EE8432` |
+| 8 | Seaside Serenity | `#E8ECEF` | `#304B74` | `#6C95B7` | `#ACCDEE` |
+| 9 | Cherry Blossom Sky | `#2B2D40` | `#8F99AC` | `#EEF2F4` | `#DC3C44` |
 
 Slot 2 is active at startup. (CoCo values are the customary MC6847 VDG
-approximations.)
+approximations; slots 3–9 are palettes from coolors.co, recorded with
+their sources in `colorsets/`.)
 
 **R-U5 (timing).** Generation pacing is governed by a *delay* — the
 nominal time between generations — independent of the display refresh:

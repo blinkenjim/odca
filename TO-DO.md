@@ -1,12 +1,16 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-03):** resume the review of the auto-init
-"boring filter" (versions 2.3.0–2.7.0) against the saved rules in
-interesting-rules.txt. Several were checked and behaved correctly at
-default speed; continue where you left off. Feature work resumes with
-Python 2.9.0 (or the Swift catch-up at 2.8.0).
+**YOU ARE HERE (2026-09-04):** Python is at 2.9.0 (auto-init filter
+2.3–2.7 reviewed and working; color sets 3–9 provisionally filled with the
+first seven of colorsets/candidates.json). Next: (a) the Swift catch-up
+release, porting 2.1–2.9 (session layer is already there; auto-init,
+paused 's', screen counter, Brent's, color sets are not); (b) decide the
+mechanics for auditioning all 45 palettes (colorsets/audition.png) and
+finalize slots 3–9; (c) finish the auto-init review of the remaining
+saved rules if any are unchecked.
 
-- [ ] Choose the remaining seven color sets (keys 3–9)
+- [x] (2.9.0, provisionally: the first seven of colorsets/candidates.json;
+      revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
 - [ ] Hold-to-run: while paused, holding the Return key resumes the
       animation at a slow rate; releasing Return returns to the paused
       state (extends the single-step of R-K11)

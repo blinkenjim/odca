@@ -21,7 +21,8 @@ Keys (single characters):
     i   initialize all cells to random contents
     +   speed up (halve the delay between generations)
     -   slow down (double the delay between generations)
-    0-9 select a color set (0: CoCo set 0, 1: CoCo set 1, 2: default)
+    0-9 select a color set (0: CoCo set 0, 1: CoCo set 1, 2: default,
+        3-9: named palettes, see REQTS R-U4)
     ' ' pause / resume; while paused every key but space, Return, and q
         is ignored
     '\\n' (Return) while paused: compute and display one generation
@@ -54,7 +55,7 @@ from .classify import find_candidate
 from .search import CandidateSearch
 from .store import Store
 
-DEFINED_COLOR_SETS = 3  # slots 0-2; 3-9 reserved (R-U4)
+DEFINED_COLOR_SETS = 10  # slots 0-9 (R-U4)
 DEFAULT_COLOR_SET = 2
 INITIAL_DELAY = 1 / 60  # seconds between generations (R-U5)
 MIN_DELAY = 1 / 16384  # R-K8

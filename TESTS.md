@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.7.0 — 2026-09-03
+Version 2.9.0 — 2026-09-04
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -105,8 +105,7 @@ from `REQTS.md`.
   walks back through every `r`/`m`/`n`/`p` change (R-K3, R-K4).
 - **M-4** `+`/`-` speed the scroll up and down across the full range; the
   UI stays responsive at maximum speed (R-K8, R-U5, R-N2).
-- **M-5** `0`/`1`/`2` switch palettes instantly; `3`–`9` do nothing
-  (R-K9, R-U4).
+- **M-5** `0`–`9` each switch palettes instantly (R-K9, R-U4).
 - **M-6** `s` then `n`/`p`: the saved rule is reachable in the cycle; the
   wrap-to-unsaved behavior matches R-B2/R-B3.
 - **M-7** With the stash full and the program idle, worker CPU usage falls
