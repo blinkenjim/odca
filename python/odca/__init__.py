@@ -2,5 +2,5 @@
 
 from .automaton import Automaton, Rule
 
-__version__ = "1.3.0"  # implements spec (REQTS.md) 1.3
+__version__ = "2.0.0"
 __all__ = ["Automaton", "Rule"]

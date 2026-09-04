@@ -1,14 +1,16 @@
 # ODCA — Requirements
 
-Version 1.3.0 — 2026-09-03
+Version 2.0.0 — 2026-09-03
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
-paused — R-K11.)
+paused — R-K11. 2.0.0: version unified across the whole code base with
+the arrival of the Swift implementation; no behavioral change from 1.3.)
 
-Versioning is semantic: MAJOR for incompatible changes (state formats,
-rule IDs, conformance vectors), MINOR for new or changed behavior, PATCH
-for clarifications. Each implementation carries its own semantic version
-and states which spec MAJOR.MINOR it implements.
+Versioning is semantic and shared by the whole code base: the
+specification and every implementation carry the same version and are
+released together. MAJOR for incompatible changes (state formats, rule
+IDs, conformance vectors), MINOR for new or changed behavior, PATCH for
+fixes and clarifications.
 
 This document specifies ODCA, an interactive viewer for a four-state,
 count-based, one-dimensional cellular automaton, in sufficient detail to

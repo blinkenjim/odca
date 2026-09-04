@@ -1,7 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.0.0 — implements spec (REQTS.md) 1.3.
-2026-09-03
+Version 2.0.0 — 2026-09-03
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
