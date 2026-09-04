@@ -73,7 +73,7 @@ consume candidates.
 | 0-9 | select a color set                           |
 | space | pause / resume (while paused, all keys but space, return, `s`, and `q` are ignored); resuming starts a screen counter that prints `screen N` after every screenful |
 | return | while paused: single-step one generation, staying paused |
-| a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; off at startup |
+| a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; off at startup |
 | q   | quit                                         |
 
 The `n`/`p` cycle includes one extra slot holding the unsaved rule that was

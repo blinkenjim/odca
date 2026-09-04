@@ -35,9 +35,10 @@ every completed screenful of generations prints 'screen N', however the
 generations were computed (running, zipping, or single-stepping).
     a   toggle auto-init (off at startup): once every row on screen is
         boring — a state the rule can produce has gone extinct (and no
-        other minority state is still alive), the rows are repeating, or
-        the minority population has been stagnant for several screens —
-        re-initialize the cells as 'i' does
+        other minority state is still alive), the rows are repeating (a
+        cycle of any period, found by Brent's algorithm, or a row seen
+        within the last ten screens), or the minority population has been
+        stagnant for several screens — re-initialize the cells as 'i' does
 
 At startup, if the loaded rule matches a saved rule the cycle position
 points at it (so n/p step to its neighbors); otherwise the position is the
@@ -99,6 +100,11 @@ class Session:
         self._boring_reason = None
         self._recent_rows = deque()  # row bytes of the last REPEAT_SCREENS screens
         self._recent_counts = Counter()
+        # Brent's cycle detection: one saved row, refreshed at powers of two.
+        self._brent_snapshot = None
+        self._brent_power = 1
+        self._brent_steps = 0
+        self.cycle_period = None  # exact period once a cycle is detected
         # minority-state cell counts over the last STAGNATION_SCREENS screens
         self._minority_counts = deque(maxlen=STAGNATION_SCREENS * rows)
 
@@ -158,6 +164,23 @@ class Session:
     def _observe(self, row):
         """Classify a computed generation as boring or not (R-A1)."""
         key = row.tobytes()
+        # The automaton is deterministic, so a recurring row means the future
+        # is periodic forever. Brent's algorithm finds a cycle of any period
+        # with a single saved row: compare each new row to the snapshot, and
+        # move the snapshot forward whenever the step count reaches a power
+        # of two. On a hit, the steps since the snapshot are exactly the period.
+        if self.cycle_period is None:
+            if self._brent_snapshot is None:
+                self._brent_snapshot = key
+            else:
+                self._brent_steps += 1
+                if key == self._brent_snapshot:
+                    self.cycle_period = self._brent_steps
+                    print(f"cycle period {self.cycle_period}")  # R-O8
+                elif self._brent_steps == self._brent_power:
+                    self._brent_snapshot = key
+                    self._brent_power *= 2
+                    self._brent_steps = 0
         repeating = self._recent_counts[key] > 0
         self._recent_rows.append(key)
         self._recent_counts[key] += 1
@@ -184,6 +207,8 @@ class Session:
         if extinct and not living_minority:
             plural = "s" if len(extinct) > 1 else ""
             reason = f"state{plural} {', '.join(map(str, extinct))} extinct"
+        elif self.cycle_period is not None:
+            reason = f"repeating (period {self.cycle_period})"
         elif repeating:
             reason = "repeating"
         elif stagnant:
@@ -202,6 +227,10 @@ class Session:
         self._recent_rows.clear()
         self._recent_counts.clear()
         self._minority_counts.clear()
+        self._brent_snapshot = None
+        self._brent_power = 1
+        self._brent_steps = 0
+        self.cycle_period = None
 
     def tick(self, dt):
         """Advance by elapsed wall-clock seconds (R-U5); call at ~60 Hz."""

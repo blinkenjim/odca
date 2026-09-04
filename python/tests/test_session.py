@@ -182,7 +182,7 @@ def test_auto_init_fires_when_screen_is_boring(make_store, capsys):  # PT-15
     assert s.automaton.generation == 16
     s.tick(1 / 60)
     assert s.automaton.generation == 0  # re-initialized
-    assert "auto-init (repeating)" in capsys.readouterr().out
+    assert "auto-init (repeating (period 1))" in capsys.readouterr().out
     assert s.rule == ALL_ZERO  # rule untouched
 
 
@@ -229,7 +229,7 @@ def test_auto_init_via_single_step_while_paused(make_store, capsys):  # R-A4
     for _ in range(17):
         s.handle_key("\n")
     assert s.automaton.generation == 0 and s.paused
-    assert "auto-init (repeating)" in capsys.readouterr().out
+    assert "auto-init (repeating (period 1))" in capsys.readouterr().out
 
 
 def test_extinction_waits_for_living_minority(make_store):  # R-A1 refinement
@@ -351,3 +351,44 @@ def test_repetition_window_spans_ten_screens(make_store):  # R-A1
     s._observe(rng.integers(0, 4, 32).astype(np.uint8))  # pushes rows[0] out of the window
     s._observe(rows[0])
     assert s._boring_streak == 0  # forgotten: beyond ten screens
+
+
+def _distinct_rows(rng, n):
+    """n distinct random rows, each containing all four states (no extinction)."""
+    rows = []
+    seen = set()
+    while len(rows) < n:
+        row = rng.integers(0, 4, 32).astype(np.uint8)
+        row[:4] = [0, 1, 2, 3]
+        if row.tobytes() not in seen:
+            seen.add(row.tobytes()); rows.append(row)
+    return rows
+
+
+def test_brent_finds_period_beyond_the_window(make_store, capsys):  # PT-22
+    from odca.session import REPEAT_SCREENS
+    s = make_session(make_store(current=Rule.from_id("0123" * 5)))
+    rng = np.random.default_rng(12)
+    period = 3 * REPEAT_SCREENS * s.rows  # far longer than the repetition window
+    transient, cycle = _distinct_rows(rng, 37), _distinct_rows(rng, period)
+    for row in transient:
+        s._observe(row)
+    g = 0
+    while s.cycle_period is None and g < 10 * period:
+        s._observe(cycle[g % period]); g += 1
+    assert s.cycle_period == period
+    assert f"cycle period {period}" in capsys.readouterr().out
+    assert s._boring_reason == f"repeating (period {period})"
+    s._observe(cycle[g % period])
+    assert s._boring_streak >= 2  # every generation is boring from now on
+    s.handle_key("m")  # rule change resets the detector
+    assert s.cycle_period is None and s._brent_snapshot is None
+
+
+def test_brent_short_period_exact(make_store, capsys):  # PT-22
+    s = make_session(make_store(current=Rule.from_id("0123" * 5)))
+    rng = np.random.default_rng(13)
+    cycle = _distinct_rows(rng, 7)
+    for g in range(200):
+        s._observe(cycle[g % 7])
+    assert s.cycle_period == 7

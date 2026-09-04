@@ -20,6 +20,13 @@
       the first port so every port inherits the boundary as a blueprint.
       Domain interfaces (Rule, Automaton, evaluate) already serve as the
       abstraction over numpy; no array-level abstraction is wanted.
+- [ ] Metal (Swift): GPU-parallel rule screening for the background
+      search — one thread per automaton, thousands of rules per dispatch;
+      the Swift side's first distinctive feature rather than a port.
+      Cycle detection stays on the CPU (serial, O(1) per generation).
+- [ ] Test the in-app background search end to end (stash filling,
+      instant 'r', workers idling when the stash is full, clean exit) —
+      not yet exercised by the user.
 - [ ] CI matrix (GitHub Actions, ubuntu + macos) running each
       implementation's headless test suite — set up once a second
       implementation exists

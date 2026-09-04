@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.5.2 — 2026-09-03
+Version 2.7.0 — 2026-09-03
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -10,7 +10,8 @@ the arrival of the Swift implementation; no behavioral change from 1.3.
 still alive — R-A1. 2.3.2: stagnation detector — R-A1, R-O6. 2.5.0:
 paused `s` zips one screenful — R-K13. 2.5.1: screen counter started by
 resume — R-K14, R-O7. 2.5.2: repetition window widened to 10 screens —
-R-A1.)
+R-A1. 2.7.0: cycles of any period detected by Brent's algorithm — R-A1,
+R-O8.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -283,18 +284,28 @@ interesting row has just scrolled off the top of the display.
   drifting group whose fate is unresolved (two domain walls converging,
   say); the extinction counts only once such groups have vanished, so the
   user sees the collision; or
-- *repetition*: the row is identical to a row produced within the
-  previous 10 × `rows` generations (ten display heights, R-U2) — the
-  automaton has died or entered a cycle of period at most ten screens.
-  A cycle is recognized only after one full period has elapsed, so the
-  trigger follows lock-in by one period plus the screenful dwell; or
+- *repetition*: the automaton has entered a cycle. Because the automaton
+  is deterministic, a row that recurs proves the future periodic forever,
+  so once a cycle is recognized every later generation is boring. Two
+  mechanisms recognize cycles, and either suffices:
+  - a *window*: the row is identical to a row produced within the
+    previous 10 × `rows` generations (ten display heights, R-U2), which
+    catches cycles of period up to ten screens one period after lock-in;
+  - *Brent's algorithm*: a single saved row, compared against each new
+    generation and replaced by the current row whenever the number of
+    generations since it was saved reaches a power of two. A match means
+    a cycle whose period is exactly the generations since the save. This
+    finds a cycle of any period with constant memory, within a small
+    multiple of transient plus period; the period is printed on detection
+    (R-O8) and reported in the reason. Or
 - *stagnation*: the minority population — the total number of cells in
   living-minority states — has held steady over the previous 4 × `rows`
   generations: its swing (maximum minus minimum, divided by its mean) is
   below 0.25, with a nonzero mean. A steady minority population is a
   structure drifting in parallel with nothing growing or shrinking: a
   long-period repetition that exact row matching cannot see.
-The reason reported (R-O6) is the first of extinction, repetition,
+The reason reported (R-O6) is the first of extinction, repetition with a
+known period (`repeating (period <n>)`), window repetition (`repeating`),
 stagnation that applies.
 Generations are classified whenever they are computed, whether by timed
 evolution (R-U5) or single step (R-K11); the seed row itself is not
@@ -308,8 +319,9 @@ present, else the repetition.
 
 **R-A3 (reset).** The consecutive-boring count and the repetition window
 reset on any rule change (R-B1) and on any re-initialization, manual or
-automatic, as does the stagnation history; a non-boring generation resets
-the count. Consequently every
+automatic, as do the stagnation history and the cycle detector state
+(saved row and detected period); a non-boring generation resets the
+count. Consequently every
 new rule and every fresh seed gets a full screen of generations before it
 can be judged. The count is maintained whether or not the mode is on, so
 enabling the mode on an already-boring screen may trigger on the next
@@ -362,9 +374,12 @@ The program prints single-line, human-readable status to standard output:
 - **R-O6.** On `a`: `auto-init on` or `auto-init off`. On an automatic
   re-initialization: `auto-init (<reason>)`, where reason is
   `state <k> extinct` (or `states <k>, <l> extinct`, ascending),
-  `repeating`, or `stagnant`;
+  `repeating (period <n>)`, `repeating`, or `stagnant`;
 - **R-O7.** On each completed screenful while the screen counter is active
-  (R-K14): `screen <n>`. this precedes nothing else (cells change, the rule does not).
+  (R-K14): `screen <n>`.
+- **R-O8.** When Brent's algorithm first detects a cycle since the last
+  reset (R-A3), whether or not auto-initialization is on:
+  `cycle period <n>`. this precedes nothing else (cells change, the rule does not).
 
 ---
 
