@@ -25,6 +25,7 @@ final class ViewerModel: ObservableObject {
         let args = CommandLine.arguments
         let review = args.contains("--colorset-review")  // R-V1
         var screensaver: URL?
+        var groupByRule = false
         if let i = args.firstIndex(of: "--screensaver-review") {  // R-W1
             if i + 1 < args.count {
                 screensaver = URL(fileURLWithPath: args[i + 1])
@@ -32,8 +33,21 @@ final class ViewerModel: ObservableObject {
                 print("usage: odca --screensaver-review <file.json>")
             }
         }
+        if let i = args.firstIndex(of: "--consistency-check") {  // R-W7
+            guard i + 1 < args.count else {
+                print("usage: odca --consistency-check <existing file.json>")
+                exit(2)
+            }
+            let url = URL(fileURLWithPath: args[i + 1])
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                print("error: \(args[i + 1]) does not exist")
+                exit(1)
+            }
+            screensaver = url
+            groupByRule = true
+        }
         session = Session(cols: Self.cols, rows: Self.rows, reviewMode: review,
-                          screensaverFile: screensaver)
+                          screensaverFile: screensaver, groupByRule: groupByRule)
         session.startSearch()
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {

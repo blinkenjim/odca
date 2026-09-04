@@ -88,8 +88,11 @@ public final class Session {
     private var reviewArrangement: [String: Int] = [:]
     // Screensaver review mode (R-W): the file, its pairs, and the active set.
     public let screensaverFile: URL?
-    public private(set) var pairs: [ScreensaverPair] = []
-    public private(set) var pairIndex: Int?
+    public let groupByRule: Bool  // consistency check: view grouped by rule (R-W7)
+    public private(set) var pairs: [ScreensaverPair] = []  // always in file order
+    public private(set) var pairIndex: Int?  // file index of the pair under review
+    public private(set) var viewOrder: [Int] = []  // file indices in presentation order
+    public private(set) var viewPosition: Int?  // position of pairIndex within viewOrder
     public private(set) var activeSet: ColorSetEntry?  // the set in use (any pool member)
     private var activeArrangement = 0
     private var pool: [ColorSetEntry] = []  // whole pool in review order for [ / ]
@@ -121,7 +124,7 @@ public final class Session {
     public init(
         cols: Int, rows: Int, store: Store = Store(),
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
-        reviewMode: Bool = false, screensaverFile: URL? = nil,
+        reviewMode: Bool = false, screensaverFile: URL? = nil, groupByRule: Bool = false,
         output: @escaping (String) -> Void = { print($0) }
     ) {
         self.cols = cols
@@ -130,6 +133,7 @@ public final class Session {
         self.search = search
         self.reviewMode = reviewMode && screensaverFile == nil  // R-W1: screensaver wins
         self.screensaverFile = screensaverFile
+        self.groupByRule = groupByRule && screensaverFile != nil
         self.output = output
         var rng = rng
 
@@ -335,8 +339,33 @@ public final class Session {
             pairs = []
             Store.saveScreensaver(pairs, to: url)  // a new, empty file
         }
+        rebuildViewOrder()
         output("screensaver \(url.lastPathComponent): \(pairs.count) pairs")
-        if !pairs.isEmpty { activatePair(0) }
+        if !pairs.isEmpty { activate(viewPosition: 0) }
+    }
+
+    /// Presentation order (R-W7): file order, or — in a consistency check —
+    /// pairs grouped by rule, groups in order of each rule's first appearance.
+    private func rebuildViewOrder() {
+        if groupByRule {
+            var groups: [String: [Int]] = [:]
+            var ruleOrder: [String] = []
+            for (i, p) in pairs.enumerated() {
+                if groups[p.rule] == nil { ruleOrder.append(p.rule) }
+                groups[p.rule, default: []].append(i)
+            }
+            viewOrder = ruleOrder.flatMap { groups[$0]! }
+        } else {
+            viewOrder = Array(pairs.indices)
+        }
+        viewPosition = pairIndex.flatMap { viewOrder.firstIndex(of: $0) }
+    }
+
+    /// 1-based group number of a file index among the rule groups, and the count.
+    private func ruleGroup(of index: Int) -> (Int, Int) {
+        var seen: [String] = []
+        for p in pairs where !seen.contains(p.rule) { seen.append(p.rule) }
+        return ((seen.firstIndex(of: pairs[index].rule) ?? 0) + 1, seen.count)
     }
 
     private func currentPair() -> ScreensaverPair {
@@ -344,7 +373,13 @@ public final class Session {
         return ScreensaverPair(rule: automaton.rule.id, colorset: name, colors: arrangedActiveColors())
     }
 
-    private func activatePair(_ index: Int) {  // R-W2
+    private func activate(viewPosition position: Int) {  // R-W2
+        let index = viewOrder[position]
+        if groupByRule, pairIndex.map({ pairs[$0].rule }) != pairs[index].rule {
+            let (g, total) = ruleGroup(of: index)
+            output("--- rule group \(g)/\(total) ---")  // R-O12
+        }
+        viewPosition = position
         let pair = pairs[index]
         pairIndex = index
         if let rule = try? Rule(id: pair.rule), rule != automaton.rule {
@@ -353,17 +388,17 @@ public final class Session {
         }
         activeSet = ColorSetEntry(slot: nil, name: pair.colorset, colors: pair.colors)
         activeArrangement = 0  // stored colors are already arranged
-        output("screensaver \(index + 1)/\(pairs.count) \(pair.colorset)")  // R-O12
+        output("screensaver \(position + 1)/\(pairs.count) \(pair.colorset)")  // R-O12
     }
 
     private func screensaverStep(_ step: Int) {  // R-W2: no wrap
         guard !pairs.isEmpty else { return }
-        let next = (pairIndex ?? -1) + step
-        guard (0..<pairs.count).contains(next) else {
+        let next = (viewPosition ?? -1) + step
+        guard (0..<viewOrder.count).contains(next) else {
             output("screensaver end")
             return
         }
-        activatePair(next)
+        activate(viewPosition: next)
     }
 
     private func saveScreensaver() {
@@ -377,26 +412,30 @@ public final class Session {
             output("no pair under review")
             return
         }
-        pairs[i] = currentPair()
+        pairs[i] = currentPair()  // in place: the file position is unchanged
+        rebuildViewOrder()  // a changed rule may move it between groups
         saveScreensaver()
-        output("saved pair \(i + 1)/\(pairs.count)")  // R-O12
+        output("saved pair \((viewPosition ?? i) + 1)/\(pairs.count)")  // R-O12
     }
 
     private func appendPair() {  // R-W4: 'S' appends; the review position is unchanged
-        pairs.append(currentPair())
+        pairs.append(currentPair())  // always at the end of the file
+        rebuildViewOrder()  // in a consistency check it joins its rule's group in the view
         saveScreensaver()
         output("added pair \(pairs.count)/\(pairs.count)")  // R-O12
     }
 
     private func deletePair() {  // R-W5
-        guard let i = pairIndex else { return }
-        pairs.remove(at: i)
+        guard let i = pairIndex, let position = viewPosition else { return }
+        pairs.remove(at: i)  // in place: later pairs keep their relative file order
+        pairIndex = nil
+        rebuildViewOrder()
         saveScreensaver()
-        output("deleted pair \(i + 1)/\(pairs.count + 1)")  // R-O12
+        output("deleted pair \(position + 1)/\(pairs.count + 1)")  // R-O12
         if pairs.isEmpty {
-            pairIndex = nil
+            viewPosition = nil
         } else {
-            activatePair(min(i, pairs.count - 1))
+            activate(viewPosition: min(position, viewOrder.count - 1))
         }
     }
 

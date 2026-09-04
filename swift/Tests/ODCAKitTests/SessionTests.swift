@@ -22,11 +22,12 @@ final class SessionTests: XCTestCase {
 
     /// A session whose terminal output is captured into `lines`.
     func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil,
-                     review: Bool = false, screensaver: URL? = nil) -> Session {
+                     review: Bool = false, screensaver: URL? = nil, grouped: Bool = false) -> Session {
         let sink: (String) -> Void = lines.map { l in { l.all.append($0) } } ?? { print($0) }
         return Session(cols: 32, rows: 16, store: store,
                        search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed),
-                       reviewMode: review, screensaverFile: screensaver, output: sink)
+                       reviewMode: review, screensaverFile: screensaver, groupByRule: grouped,
+                       output: sink)
     }
 
     final class Lines { var all: [String] = []; func take() -> String { defer { all.removeAll() }; return all.joined(separator: "\n") } }
@@ -662,5 +663,57 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.N)
         _ = session.handleKey(.X)
         XCTAssertEqual(session.pairs, [])
+    }
+
+    // MARK: PT-30 consistency check: grouped view, file order preserved (R-W7)
+
+    func testConsistencyCheckGroupsByRuleForViewOnly() throws {
+        let lines = Lines()
+        let store = try reviewStore()
+        let file = store.stateDir.deletingLastPathComponent().appendingPathComponent("saver.json")
+        let a = String(repeating: "0", count: 20), b = String(repeating: "1", count: 20), c = String(repeating: "2", count: 20)
+        // File order: A, B, A, C, B  (color sets S1..S5 mark the positions)
+        let original = [(a, "S1"), (b, "S2"), (a, "S3"), (c, "S4"), (b, "S5")].map { rule, set in
+            ScreensaverPair(rule: rule, colorset: set, colors: grey(Int(set.dropFirst())! * 10))
+        }
+        Store.saveScreensaver(original, to: file)
+
+        let session = makeSession(store, lines: lines, screensaver: file, grouped: true)
+        XCTAssertEqual(session.viewOrder, [0, 2, 1, 4, 3])  // A A B B C
+        var out = lines.take()
+        XCTAssertTrue(out.contains("--- rule group 1/3 ---") && out.contains("screensaver 1/5 S1"))
+        _ = session.handleKey(.N)
+        out = lines.take()
+        XCTAssertTrue(out.contains("screensaver 2/5 S3") && !out.contains("rule group"))
+        _ = session.handleKey(.N)
+        out = lines.take()
+        XCTAssertTrue(out.contains("--- rule group 2/3 ---") && out.contains("screensaver 3/5 S2"))
+        XCTAssertEqual(session.pairIndex, 1)  // file position of S2
+
+        _ = session.handleKey(.S)  // append a B pair: end of file, but grouped with B in the view
+        XCTAssertEqual(session.pairs.count, 6)
+        XCTAssertEqual(session.viewOrder, [0, 2, 1, 4, 5, 3])
+        XCTAssertEqual(session.viewPosition, 2)  // still on S2
+        _ = session.handleKey(.N)  // S5
+        _ = session.handleKey(.N)  // the appended pair, same group: no marker
+        out = lines.take()
+        XCTAssertTrue(out.contains("screensaver 5/6") && !out.contains("rule group"))
+        XCTAssertEqual(session.pairIndex, 5)
+        _ = session.handleKey(.N)  // C
+        XCTAssertTrue(lines.take().contains("--- rule group 3/3 ---"))
+        XCTAssertEqual(session.pairIndex, 3)
+
+        _ = session.handleKey(.digit(7))  // modify C's color set in place
+        _ = session.handleKey(.s)
+        var saved = Store.loadScreensaver(file)!
+        XCTAssertEqual(saved.map(\.colorset), ["S1", "S2", "S3", "S7", "S5", "S2"])  // file order kept
+        XCTAssertEqual(saved[5].rule, b)
+
+        _ = session.handleKey(.P)  // back to the appended pair (view 5/6)
+        _ = session.handleKey(.X)  // delete it: file loses its last entry
+        saved = Store.loadScreensaver(file)!
+        XCTAssertEqual(saved.map(\.colorset), ["S1", "S2", "S3", "S7", "S5"])
+        XCTAssertEqual(session.viewPosition, 4)  // the pair now at that view position: C
+        XCTAssertEqual(session.pairIndex, 3)
     }
 }

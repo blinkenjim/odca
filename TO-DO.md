@@ -1,9 +1,9 @@
 # ODCA to-do
 
 **YOU ARE HERE (2026-09-04):** the pool is reviewed: 30 color sets kept,
-16 dropped (colorsets/colorsets.json). Swift 2.22.0 adds screensaver
+16 dropped (colorsets/colorsets.json). Swift 2.24.0 has screensaver
 review mode (`--screensaver-review <file>`) for composing rule/color-set
-pairs; Python 2.15.1 has neither review mode yet (port = Python 2.19.0).
+pairs and `--consistency-check <file>` for viewing them grouped by rule; Python 2.15.1 has neither review mode yet (port = Python 2.19.0).
 Next: compose the first screensaver file (the Swift catch-up ported auto-init with all detectors and
 Brent's, paused 's' and the screen counter, and file-backed color sets
 with c/C/S). Next: (a) audition all 45 palettes (colorsets/audition.png)

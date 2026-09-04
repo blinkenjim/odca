@@ -1,0 +1,214 @@
+{
+ "pairs": [
+  {
+   "rule": "33233022210132010013",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "32332010022312200210",
+   "colorset": "Fiery Ice Cream Delight",
+   "colors": [
+    "#E78531",
+    "#F3C15F",
+    "#102F47",
+    "#C53A32"
+   ]
+  },
+  {
+   "rule": "22310203230002331122",
+   "colorset": "Lemonade Disco Fever",
+   "colors": [
+    "#F5C144",
+    "#EA336F",
+    "#7A3CE3",
+    "#E8622C"
+   ]
+  },
+  {
+   "rule": "32202201003022321010",
+   "colorset": "Sandy Beach Sunset",
+   "colors": [
+    "#2E4552",
+    "#E3C577",
+    "#4F9B8F",
+    "#E8A66C"
+   ]
+  },
+  {
+   "rule": "22022321121130110123",
+   "colorset": "Vibrant Rainbow Burst",
+   "colors": [
+    "#F8D45D",
+    "#6BCBAE",
+    "#4D146A",
+    "#DC5068"
+   ]
+  },
+  {
+   "rule": "12113201332331012311",
+   "colorset": "Midnight Sun Dance",
+   "colors": [
+    "#041523",
+    "#FCEDD4",
+    "#2E606B",
+    "#EE8432"
+   ]
+  },
+  {
+   "rule": "32332010022312200210",
+   "colorset": "Marine Fireworks",
+   "colors": [
+    "#50B1D4",
+    "#A2DEED",
+    "#03045A",
+    "#3375B1"
+   ]
+  },
+  {
+   "rule": "10323213122100120233",
+   "colorset": "Earthy Coral Harmony",
+   "colors": [
+    "#D27F65",
+    "#F3F1E0",
+    "#8BB19C",
+    "#3E4059"
+   ]
+  },
+  {
+   "rule": "02320201313001213222",
+   "colorset": "Earthy Coral Harmony",
+   "colors": [
+    "#8BB19C",
+    "#D27F65",
+    "#3E4059",
+    "#F3F1E0"
+   ]
+  },
+  {
+   "rule": "02013102133123220323",
+   "colorset": "Turquoise Waters Adventure",
+   "colors": [
+    "#377E8E",
+    "#58C09C",
+    "#4BA596",
+    "#2C6489"
+   ]
+  },
+  {
+   "rule": "23232130000031203331",
+   "colorset": "Ocean Blue Horizon",
+   "colors": [
+    "#1F498C",
+    "#DDE4ED",
+    "#88A3C9",
+    "#4E7BAD"
+   ]
+  },
+  {
+   "rule": "33233022210132010013",
+   "colorset": "Ocean Pearl Blossom",
+   "colors": [
+    "#11235F",
+    "#5590C7",
+    "#FEFAFF",
+    "#C7415D"
+   ]
+  },
+  {
+   "rule": "32332010022312200210",
+   "colorset": "Marine Fireworks",
+   "colors": [
+    "#50B1D4",
+    "#A2DEED",
+    "#03045A",
+    "#3375B1"
+   ]
+  },
+  {
+   "rule": "32202201003022321010",
+   "colorset": "Earthy Coral Harmony",
+   "colors": [
+    "#D27F65",
+    "#F3F1E0",
+    "#3E4059",
+    "#8BB19C"
+   ]
+  },
+  {
+   "rule": "22022321121130110123",
+   "colorset": "Midnight Sun Dance",
+   "colors": [
+    "#EE8432",
+    "#FCEDD4",
+    "#2E606B",
+    "#041523"
+   ]
+  },
+  {
+   "rule": "12113201332331012311",
+   "colorset": "Deep Sea Adventure",
+   "colors": [
+    "#08151E",
+    "#213937",
+    "#EBD7B1",
+    "#B65120"
+   ]
+  },
+  {
+   "rule": "32332010022312200210",
+   "colorset": "Marine Fireworks",
+   "colors": [
+    "#50B1D4",
+    "#A2DEED",
+    "#03045A",
+    "#3375B1"
+   ]
+  },
+  {
+   "rule": "10323213122100120233",
+   "colorset": "Electric Midnight Glow",
+   "colors": [
+    "#F8D347",
+    "#202020",
+    "#4D4D4D",
+    "#FCEF5C"
+   ]
+  },
+  {
+   "rule": "02320201313001213222",
+   "colorset": "Midnight Jungle Gold",
+   "colors": [
+    "#1B4543",
+    "#CBAD39",
+    "#0E1618",
+    "#F9F4D6"
+   ]
+  },
+  {
+   "rule": "02013102133123220323",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "23232130000031203331",
+   "colorset": "Earthy Coral Harmony",
+   "colors": [
+    "#D27F65",
+    "#F3F1E0",
+    "#8BB19C",
+    "#3E4059"
+   ]
+  }
+ ]
+}

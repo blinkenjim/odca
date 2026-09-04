@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.22.1 — 2026-09-04
+Version 2.24.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -22,7 +22,8 @@ clarify that refresh follows the display, not a fixed 60 Hz — R-U5.
 R-P4; color set review mode behind `--colorset-review` — section 4b;
 developer flags permitted — section 10. 2.22.0: screensaver review mode
 and file — section 4c, R-P5; color set review saves on every drop and
-no longer bakes arrangements — R-V5, R-V6.)
+no longer bakes arrangements — R-V5, R-V6. 2.24.0: consistency check —
+R-W7.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -473,6 +474,20 @@ current rule keeps running.
 while paused, like the other color keys (R-K10); `s` while paused keeps
 its pause meaning (R-K13).
 
+**R-W7 (consistency check).** The flag `--consistency-check <file>`
+enters screensaver review on an *existing* file (a missing file is an
+error and the program exits) with one difference, for presentation only:
+pairs are viewed grouped by rule — all pairs sharing a rule together,
+groups in order of each rule's first appearance in the file, pairs within
+a group in file order — so that a rule's color sets can be compared for
+excessive similarity. `N`/`P` follow this view order and positions are
+announced in it; when a step crosses into a different rule's group,
+`--- rule group <g>/<G> ---` is printed first (R-O12). The file order is
+never changed by the view: `s` and `X` act on the pair at its existing
+file position, `S` appends to the end of the file (while the new pair
+joins its rule's group in the view, at the end of that group or as a new
+last group), and the file is always written in file order.
+
 ---
 
 ## 5. Persistence (R-P)
@@ -560,8 +575,10 @@ The program prints single-line, human-readable status to standard output:
   <colorset>` (rule IDs are opaque at a glance and are not printed);
   `screensaver end` at either end; `saved pair <i>/<n>`, `added pair
   <n>/<n>`, `deleted pair <i>/<n>`, `no pair under review`; after every
-  write, `saved <n> pairs to <file>`; `color set <name>` on `[`/`]`.
-  Arrangement messages (R-O9) name the set. this precedes nothing else (cells change, the rule does not).
+  write, `saved <n> pairs to <file>`; `color set <name>` on `[`/`]`; in a
+  consistency check, `--- rule group <g>/<G> ---` before an activation
+  that enters a different rule's group. Arrangement messages (R-O9) name
+  the set. this precedes nothing else (cells change, the rule does not).
 
 ---
 
@@ -659,8 +676,8 @@ loses one update (loaders already tolerate malformed content, R-P).
 
 - No command-line arguments are required for ordinary use, and no
   configuration files or menus; hidden developer flags (such as
-  `--colorset-review`, section 4b, and `--screensaver-review <file>`,
-  section 4c) are permitted.
+  `--colorset-review`, section 4b, `--screensaver-review <file>` and
+  `--consistency-check <file>`, section 4c) are permitted.
 - No vertical-sync guarantee; visible tearing is acceptable.
 - No reproducibility of random sequences across runs, languages, or
   machines.

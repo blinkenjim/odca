@@ -98,3 +98,6 @@ The file is also the pool of every kept color set; a hidden review mode
 `--screensaver-review <file>`, composes a screensaver file of rule and
 color set pairs: `N`/`P` step through pairs, `[`/`]` walk the pool, `s`
 saves the pair under review, `S` appends a new one, `X` deletes.
+`--consistency-check <file>` is the same mode on an existing file with the
+pairs viewed grouped by rule (file order is untouched), for judging
+whether a rule's color sets are too alike.
