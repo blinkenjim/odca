@@ -44,3 +44,23 @@ saved rules if any are unchecked.
       sweeps random rules through the class heuristics, and accumulates a
       shortlist of Class IV candidates. (User has ideas on this — discuss
       before building.)
+
+## Vision (2026-09-04): mathematics as art
+
+ODCA presents patterns that derive from pure mathematics beautifully
+enough to make people think about the relationships between mathematics,
+nature, aesthetics, and the human condition. Roadmap, roughly in order:
+
+- [ ] Many more color sets (well beyond ten slots) and a way to bind
+      color sets to particular ODCA rules.
+- [ ] Screensaver mode — ultimately the main way the art is shown: cycle
+      through the most beautiful / interesting / thought-provoking
+      rule + color set combinations. Cross-fade transitions (transparency)
+      between combinations, and perhaps at auto-init.
+- [ ] Layered ODCA: let some colors be transparent so another ODCA
+      "beneath" shows through; possibly different color sets and even
+      different execution rates per layer.
+- [ ] Packaging for distribution: Linux, macOS, iPadOS (iOS not ruled out).
+- [ ] Open-source license (attribution + share-alike spirit; must be
+      compatible with App Store distribution) and copyright notice.
+
