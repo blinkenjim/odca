@@ -37,9 +37,9 @@ Planned: `cpp/`.
 Semantic versioning throughout. The specification (`REQTS.md`) is the
 versioned source of truth: MAJOR = incompatible change, MINOR = new or
 changed behavior, PATCH = clarification only. Each implementation has its
-own semver (Python: `odca.__version__`) and declares the spec MAJOR.MINOR
+own semver (Python: `odca.__version__`; Swift: `ODCAKit.odcaVersion`) and declares the spec MAJOR.MINOR
 it implements; implementation-only fixes bump its PATCH independently.
-Releases are git-tagged (`v1.3.0`).
+Releases are git-tagged per implementation (`swift-v2.0.0`); the original `v1.3.0` tag marks spec 1.3.0 with the Python implementation.
 
 ## Using the program
 

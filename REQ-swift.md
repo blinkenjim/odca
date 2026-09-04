@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 1.9.0 (development toward 2.0.0) — implements spec (REQTS.md) 1.3.
+Version 2.0.0 — implements spec (REQTS.md) 1.3.
 2026-09-03
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
