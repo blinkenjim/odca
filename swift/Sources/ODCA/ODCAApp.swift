@@ -20,29 +20,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// Hosts the display-link-driven AutomatonView inside SwiftUI.
+struct AutomatonViewRepresentable: NSViewRepresentable {
+    let model: ViewerModel
+
+    func makeNSView(context: Context) -> AutomatonView { AutomatonView(model: model) }
+    func updateNSView(_ view: AutomatonView, context: Context) {}
+}
+
 struct ContentView: View {
     @ObservedObject var model: ViewerModel
 
     var body: some View {
-        let cell = CGFloat(ViewerModel.cellSize)
-        let width = CGFloat(ViewerModel.cols) * cell
-        let height = CGFloat(ViewerModel.rows) * cell
-        Group {
-            if let frame = model.frame {
-                // The image holds rows + 1 rows; slide it up by the scroll
-                // offset (R-U3) inside a window-sized clip.
-                Image(decorative: frame, scale: 1)
-                    .resizable()
-                    .interpolation(.none)  // crisp cells, no smoothing
-                    .frame(width: width, height: height + cell)
-                    .offset(y: -CGFloat(model.scrollOffset) * cell)
-            } else {
-                Color.black
-            }
-        }
-        .frame(width: width, height: height, alignment: .top)
-        .clipped()
-        .navigationTitle(model.title)
+        AutomatonViewRepresentable(model: model)
+            .frame(
+                width: CGFloat(ViewerModel.cols * ViewerModel.cellSize),
+                height: CGFloat(ViewerModel.rows * ViewerModel.cellSize))
+            .navigationTitle(model.title)
     }
 }
 

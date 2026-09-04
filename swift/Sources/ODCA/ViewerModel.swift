@@ -2,8 +2,10 @@ import AppKit
 import CoreGraphics
 import ODCAKit
 
-/// UI-side model: owns the Session, paces it with a 60 Hz timer, renders
-/// the history into a CGImage, and translates NSEvent keys to Session keys.
+/// UI-side model: owns the Session, renders the history into a CGImage,
+/// and translates NSEvent keys to Session keys. Pacing comes from the
+/// display link in AutomatonView, which calls frameTick(dt:) once per
+/// screen refresh with the true frame interval.
 @MainActor
 final class ViewerModel: ObservableObject {
     static let shared = ViewerModel()
@@ -13,13 +15,11 @@ final class ViewerModel: ObservableObject {
     static let rows = 800 / cellSize
 
     let session: Session
-    @Published var frame: CGImage?
-    @Published var scrollOffset = 0.0  // cells, see Session.scrollOffset (R-U3)
+    private(set) var frame: CGImage?
+    private(set) var scrollOffset = 0.0  // cells, see Session.scrollOffset (R-U3)
     @Published var title = "ODCA"
 
-    private var timer: Timer?
     private var keyMonitor: Any?
-    private var lastTick = Date()
 
     private init() {
         session = Session(cols: Self.cols, rows: Self.rows)
@@ -34,27 +34,20 @@ final class ViewerModel: ObservableObject {
             }
             return nil  // consumed
         }
-
-        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.frameTick() }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
     }
 
     func shutDown() {
-        timer?.invalidate()
         session.stopSearch()
     }
 
-    private func frameTick() {
-        let now = Date()
-        let dt = now.timeIntervalSince(lastTick)
-        lastTick = now
+    /// One display refresh: advance the session by the elapsed frame time,
+    /// then render (R-U5).
+    func frameTick(dt: Double) {
         session.tick(dt)
         frame = renderImage()
         scrollOffset = session.scrollOffset
-        title = "ODCA — rule \(session.ruleID)"  // R-U6
+        let newTitle = "ODCA — rule \(session.ruleID)"  // R-U6
+        if newTitle != title { title = newTitle }
     }
 
     /// R-U3: the image is one row taller than the window (rows + 1); the
@@ -118,5 +111,58 @@ final class ViewerModel: ObservableObject {
         case "0"..."9": return .digit(ch.wholeNumberValue!)
         default: return nil
         }
+    }
+}
+
+/// The automaton display: a layer-backed NSView paced by a CADisplayLink,
+/// so frames are phase-locked to the screen's refresh (60 or 120 Hz) and
+/// dt is the true frame interval. The image layer is one row taller than
+/// the view and is slid up by the scroll offset (R-U3); the view clips.
+@MainActor
+final class AutomatonView: NSView {
+    private let model: ViewerModel
+    private let imageLayer = CALayer()
+    private var displayLink: CADisplayLink?
+    private var lastTimestamp: CFTimeInterval?
+
+    init(model: ViewerModel) {
+        self.model = model
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.backgroundColor = CGColor(gray: 0, alpha: 1)
+        layer?.masksToBounds = true
+        imageLayer.contentsGravity = .resize
+        imageLayer.magnificationFilter = .nearest  // crisp cells, no smoothing
+        imageLayer.minificationFilter = .nearest
+        layer?.addSublayer(imageLayer)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override var isFlipped: Bool { true }  // y grows downward, like the history
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        displayLink?.invalidate()
+        displayLink = nil
+        lastTimestamp = nil
+        guard window != nil else { return }
+        let link = displayLink(target: self, selector: #selector(refresh(_:)))
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+
+    @objc private func refresh(_ link: CADisplayLink) {
+        let dt = lastTimestamp.map { link.timestamp - $0 } ?? 0
+        lastTimestamp = link.timestamp
+        model.frameTick(dt: dt)
+        let cell = CGFloat(ViewerModel.cellSize)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)  // no implicit animation of the slide
+        imageLayer.contents = model.frame
+        imageLayer.frame = CGRect(
+            x: 0, y: -CGFloat(model.scrollOffset) * cell,
+            width: bounds.width, height: CGFloat(ViewerModel.rows + 1) * cell)
+        CATransaction.commit()
     }
 }

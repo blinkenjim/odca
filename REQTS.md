@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.15.0 — 2026-09-04
+Version 2.15.1 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -16,7 +16,8 @@ rearranged and file-backed, `c` arranges, `S` saves — R-U4, R-K9,
 R-K15, R-K16, R-P4, R-O9, R-O10. 2.11.1: digits live while paused —
 R-K10. 2.11.2: `C` cycles arrangements backward — R-K15. 2.13.0:
 auto-initialization is on at startup — R-K12. 2.15.0: continuous
-scrolling at slow speeds, seamless resume — R-U3, R-K10.)
+scrolling at slow speeds, seamless resume — R-U3, R-K10. 2.15.1:
+clarify that refresh follows the display, not a fixed 60 Hz — R-U5.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -186,7 +187,9 @@ written to the file by `S` (R-K16).
 nominal time between generations — independent of the display refresh:
 
 - Initial delay: 1/60 s.
-- The display refreshes at approximately 60 Hz; each refresh advances the
+- The display refreshes at the screen's refresh rate (typically 60 or
+  120 Hz), and implementations should pace refreshes from the display
+  itself rather than a free-running timer; each refresh advances the
   automaton by ⌊elapsed_time / delay⌋ generations (with the fractional
   remainder carried forward), so rates far above the refresh rate are
   achievable; every generation is computed and enters the scroll buffer

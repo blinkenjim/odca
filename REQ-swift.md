@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.16.0 — 2026-09-04 (feature parity with Python 2.15.0)
+Version 2.18.0 — 2026-09-04 (feature parity with Python 2.15.0; display-link pacing)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -12,17 +12,23 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
 | target | role (spec sections) |
 |--------|----------------------|
 | `ODCAKit` (library) | engine `Rule`/`Automaton` (R-M), `Classifier` (R-C), `CandidateSearch` (R-S), `Store` + `ColorSet` (R-P), `Session` (R-U/K/B/A/O orchestration), `Xoshiro256` (R-N1) |
-| `ODCA` (executable) | SwiftUI app: `ViewerModel` (timer, rendering, key translation), `ODCAApp`/`ContentView` |
+| `ODCA` (executable) | SwiftUI app shell: `ViewerModel` (rendering, key translation), `AutomatonView` (display-link pacing, layer presentation), `ODCAApp`/`ContentView` |
 | `ODCAKitTests` | conformance runner + property tests (TESTS.md layers 1–2) |
 
 ## Implementation choices
 
-- **Session/display split**: unlike the Python reference, the toolkit-free
-  orchestration lives in `Session` (in `ODCAKit`, no AppKit/SwiftUI
-  imports): undo stack, interesting-rule cycle, pause/single-step, speed,
-  stash draining, and the timing accumulator. The UI layer translates
-  `NSEvent`s to `Session.Key`, calls `tick(_:)` at ~60 Hz from a `Timer`,
-  and renders `Session.history`. This is the architecture recommended in
+- **Session/display split**: the toolkit-free orchestration lives in
+  `Session` (in `ODCAKit`, no AppKit/SwiftUI imports): undo stack,
+  interesting-rule cycle, pause/single-step, speed, stash draining, and
+  the timing accumulator. The UI layer translates `NSEvent`s to
+  `Session.Key`, calls `tick(_:)` once per screen refresh, and renders
+  `Session.history`.
+- **Pacing** (2.18.0): a `CADisplayLink` obtained from the view
+  (`NSView.displayLink(target:selector:)`, macOS 14+) drives
+  `frameTick(dt:)` phase-locked to the display's refresh (60 or 120 Hz),
+  with `dt` taken from the link's timestamps. A wall-clock `Timer` drifted
+  against the refresh and produced beat-frequency judder at high
+  generation rates. This is the architecture recommended in
   TO-DO.md, adopted from the start here.
 - **Parallel search** (R-S1): worker *threads* (GCD global queue), not
   processes — Swift has no GIL, so threads give true multicore
@@ -30,10 +36,11 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   `BoundedQueue` (capacity 32); workers block on `put` when full (R-S2)
   with a 0.25 s timeout so they notice the stop flag (R-S5).
 - **Rendering**: `Session.history` (rows + 1 rows) → RGBA byte buffer →
-  `CGImage` once per frame, displayed via SwiftUI `Image` with
-  `.interpolation(.none)` for crisp cells, one row taller than the window
-  and offset by `-scrollOffset * cellSize` inside a clipped frame (R-U3).
-  No per-cell views.
+  `CGImage` once per frame, set as the `contents` of a `CALayer` with
+  nearest-neighbor filtering for crisp cells, one row taller than the
+  view and positioned at `-scrollOffset * cellSize` with implicit
+  animations disabled, inside a clipping layer (R-U3). SwiftUI only hosts
+  the view (`NSViewRepresentable`). No per-cell views.
 - **Keyboard**: an `NSEvent.addLocalMonitorForEvents(.keyDown)` monitor
   (reliable regardless of focus within the window); Command-modified keys
   pass through to the system. Keypad Enter/+/− map like their main-row
