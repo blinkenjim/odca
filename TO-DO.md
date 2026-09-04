@@ -70,7 +70,18 @@ viewer sees. Roadmap, roughly in order:
       assign probabilities to rules, color sets, and intermixes so that
       interesting sequences emerge naturally rather than being fixed.
       Design the language before building; it will shape the layering
-      and transition work above.
+      and transition work above. A starting observation: the language's
+      first nouns already exist — the interesting-rules keeper file and
+      the color sets file — and its first events are the auto-init
+      reasons (`extinct`, `repeating (period N)`, `stagnant`). A
+      declarative script that says
+
+          when this rule goes stagnant,
+          cross-fade to something from this weighted pool
+
+      would be describing behavior the program already has the
+      vocabulary for. The rules run; the filter listens; the script
+      decides what the eye sees next.
 - [ ] Packaging for distribution: Linux, macOS, iPadOS (iOS not ruled out).
 - [ ] Open-source license (attribution + share-alike spirit; must be
       compatible with App Store distribution) and copyright notice.
