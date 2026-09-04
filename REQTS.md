@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.22.0 — 2026-09-04
+Version 2.22.1 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -557,9 +557,11 @@ The program prints single-line, human-readable status to standard output:
   save. Arrangement messages (R-O9) name the set instead of a slot.
 - **R-O12.** In screensaver review mode (section 4c): on entry
   `screensaver <file>: <n> pairs`; on activation `screensaver <i>/<n>
-  <rule> <colorset>`; `screensaver end` at either end; `saved pair <i>/<n>`,
-  `added pair <n>/<n>`, `deleted pair <i>/<n>`, `no pair under review`;
-  `color set <name>` on `[`/`]`. Arrangement messages (R-O9) name the set. this precedes nothing else (cells change, the rule does not).
+  <colorset>` (rule IDs are opaque at a glance and are not printed);
+  `screensaver end` at either end; `saved pair <i>/<n>`, `added pair
+  <n>/<n>`, `deleted pair <i>/<n>`, `no pair under review`; after every
+  write, `saved <n> pairs to <file>`; `color set <name>` on `[`/`]`.
+  Arrangement messages (R-O9) name the set. this precedes nothing else (cells change, the rule does not).
 
 ---
 

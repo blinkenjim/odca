@@ -596,7 +596,8 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.digit(3))  // S3 = grey(30)
         _ = session.handleKey(.c)  // arranged (0,1,3,2)
         _ = session.handleKey(.S)  // append pair 1; position unchanged
-        XCTAssertTrue(lines.take().contains("added pair 1/1"))
+        var out = lines.take()
+        XCTAssertTrue(out.contains("added pair 1/1") && out.contains("saved 1 pair to saver.json"))
         XCTAssertNil(session.pairIndex)
         var saved = Store.loadScreensaver(file)!
         XCTAssertEqual(saved.count, 1)
@@ -615,14 +616,15 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.pairIndex, 0)
         XCTAssertEqual(session.automaton.rule, rule0)
         XCTAssertEqual(session.palette.map(\.r), [0x1E, 0x1F, 0x21, 0x20])
-        XCTAssertTrue(lines.take().contains("screensaver 1/2 \(rule0.id) S3"))
+        XCTAssertTrue(lines.take().contains("screensaver 1/2 S3"))
         _ = session.handleKey(.P)  // no wrap at the start
         XCTAssertTrue(lines.take().contains("screensaver end"))
         XCTAssertEqual(session.pairIndex, 0)
 
         _ = session.handleKey(.digit(5))  // modify pair 1's color set and save in place
         _ = session.handleKey(.s)
-        XCTAssertTrue(lines.take().contains("saved pair 1/2"))
+        out = lines.take()
+        XCTAssertTrue(out.contains("saved pair 1/2") && out.contains("saved 2 pairs to saver.json"))
         saved = Store.loadScreensaver(file)!
         XCTAssertEqual(saved[0].colorset, "S5")
         XCTAssertEqual(saved[0].colors, grey(50))
@@ -633,7 +635,8 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.N)
         XCTAssertTrue(lines.take().contains("screensaver end"))
         _ = session.handleKey(.X)  // delete the last: shows the previous
-        XCTAssertTrue(lines.take().contains("deleted pair 2/2"))
+        out = lines.take()
+        XCTAssertTrue(out.contains("deleted pair 2/2") && out.contains("saved 1 pair to saver.json"))
         XCTAssertEqual(session.pairIndex, 0)
         XCTAssertEqual(Store.loadScreensaver(file)!.count, 1)
         _ = session.handleKey(.X)

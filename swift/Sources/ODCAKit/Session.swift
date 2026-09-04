@@ -353,7 +353,7 @@ public final class Session {
         }
         activeSet = ColorSetEntry(slot: nil, name: pair.colorset, colors: pair.colors)
         activeArrangement = 0  // stored colors are already arranged
-        output("screensaver \(index + 1)/\(pairs.count) \(pair.rule) \(pair.colorset)")  // R-O12
+        output("screensaver \(index + 1)/\(pairs.count) \(pair.colorset)")  // R-O12
     }
 
     private func screensaverStep(_ step: Int) {  // R-W2: no wrap
@@ -367,7 +367,9 @@ public final class Session {
     }
 
     private func saveScreensaver() {
-        if let url = screensaverFile { Store.saveScreensaver(pairs, to: url) }
+        guard let url = screensaverFile else { return }
+        Store.saveScreensaver(pairs, to: url)
+        output("saved \(pairs.count) pair\(pairs.count == 1 ? "" : "s") to \(url.lastPathComponent)")  // R-O12
     }
 
     private func savePair() {  // R-W4: 's' overwrites the pair under review
