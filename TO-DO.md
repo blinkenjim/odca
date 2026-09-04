@@ -13,7 +13,7 @@
       the re-init trigger). Likely a mode that can be turned on and off.
 - [ ] Status region: a small text area at the top of the display showing
       the current rule ID, whether it has been saved, etc.
-- [ ] Extract the toolkit-free orchestration from Viewer into a session
+- [x] (2.1.0) Extract the toolkit-free orchestration from Viewer into a session
       layer (undo stack, interesting-rule cycle, pause/single-step state,
       stash draining, timing arithmetic) behind a thin display abstraction
       (open window, key events, present pixel grid, tick). Do this before

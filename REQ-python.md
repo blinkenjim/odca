@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 2.0.0 — 2026-09-03
+Version 2.1.0 — 2026-09-03
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -22,14 +22,23 @@ copy these choices, but they are known to work.
 | `odca/automaton.py` | engine: `Rule`, `Automaton` (R-M) |
 | `odca/classify.py` | screening: `evaluate`, `find_candidate` (R-C) |
 | `odca/search.py` | background workers: `CandidateSearch` (R-S) |
-| `odca/store.py` | persistence paths and load/save/append (R-P) |
-| `odca/viewer.py` | pygame UI: display, keys, timing, cycle (R-U/K/B/O) |
+| `odca/store.py` | persistence: path functions and the injectable `Store` (R-P) |
+| `odca/session.py` | toolkit-free orchestration `Session`: keys, undo, cycle, pause, stash, timing (R-U/K/B/O) |
+| `odca/viewer.py` | pygame display layer: window, key translation, pacing, blit (R-U2/3/5/6) |
 | `odca/__main__.py` | entry point (R-U1) |
 
 (Paths are relative to `python/`.)
 
 ## Implementation choices
 
+- **Session/display split** (2.1.0): all behavior lives in `Session`
+  (`session.py`, no pygame import) — undo stack, interesting-rule cycle,
+  pause/single-step, speed, stash draining, and the timing accumulator.
+  Keys are single characters (`'r'`, `'+'`, `' '`, `'\n'`, `'0'`–`'9'`).
+  `viewer.py` translates pygame key codes via `map_key`, calls
+  `Session.tick(dt)` each refresh, and renders `Session.history` through
+  the color set for `Session.color_set`. Same boundary as the Swift port's
+  `Session`/`ViewerModel`.
 - **Rule lookup** uses the 0/1/4/16 weighting (see the informative note
   under R-M11): `step()` computes per-cell weighted neighborhood sums with
   `np.roll` (wrap) or zero-padding (fixed) and indexes a 49-slot dense
@@ -68,13 +77,15 @@ copy these choices, but they are known to work.
 - Run everything: `.venv/bin/python -m pytest`. Layer 1 runner:
   `tests/test_conformance.py`; Layer 2 lives across
   `tests/test_automaton.py`, `test_classify.py`, `test_search.py`,
-  `test_store.py`, using pytest `tmp_path` for all file paths.
+  `test_store.py`, and `test_session.py` (PT-9/10/10a/13/14 against a
+  headless `Session` with a temp `Store` and `CandidateSearch(workers=0)`),
+  using pytest `tmp_path` for all file paths.
 - Headless UI checks: set `SDL_VIDEODRIVER=dummy` and drive
   `Viewer.handle_key` directly.
-- **Warning:** `Viewer` and the `store` defaults touch real user state
-  (`$HOME/.odca/`, `interesting-rules.txt`). Any ad-hoc script that
-  instantiates `Viewer` must first stub the store paths/functions or point
-  them at a temp directory — a smoke test once leaked a dummy rule into
-  the user's real state file.
+- **Warning:** a default-constructed `Session` (or `Viewer`) touches real
+  user state (`$HOME/.odca/`, `interesting-rules.txt`). Any ad-hoc script
+  must construct `Session(..., store=Store(state_dir=tmp, keeper_file=tmp/...))`
+  and pass it to `Viewer(session=...)` — a smoke test once leaked a dummy
+  rule into the user's real state file.
 - CI on Linux needs no X server (dummy SDL driver); on macOS the same
   applies.

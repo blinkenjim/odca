@@ -1,4 +1,4 @@
-"""Persistence for the current rule between runs."""
+"""Persistence (R-P): per-user state in ~/.odca/, the keeper file at the repo root."""
 
 from pathlib import Path
 
@@ -69,3 +69,41 @@ def save_candidates(rules, path=CANDIDATES_PATH):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(rule.id + "\n" for rule in rules))
+
+
+class Store:
+    """Persistence with configurable locations.
+
+    The defaults are the real per-user state directory and the shared
+    keeper file; tests point both at a temporary directory (R-P).
+    """
+
+    def __init__(self, state_dir=None, keeper_file=None):
+        self.state_dir = Path(state_dir) if state_dir else Path.home() / ".odca"
+        self.keeper_file = Path(keeper_file) if keeper_file else INTERESTING_PATH
+
+    @property
+    def rule_file(self):
+        return self.state_dir / "rule"
+
+    @property
+    def candidates_file(self):
+        return self.state_dir / "candidates"
+
+    def load_rule(self):
+        return load_rule(self.rule_file)
+
+    def save_rule(self, rule):
+        save_rule(rule, self.rule_file)
+
+    def load_candidates(self):
+        return load_candidates(self.candidates_file)
+
+    def save_candidates(self, rules):
+        save_candidates(rules, self.candidates_file)
+
+    def append_interesting(self, rule):
+        append_interesting(rule, self.keeper_file)
+
+    def load_interesting(self):
+        return load_interesting(self.keeper_file)
