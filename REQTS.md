@@ -1,11 +1,13 @@
 # ODCA — Requirements
 
-Version 2.3.0 — 2026-09-03
+Version 2.3.1 — 2026-09-03
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
 the arrival of the Swift implementation; no behavioral change from 1.3.
-2.3.0: auto-initialization mode on `a` — R-K12, section 4a, R-O6.)
+2.3.0: auto-initialization mode on `a` — R-K12, section 4a, R-O6.
+2.3.1: an extinction does not count while another minority state is
+still alive — R-A1.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -258,7 +260,12 @@ interesting row has just scrolled off the top of the display.
 
 **R-A1 (boring generation).** A computed generation is *boring* if either:
 - *extinction*: some state that the current rule can produce (i.e. that
-  appears among its 20 table entries) has zero cells in the row; or
+  appears among its 20 table entries) has zero cells in the row, **and**
+  no other producible state is a *living minority* — present, but in
+  fewer than 10% of the cells. A living minority is a shrinking or
+  drifting group whose fate is unresolved (two domain walls converging,
+  say); the extinction counts only once such groups have vanished, so the
+  user sees the collision; or
 - *repetition*: the row is identical to a row produced within the
   previous `rows` generations (the display height, R-U2) — the automaton
   has died or entered a cycle of period at most `rows`.

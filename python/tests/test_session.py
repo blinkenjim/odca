@@ -230,3 +230,20 @@ def test_auto_init_via_single_step_while_paused(make_store, capsys):  # R-A4
         s.handle_key("\n")
     assert s.automaton.generation == 0 and s.paused
     assert "auto-init (repeating)" in capsys.readouterr().out
+
+
+def test_extinction_waits_for_living_minority(make_store):  # R-A1 refinement
+    s = make_session(make_store(current=Rule.from_id("0123" * 5)))  # all 4 producible
+    two = np.array([2, 3] * 16, dtype=np.uint8)  # states 0 and 1 extinct
+    s._observe(two)
+    assert s._boring_streak == 1 and s._boring_reason == "states 0, 1 extinct"
+    s._reset_boredom()
+    lone = two.copy()
+    lone[5] = 1  # state 1 alive as a minority (1 of 32 cells): not boring yet
+    s._observe(lone)
+    assert s._boring_streak == 0 and s._boring_reason is None
+    s._reset_boredom()
+    many = two.copy()
+    many[:7] = 1  # state 1 at 22%: a real population, so 0's extinction counts
+    s._observe(many)
+    assert s._boring_streak == 1 and s._boring_reason == "state 0 extinct"

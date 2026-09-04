@@ -27,8 +27,9 @@ Keys (single characters):
     '\\n' (Return) while paused: compute and display one generation
         (single step), remaining paused; ignored when not paused
     a   toggle auto-init (off at startup): once every row on screen is
-        boring — a state the rule can produce has gone extinct, or the
-        rows are repeating — re-initialize the cells as 'i' does
+        boring — a state the rule can produce has gone extinct (and no
+        other minority state is still alive), or the rows are repeating —
+        re-initialize the cells as 'i' does
 
 At startup, if the loaded rule matches a saved rule the cycle position
 points at it (so n/p step to its neighbors); otherwise the position is the
@@ -50,6 +51,7 @@ INITIAL_DELAY = 1 / 60  # seconds between generations (R-U5)
 MIN_DELAY = 1 / 16384  # R-K8
 MAX_DELAY = 8.0
 MAX_CANDIDATES = 64  # stash cap; background workers throttle once full (R-S3)
+MINORITY_FRACTION = 0.10  # a producible state below this share is a minority (R-A1)
 STEP_CAP = 2000  # per-tick catch-up cap so a stall can't freeze the UI (R-U5)
 
 KEY_SPACE = " "
@@ -145,7 +147,12 @@ class Session:
         census = np.bincount(row, minlength=N_STATES)
         producible = sorted(set(int(s) for s in self.automaton.rule.states))
         extinct = [s for s in producible if census[s] == 0]
-        if extinct:
+        # A living minority is a shrinking (or drifting) group whose fate is
+        # still unresolved; an extinction only counts once none remain.
+        living_minority = any(
+            0 < census[s] < MINORITY_FRACTION * len(row) for s in producible
+        )
+        if extinct and not living_minority:
             plural = "s" if len(extinct) > 1 else ""
             reason = f"state{plural} {', '.join(map(str, extinct))} extinct"
         elif repeating:
