@@ -13,18 +13,20 @@ final class SessionTests: XCTestCase {
         let store = Store(
             stateDir: dir.appendingPathComponent("state"),
             keeperFile: dir.appendingPathComponent("interesting-rules.txt"),
-            colorSetsFile: dir.appendingPathComponent("colorsets.json"))
+            colorSetsFile: dir.appendingPathComponent("colorsets.json"),
+            candidatePalettesFile: dir.appendingPathComponent("candidates.json"))
         for rule in saved { store.appendInteresting(rule) }
         if let rule = currentRule { store.saveRule(rule) }
         return store
     }
 
     /// A session whose terminal output is captured into `lines`.
-    func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil) -> Session {
-        let session = Session(cols: 32, rows: 16, store: store,
-                              search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed))
-        if let lines { session.output = { lines.all.append($0) } }
-        return session
+    func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil,
+                     review: Bool = false) -> Session {
+        let sink: (String) -> Void = lines.map { l in { l.all.append($0) } } ?? { print($0) }
+        return Session(cols: 32, rows: 16, store: store,
+                       search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed),
+                       reviewMode: review, output: sink)
     }
 
     final class Lines { var all: [String] = []; func take() -> String { defer { all.removeAll() }; return all.joined(separator: "\n") } }
@@ -470,5 +472,103 @@ final class SessionTests: XCTestCase {
         session.tick(0.0)  // seamless resume
         XCTAssertEqual(session.automaton.generation, g + 2)
         XCTAssertEqual(session.scrollOffset, 0)
+    }
+
+    // MARK: PT-26 color set review mode (R-V)
+
+    func grey(_ v: Int) -> [String] { (0..<4).map { String(format: "#%02X%02X%02X", v + $0, v + $0, v + $0) } }
+
+    func reviewStore() throws -> Store {
+        let store = try makeStore()
+        // Slots in file order 0..9 (as Python writes them), a pool set, one drop.
+        var sets: [ColorSetEntry] = []
+        for slot in 0...9 { sets.append(ColorSetEntry(slot: slot, name: "S\(slot)", colors: grey(slot * 10))) }
+        sets.append(ColorSetEntry(slot: nil, name: "PoolA", colors: grey(100)))
+        store.saveColorSetFile(ColorSetFile(sets: sets, dropped: ["Rejected"]))
+        let candidates = """
+            {"palettes": [
+              {"index": 0, "name": "S3", "colors": ["#000000", "#000000", "#000000", "#000000"]},
+              {"index": 1, "name": "Rejected", "colors": ["#000000", "#000000", "#000000", "#000000"]},
+              {"index": 2, "name": "CandB", "colors": ["#0B0B0B", "#0C0C0C", "#0D0D0D", "#0E0E0E"]},
+              {"index": 3, "name": "CandC", "colors": ["#1B1B1B", "#1C1C1C", "#1D1D1D", "#1E1E1E"]}]}
+            """
+        try candidates.write(to: store.candidatePalettesFile, atomically: true, encoding: .utf8)
+        return store
+    }
+
+    func testReviewOrderAndStepping() throws {
+        let lines = Lines()
+        let store = try reviewStore()
+        let session = makeSession(store, lines: lines, review: true)
+        let names = session.reviewEntries.map(\.name)
+        XCTAssertEqual(names, ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S0", "PoolA", "CandB", "CandC"])
+        XCTAssertEqual(session.droppedNames, ["Rejected"])
+        XCTAssertTrue(lines.take().contains("review 1/13 S1"))
+        XCTAssertEqual(session.palette[0], RGB(hex: "#0A0A0A"))  // S1 = grey(10)
+
+        _ = session.handleKey(.N)
+        XCTAssertEqual(lines.take(), "review 2/13 S2")
+        XCTAssertEqual(session.palette[0], RGB(hex: "#141414"))
+        _ = session.handleKey(.P)
+        _ = session.handleKey(.P)  // past the start: wraps to the end
+        let out = lines.take()
+        XCTAssertTrue(out.contains("review wrapped") && out.contains("review 13/13 CandC"))
+        _ = session.handleKey(.digit(5))  // digits are disabled in review mode
+        XCTAssertEqual(session.palette[0], RGB(hex: "#1B1B1B"))
+        _ = session.handleKey(.N)  // past the end: wraps to the start
+        XCTAssertTrue(lines.take().contains("review wrapped"))
+        XCTAssertEqual(session.reviewIndex, 0)
+        _ = session.handleKey(.space)
+        _ = session.handleKey(.N)  // live while paused
+        XCTAssertEqual(session.reviewIndex, 1)
+    }
+
+    func testReviewDropSaveAndSlotRotation() throws {
+        let lines = Lines()
+        let store = try reviewStore()
+        let session = makeSession(store, lines: lines, review: true)
+        _ = session.handleKey(.c)  // arrange S1: (0,1,3,2)
+        _ = session.handleKey(.N)
+        _ = session.handleKey(.X)  // drop S2: advances to S3
+        var out = lines.take()
+        XCTAssertTrue(out.contains("dropped S2") && out.contains("review 2/12 S3"))
+        XCTAssertEqual(session.palette[0], RGB(hex: "#1E1E1E"))  // S3 = grey(30)
+        for _ in 0..<10 { _ = session.handleKey(.N) }  // to CandC (last)
+        _ = session.handleKey(.X)  // drop the last: wraps to the start
+        out = lines.take()
+        XCTAssertTrue(out.contains("dropped CandC") && out.contains("review wrapped") && out.contains("review 1/11 S1"))
+
+        _ = session.handleKey(.S)
+        XCTAssertTrue(lines.take().contains("saved 11 color sets, 3 dropped"))
+        let file = store.loadColorSetFile()
+        XCTAssertEqual(file.dropped, ["Rejected", "S2", "CandC"])
+        let bySlot = Dictionary(uniqueKeysWithValues: file.sets.compactMap { e in e.slot.map { ($0, e.name) } })
+        // Slots rotate down: S3 takes key 2 ... S0 takes key 9, PoolA fills key 0.
+        XCTAssertEqual(bySlot, [1: "S1", 2: "S3", 3: "S4", 4: "S5", 5: "S6", 6: "S7", 7: "S8", 8: "S9", 9: "S0", 0: "PoolA"])
+        XCTAssertEqual(file.sets.filter { $0.slot == nil }.map(\.name), ["CandB"])
+        XCTAssertEqual(file.sets.first { $0.name == "S1" }!.colors, ["#0A0A0A", "#0B0B0B", "#0D0D0D", "#0C0C0C"])  // baked
+
+        // A second review run reloads the same order and does not resurrect drops.
+        let again = makeSession(store, review: true)
+        XCTAssertEqual(again.reviewEntries.map(\.name), ["S1", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S0", "PoolA", "CandB"])
+        XCTAssertEqual(again.droppedNames, ["Rejected", "S2", "CandC"])
+        _ = again.handleKey(.X)  // drop S1; finish() saves at exit
+        again.finish()
+        XCTAssertEqual(store.loadColorSets()[1]!.name, "S3")
+        XCTAssertEqual(store.loadColorSetFile().dropped.last, "S1")
+    }
+
+    func testReviewKeysAreInertOutsideReviewMode() throws {
+        let store = try reviewStore()
+        let session = makeSession(store)
+        XCTAssertFalse(session.reviewMode)
+        let palette = session.palette
+        _ = session.handleKey(.N)
+        _ = session.handleKey(.P)
+        _ = session.handleKey(.X)
+        XCTAssertEqual(session.palette, palette)
+        XCTAssertEqual(store.loadColorSetFile().dropped, ["Rejected"])
+        session.finish()  // no review: nothing written
+        XCTAssertEqual(store.loadColorSetFile().sets.count, 11)
     }
 }

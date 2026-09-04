@@ -39,6 +39,9 @@ public final class Session {
     public static let stagnationScreens = 4  // minority population steady this long -> stagnant (R-A1)
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
 
+    /// Digit keys in review order (R-V): the first ten kept sets own these.
+    public static let keyOrder = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]
+
     /// The 24 assignments of four colors to four states, lexicographic,
     /// identity first (R-K15).
     public static let arrangements: [[Int]] = permutations([0, 1, 2, 3])
@@ -57,6 +60,7 @@ public final class Session {
     public enum Key: Equatable {
         case q, r, m, u, s, i, n, p, a
         case c, C, S  // arrange colors forward / backward, save color set
+        case N, P, X  // color set review: next, previous, drop (R-V)
         case plus, minus, space, ret
         case digit(Int)
     }
@@ -75,6 +79,12 @@ public final class Session {
     public private(set) var cyclePeriod: Int?  // exact period once Brent's finds a cycle
     public private(set) var colorSets: [Int: ColorSet]
     public private(set) var colorSet = Session.defaultColorSet
+    // Color set review mode (R-V): kept sets in review order, position, drops.
+    public let reviewMode: Bool
+    public private(set) var reviewEntries: [ColorSetEntry] = []
+    public private(set) var reviewIndex = 0
+    public private(set) var droppedNames: [String] = []
+    private var reviewArrangement: [String: Int] = [:]
     public private(set) var undoStack: [Rule] = []
     public private(set) var interestingIndex: Int?
     public private(set) var unsavedRule: Rule?
@@ -102,12 +112,15 @@ public final class Session {
 
     public init(
         cols: Int, rows: Int, store: Store = Store(),
-        search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256()
+        search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
+        reviewMode: Bool = false, output: @escaping (String) -> Void = { print($0) }
     ) {
         self.cols = cols
         self.rows = rows
         self.store = store
         self.search = search
+        self.reviewMode = reviewMode
+        self.output = output
         var rng = rng
 
         // Startup per R-U1: previous rule (random fallback), random cells.
@@ -132,6 +145,7 @@ public final class Session {
         self.rng = rng
         pushRow(automaton.cells)
         output("rule \(rule.id)")
+        if reviewMode { loadReview() }
     }
 
     public var ruleID: String { automaton.rule.id }
@@ -161,14 +175,119 @@ public final class Session {
         return Session.arrangements[arrangement[slot] ?? 0].map { base[$0] }
     }
 
+    /// The set under review, or nil when the review pool is empty.
+    private var reviewEntry: ColorSetEntry? {
+        reviewEntries.isEmpty ? nil : reviewEntries[reviewIndex]
+    }
+
+    private func arrangedReviewColors() -> [String] {
+        guard let e = reviewEntry else { return Store.defaultColorSets[1]!.colors }
+        return Session.arrangements[reviewArrangement[e.name] ?? 0].map { e.colors[$0] }
+    }
+
     /// The active color set as four RGB colors, states 0-3, after arrangement.
-    public var palette: [RGB] { arrangedColors(colorSet).map { RGB(hex: $0) } }
+    public var palette: [RGB] {
+        (reviewMode ? arrangedReviewColors() : arrangedColors(colorSet)).map { RGB(hex: $0) }
+    }
 
     private func cycleColors(_ step: Int) {
         let n = Session.arrangements.count
+        if reviewMode {
+            guard let e = reviewEntry else { return }
+            let index = (((reviewArrangement[e.name] ?? 0) + step) % n + n) % n
+            reviewArrangement[e.name] = index
+            output("color set \(e.name) arrangement \(index + 1)/\(n)")  // R-O9
+            return
+        }
         let index = (((arrangement[colorSet] ?? 0) + step) % n + n) % n
         arrangement[colorSet] = index
         output("color set \(colorSet) arrangement \(index + 1)/\(n)")  // R-O9
+    }
+
+    // MARK: - Color set review (R-V)
+
+    private static func keyRank(_ slot: Int) -> Int { keyOrder.firstIndex(of: slot) ?? 10 }
+
+    /// Build the review order: digit-bound sets in key order (1-9, 0), then
+    /// the pool, then every candidate palette not already present or dropped.
+    private func loadReview() {  // R-V2
+        let file = store.loadColorSetFile()
+        var slotted = file.sets.filter { $0.slot != nil }
+        if !slotted.contains(where: { $0.slot == 1 }) {
+            let d = Store.defaultColorSets[1]!
+            slotted.append(ColorSetEntry(slot: 1, name: d.name, colors: d.colors))
+        }
+        slotted.sort { Session.keyRank($0.slot!) < Session.keyRank($1.slot!) }
+        var entries = slotted + file.sets.filter { $0.slot == nil }
+        droppedNames = file.dropped
+        var names = Set(entries.map(\.name))
+        let dropped = Set(file.dropped)
+        for p in store.loadCandidatePalettes() where !names.contains(p.name) && !dropped.contains(p.name) {
+            entries.append(p)
+            names.insert(p.name)
+        }
+        reviewEntries = entries
+        reviewIndex = 0
+        announceReview()
+    }
+
+    private func announceReview() {  // R-O11
+        guard let e = reviewEntry else {
+            output("review empty")
+            return
+        }
+        output("review \(reviewIndex + 1)/\(reviewEntries.count) \(e.name)")
+    }
+
+    private func reviewStep(_ step: Int) {  // R-V3
+        guard !reviewEntries.isEmpty else { return }
+        var index = reviewIndex + step
+        if index >= reviewEntries.count {
+            index = 0
+            output("review wrapped")
+        } else if index < 0 {
+            index = reviewEntries.count - 1
+            output("review wrapped")
+        }
+        reviewIndex = index
+        announceReview()
+    }
+
+    private func dropReview() {  // R-V4
+        guard let e = reviewEntry else { return }
+        reviewEntries.remove(at: reviewIndex)
+        droppedNames.append(e.name)
+        reviewArrangement[e.name] = nil
+        output("dropped \(e.name)")
+        if reviewIndex >= reviewEntries.count && !reviewEntries.isEmpty {
+            reviewIndex = 0
+            output("review wrapped")
+        }
+        announceReview()
+    }
+
+    /// Write the kept sets: the first ten in review order own the digit
+    /// keys (1-9, 0), arrangements are baked in, dropped names recorded.
+    private func saveReview() {  // R-V5
+        var kept: [ColorSetEntry] = []
+        for (i, e) in reviewEntries.enumerated() {
+            var entry = e
+            entry.colors = Session.arrangements[reviewArrangement[e.name] ?? 0].map { e.colors[$0] }
+            entry.slot = i < Session.keyOrder.count ? Session.keyOrder[i] : nil
+            kept.append(entry)
+        }
+        reviewEntries = kept
+        reviewArrangement.removeAll()
+        let ordered = kept.filter { $0.slot != nil }.sorted { $0.slot! < $1.slot! }
+            + kept.filter { $0.slot == nil }
+        store.saveColorSetFile(ColorSetFile(sets: ordered, dropped: droppedNames))
+        colorSets = store.loadColorSets()
+        output("saved \(kept.count) color sets, \(droppedNames.count) dropped")  // R-O11
+    }
+
+    /// Call at program exit; in review mode this saves the kept sets (R-V5).
+    public func finish() {
+        if reviewMode { saveReview() }
     }
 
     private func saveColorSet() {
@@ -179,7 +298,23 @@ public final class Session {
     }
 
     private func selectColorSet(_ slot: Int) {
+        if reviewMode { return }  // R-V1: digit keys are disabled during review
         if colorSets[slot] != nil { colorSet = slot }  // R-K9: undefined slot is a no-op
+    }
+
+    /// Color keys shared by the paused and running states (R-K10).
+    private func handleColorKey(_ key: Key) -> Bool {
+        switch key {
+        case .c: cycleColors(1)
+        case .C: cycleColors(-1)
+        case .S: if reviewMode { saveReview() } else { saveColorSet() }
+        case .N: if reviewMode { reviewStep(1) }
+        case .P: if reviewMode { reviewStep(-1) }
+        case .X: if reviewMode { dropReview() }
+        case .digit(let d): selectColorSet(d)
+        default: return false
+        }
+        return true
     }
 
     // MARK: - Evolution and auto-init (R-U5, R-A)
@@ -409,16 +544,8 @@ public final class Session {
                 advance()  // R-K11: single step, stay paused
             case .s:
                 screenRemaining += rows  // R-K13: queue a screenful
-            case .c:
-                cycleColors(1)
-            case .C:
-                cycleColors(-1)
-            case .S:
-                saveColorSet()
-            case .digit(let d):
-                selectColorSet(d)
             default:
-                break
+                _ = handleColorKey(key)
             }
             return true
         }
@@ -442,18 +569,12 @@ public final class Session {
         case .a:  // R-K12
             autoInit.toggle()
             output("auto-init \(autoInit ? "on" : "off")")  // R-O6
-        case .c:
-            cycleColors(1)
-        case .C:
-            cycleColors(-1)
-        case .S:
-            saveColorSet()
+        case .c, .C, .S, .N, .P, .X, .digit:
+            _ = handleColorKey(key)
         case .plus:
             delay = max(delay / 2, Session.minDelay)
         case .minus:
             delay = min(delay * 2, Session.maxDelay)
-        case .digit(let d):
-            selectColorSet(d)
         case .q, .ret:
             break
         }

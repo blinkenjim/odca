@@ -14,6 +14,7 @@ public struct Store {
     public let stateDir: URL
     public let keeperFile: URL
     public let colorSetsFile: URL
+    public let candidatePalettesFile: URL
 
     /// Built-in fallback so the default slot always exists (R-U4).
     public static let defaultColorSets: [Int: ColorSet] = [
@@ -24,11 +25,13 @@ public struct Store {
         stateDir: URL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".odca"),
         keeperFile: URL = Store.repoRoot.appendingPathComponent("interesting-rules.txt"),
-        colorSetsFile: URL = Store.repoRoot.appendingPathComponent("colorsets/colorsets.json")
+        colorSetsFile: URL = Store.repoRoot.appendingPathComponent("colorsets/colorsets.json"),
+        candidatePalettesFile: URL = Store.repoRoot.appendingPathComponent("colorsets/candidates.json")
     ) {
         self.stateDir = stateDir
         self.keeperFile = keeperFile
         self.colorSetsFile = colorSetsFile
+        self.candidatePalettesFile = candidatePalettesFile
     }
 
     var ruleFile: URL { stateDir.appendingPathComponent("rule") }
@@ -96,25 +99,35 @@ public struct Store {
         c.count == 7 && c.hasPrefix("#") && c.dropFirst().allSatisfy { $0.isHexDigit }
     }
 
-    /// {slot: ColorSet}; malformed entries skipped, slot 1 always present.
-    public func loadColorSets() -> [Int: ColorSet] {
-        var sets = Store.defaultColorSets
-        guard let data = try? Data(contentsOf: colorSetsFile),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let entries = root["sets"] as? [Any] else { return sets }
-        for case let entry as [String: Any] in entries {
-            guard let slot = entry["slot"] as? Int, (0...9).contains(slot),
-                  let name = entry["name"] as? String,
-                  let colors = entry["colors"] as? [String], colors.count == 4,
-                  colors.allSatisfy(Store.validColor) else { continue }
-            sets[slot] = ColorSet(name: name, colors: colors.map { $0.uppercased() })
+    private static func entry(from dict: [String: Any]) -> ColorSetEntry? {
+        guard let name = dict["name"] as? String,
+              let colors = dict["colors"] as? [String], colors.count == 4,
+              colors.allSatisfy(validColor) else { return nil }
+        var slot: Int?
+        if let raw = dict["slot"], !(raw is NSNull) {
+            guard let s = raw as? Int, (0...9).contains(s) else { return nil }
+            slot = s
         }
-        return sets
+        return ColorSetEntry(slot: slot, name: name, colors: colors.map { $0.uppercased() })
     }
 
-    /// Writes the same layout as Python's json.dumps(indent=1) so an 'S'
+    /// The whole pool: sets in file order (slot nil = pool-only) and the
+    /// dropped names. Malformed entries skipped; a missing file is empty.
+    public func loadColorSetFile() -> ColorSetFile {
+        var file = ColorSetFile(sets: [], dropped: [])
+        guard let data = try? Data(contentsOf: colorSetsFile),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return file }
+        for case let dict as [String: Any] in (root["sets"] as? [Any]) ?? [] {
+            if let e = Store.entry(from: dict) { file.sets.append(e) }
+        }
+        file.dropped = (root["dropped"] as? [String]) ?? []
+        return file
+    }
+
+    /// Writes the same layout as Python's json.dumps(indent=1) so a save
     /// from either implementation leaves the shared file byte-stable.
-    public func saveColorSets(_ sets: [Int: ColorSet]) {
+    public func saveColorSetFile(_ file: ColorSetFile) {
         func quoted(_ s: String) -> String {
             var out = "\""
             for scalar in s.unicodeScalars {
@@ -132,15 +145,53 @@ public struct Store {
             }
             return out + "\""
         }
-        let entries = sets.keys.sorted().map { slot -> String in
-            let set = sets[slot]!
-            let colors = set.colors.map { "    " + quoted($0) }.joined(separator: ",\n")
-            return "  {\n   \"slot\": \(slot),\n   \"name\": \(quoted(set.name)),\n   \"colors\": [\n\(colors)\n   ]\n  }"
+        func list(_ items: [String], indent: String) -> String {
+            items.isEmpty ? "[]"
+                : "[\n" + items.map { indent + " " + $0 }.joined(separator: ",\n") + "\n" + indent + "]"
         }
-        let text = "{\n \"sets\": [\n" + entries.joined(separator: ",\n") + "\n ]\n}\n"
+        let sets = file.sets.map { e -> String in
+            var lines: [String] = []
+            if let slot = e.slot { lines.append("   \"slot\": \(slot)") }
+            lines.append("   \"name\": \(quoted(e.name))")
+            lines.append("   \"colors\": " + list(e.colors.map(quoted), indent: "   "))
+            return "{\n" + lines.joined(separator: ",\n") + "\n  }"
+        }
+        let text = "{\n \"sets\": " + list(sets, indent: " ")
+            + ",\n \"dropped\": " + list(file.dropped.map(quoted), indent: " ") + "\n}\n"
         try? FileManager.default.createDirectory(
             at: colorSetsFile.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? text.write(to: colorSetsFile, atomically: true, encoding: .utf8)
+    }
+
+    /// {slot: ColorSet} for the digit-bound sets; slot 1 always present (R-U4).
+    public func loadColorSets() -> [Int: ColorSet] {
+        var sets = Store.defaultColorSets
+        for e in loadColorSetFile().sets {
+            if let slot = e.slot { sets[slot] = ColorSet(name: e.name, colors: e.colors) }
+        }
+        return sets
+    }
+
+    /// Replace the digit-bound sets, preserving the pool and the dropped list.
+    public func saveColorSets(_ sets: [Int: ColorSet]) {
+        let file = loadColorSetFile()
+        let slotted = sets.keys.sorted().map {
+            ColorSetEntry(slot: $0, name: sets[$0]!.name, colors: sets[$0]!.colors)
+        }
+        let pool = file.sets.filter { $0.slot == nil }
+        saveColorSetFile(ColorSetFile(sets: slotted + pool, dropped: file.dropped))
+    }
+
+    /// Palettes from colorsets/candidates.json, the raw pool source (R-V2).
+    public func loadCandidatePalettes() -> [ColorSetEntry] {
+        guard let data = try? Data(contentsOf: candidatePalettesFile),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [] }
+        var out: [ColorSetEntry] = []
+        for case let dict as [String: Any] in (root["palettes"] as? [Any]) ?? [] {
+            if var e = Store.entry(from: dict) { e.slot = nil; out.append(e) }
+        }
+        return out
     }
 }
 
@@ -152,5 +203,29 @@ public struct ColorSet: Equatable {
     public init(name: String, colors: [String]) {
         self.name = name
         self.colors = colors
+    }
+}
+
+/// One entry of the color sets file: slot nil means pool-only (R-P4).
+public struct ColorSetEntry: Equatable {
+    public var slot: Int?
+    public var name: String
+    public var colors: [String]
+
+    public init(slot: Int?, name: String, colors: [String]) {
+        self.slot = slot
+        self.name = name
+        self.colors = colors
+    }
+}
+
+/// The color sets file as a whole (R-P4).
+public struct ColorSetFile: Equatable {
+    public var sets: [ColorSetEntry]
+    public var dropped: [String]
+
+    public init(sets: [ColorSetEntry], dropped: [String]) {
+        self.sets = sets
+        self.dropped = dropped
     }
 }

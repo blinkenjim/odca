@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 2.15.0 — 2026-09-04
+Version 2.15.1 — 2026-09-04 (pool-preserving color set save; review mode not yet ported)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not

@@ -92,3 +92,6 @@ implementation). **1** is the default set (near-black, off-white, amber,
 blue), active at startup; the others are palettes from coolors.co: **0** Ocean Sunset Vibes; **2** Meadow Sunflower Glow; **3** Candy Floss Dreams; **4** Fiery Ice Cream Delight; **5** Golden Autumn Twilight; **6** Midnight Sun Dance; **7** Seaside Serenity; **8** Cherry Blossom Sky; **9** Cotton Candy Skies.
 `c` cycles the current set through the 24 ways of assigning its four
 colors to the four states; `S` saves the current arrangement to the file.
+The file is also the pool of every kept color set; a hidden review mode
+(`--colorset-review`, Swift for now) steps through the whole pool with
+`N`/`P`, drops sets with `X`, and saves the kept sets with `S` or on exit.

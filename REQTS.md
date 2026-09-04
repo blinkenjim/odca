@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.15.1 — 2026-09-04
+Version 2.20.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -17,7 +17,10 @@ R-K15, R-K16, R-P4, R-O9, R-O10. 2.11.1: digits live while paused —
 R-K10. 2.11.2: `C` cycles arrangements backward — R-K15. 2.13.0:
 auto-initialization is on at startup — R-K12. 2.15.0: continuous
 scrolling at slow speeds, seamless resume — R-U3, R-K10. 2.15.1:
-clarify that refresh follows the display, not a fixed 60 Hz — R-U5.)
+clarify that refresh follows the display, not a fixed 60 Hz — R-U5.
+2.20.0: the color sets file becomes the pool, with a dropped list —
+R-P4; color set review mode behind `--colorset-review` — section 4b;
+developer flags permitted — section 10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -383,6 +386,47 @@ search (R-S) is unaffected.
 
 ---
 
+## 4b. Color set review mode (R-V)
+
+A hidden mode for auditioning the whole color set pool and deciding, one
+set at a time, what to keep.
+
+**R-V1 (entry).** Started by the command-line flag `--colorset-review`.
+Everything else behaves as usual, except that the digit keys (R-K9) are
+disabled and `S` takes the meaning in R-V5.
+
+**R-V2 (review order).** On entry the program builds the review list:
+the digit-bound sets in key order 1, 2, …, 9, 0; then the pool-only sets
+in file order; then every palette from the candidates file (R-P4) whose
+name is neither already present nor in the dropped list, in candidates
+order. Slot 1's built-in default is included if the file defines no slot
+1. The review position starts at the first set, which is displayed, and
+the position is announced (R-O11).
+
+**R-V3 (`N` / `P`).** Step to the next / previous kept set and display
+it, announcing the position. Stepping past either end wraps to the other
+end and prints `review wrapped` first. Both keys are live while paused,
+like the other color keys (R-K10).
+
+**R-V4 (`X` — drop).** Remove the current set from the review list, add
+its name to the dropped list, print `dropped <name>`, and display the
+next kept set (wrapping to the first, with the wrap message, if the
+dropped set was last). Subsequent `N`/`P` skip dropped sets. Dropping a
+digit-bound set is allowed; slots are reassigned on save (R-V5).
+
+**R-V5 (save).** `S`, and program exit, write the kept sets to the color
+sets file (R-P4): the first ten kept sets in review order are bound to
+the digit keys in the order 1, 2, …, 9, 0 — so dropping a bound set
+rotates the later ones down and fills the top key from the pool — and the
+rest are pool-only. Each kept set is written with its current arrangement
+(R-K15) baked in, as the normal `S` would. The dropped list is written in
+full. Prints `saved <k> color sets, <d> dropped`.
+
+**R-V6 (arrangement).** `c`/`C` arrange the set under review; the
+arrangement is remembered per set for the session.
+
+---
+
 ## 5. Persistence (R-P)
 
 All per-user state lives in the directory `$HOME/.odca/`, created on
@@ -409,12 +453,21 @@ comments and notes are permitted.
 ---
 
 **R-P4 (color sets file).** File `colorsets/colorsets.json` in the
-repository root, shared by all implementations. JSON: an object with a
-`sets` array; each element has `slot` (integer 0–9), `name` (string), and
-`colors` (four strings `#RRGGBB`, states 0–3). Readers must ignore
-malformed elements and treat a missing or unparseable file as defining no
-slots; the built-in default (R-U4) always fills slot 1 unless the file
-defines it. `S` rewrites the file with every defined slot, sorted by slot.
+repository root, shared by all implementations: the *pool* of every kept
+color set. JSON: an object with a `sets` array and a `dropped` array.
+Each set has `name` (string), `colors` (four strings `#RRGGBB`, states
+0–3), and optionally `slot` (integer 0–9): sets with a slot are bound to
+that digit key (R-U4), sets without one are pool-only. `dropped` lists
+the names of sets rejected in review (section 4b), so that re-seeding
+from the candidates file never resurrects them; it may be edited by hand.
+Readers must ignore malformed sets and treat a missing or unparseable
+file as empty; the built-in default (R-U4) always fills slot 1 unless the
+file defines it. Writers preserve what they do not change: `S` (R-K16)
+rewrites the digit-bound sets and keeps the pool and the dropped list;
+the review save (R-V5) rewrites everything. Digit-bound sets are written
+first, sorted by slot number, then the pool in order. The raw source of
+candidate palettes is `colorsets/candidates.json` (an object with a
+`palettes` array of `name` + `colors`), which the program only reads.
 
 ---
 
@@ -441,7 +494,12 @@ The program prints single-line, human-readable status to standard output:
   reset (R-A3), whether or not auto-initialization is on:
   `cycle period <n>`.
 - **R-O9.** On `c`: `color set <slot> arrangement <k>/24`, k from 1.
-- **R-O10.** On `S`: `saved color set <slot> <name>`. this precedes nothing else (cells change, the rule does not).
+- **R-O10.** On `S`: `saved color set <slot> <name>`.
+- **R-O11.** In review mode (section 4b): on entry and on every step,
+  `review <i>/<n> <name>` (1-based position among the kept sets); `review
+  wrapped` before a step that wraps; `dropped <name>` on `X`; `review
+  empty` when nothing is left; `saved <k> color sets, <d> dropped` on
+  save. Arrangement messages (R-O9) name the set instead of a slot. this precedes nothing else (cells change, the rule does not).
 
 ---
 
@@ -537,7 +595,9 @@ loses one update (loaders already tolerate malformed content, R-P).
 
 ## 10. Explicit non-requirements
 
-- No command-line arguments, configuration files, or menus.
+- No command-line arguments are required for ordinary use, and no
+  configuration files or menus; hidden developer flags (such as
+  `--colorset-review`, section 4b) are permitted.
 - No vertical-sync guarantee; visible tearing is acceptable.
 - No reproducibility of random sequences across runs, languages, or
   machines.

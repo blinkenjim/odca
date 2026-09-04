@@ -22,7 +22,8 @@ final class ViewerModel: ObservableObject {
     private var keyMonitor: Any?
 
     private init() {
-        session = Session(cols: Self.cols, rows: Self.rows)
+        let review = CommandLine.arguments.contains("--colorset-review")  // R-V1
+        session = Session(cols: Self.cols, rows: Self.rows, reviewMode: review)
         session.startSearch()
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
@@ -37,6 +38,7 @@ final class ViewerModel: ObservableObject {
     }
 
     func shutDown() {
+        session.finish()  // review mode saves the kept color sets (R-V5)
         session.stopSearch()
     }
 
@@ -105,6 +107,9 @@ final class ViewerModel: ObservableObject {
         case "c": return .c
         case "C": return .C  // shift-c (R-K15)
         case "S": return .S  // shift-s (R-K16)
+        case "N": return .N  // review: next (R-V3)
+        case "P": return .P  // review: previous
+        case "X": return .X  // review: drop (R-V4)
         case "+", "=": return .plus  // '=' is unshifted '+' on US layouts (R-K8)
         case "-": return .minus
         case " ": return .space

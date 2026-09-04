@@ -1,7 +1,9 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-04):** Python 2.15.0 and Swift 2.18.0 have feature
-parity (auto-init on by default; continuous scrolling below 30 gen/s) (the Swift catch-up ported auto-init with all detectors and
+**YOU ARE HERE (2026-09-04):** Swift 2.20.0 has color set review mode
+(`--colorset-review`); Python 2.15.1 preserves the pool file but has not
+ported review mode (port = Python 2.19.0). Groundwork for screensaver
+mode: review the 45 palettes with the Swift app and form the pool (the Swift catch-up ported auto-init with all detectors and
 Brent's, paused 's' and the screen counter, and file-backed color sets
 with c/C/S). Next: (a) audition all 45 palettes (colorsets/audition.png)
 and finalize the slots; (b) the vision items below, starting with the

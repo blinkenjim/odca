@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.18.0 — 2026-09-04 (feature parity with Python 2.15.0; display-link pacing)
+Version 2.20.0 — 2026-09-04 (color set review mode; ahead of Python)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -60,6 +60,13 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   arrangements are generated as lexicographic permutations.
 - **Output sink**: `Session.output` (default `print`) carries every R-O
   line; tests capture it instead of stdout.
+- **Review mode** (R-V): `Session(reviewMode:)` is set from
+  `CommandLine.arguments.contains("--colorset-review")`; the review list,
+  position, and drops live in `Session`, `Store.loadColorSetFile` /
+  `saveColorSetFile` handle the pool file (entries with optional slot plus
+  the dropped list), and `Store.loadCandidatePalettes` reads
+  `colorsets/candidates.json`. `ViewerModel.shutDown` calls
+  `Session.finish()` so exit saves.
 - **Engine**: plain loops over `[UInt8]` rows — native code needs no numpy
   equivalent; the 0/1/4/16 weighted-sum lookup and 49-slot dense table
   match the reference. Conformance vectors certify equality.

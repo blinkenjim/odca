@@ -73,3 +73,21 @@ def test_color_sets_round_trip_and_tolerance(tmp_path):  # PT-24
     assert set(loaded) == {1, 7} and loaded[7]["colors"][0] == "#ABCDEF"
     path.write_text("not json")
     assert set(load_color_sets(path)) == {1}
+
+
+def test_save_color_sets_preserves_pool_and_dropped(tmp_path):  # R-P4
+    from odca.store import load_color_set_file, load_color_sets, save_color_set_file, save_color_sets
+    path = tmp_path / "colorsets.json"
+    save_color_set_file({"sets": [
+        {"slot": 1, "name": "One", "colors": ["#000000", "#111111", "#222222", "#333333"]},
+        {"slot": None, "name": "Pool A", "colors": ["#AAAAAA", "#BBBBBB", "#CCCCCC", "#DDDDDD"]},
+    ], "dropped": ["Gone"]}, path)
+    assert set(load_color_sets(path)) == {1}  # pool-only sets are not digit-bound
+    save_color_sets({1: {"name": "One", "colors": ["#333333", "#222222", "#111111", "#000000"]},
+                     2: {"name": "Two", "colors": ["#010101"] * 4}}, path)
+    f = load_color_set_file(path)
+    assert [e["name"] for e in f["sets"]] == ["One", "Two", "Pool A"]
+    assert f["sets"][0]["colors"][0] == "#333333" and f["sets"][2]["slot"] is None
+    assert f["dropped"] == ["Gone"]
+    text = path.read_text()
+    assert text.endswith(' "dropped": [\n  "Gone"\n ]\n}\n')

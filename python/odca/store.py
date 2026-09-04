@@ -59,35 +59,68 @@ def _valid_color(c):
             and all(ch in "0123456789abcdefABCDEF" for ch in c[1:]))
 
 
-def load_color_sets(path=COLORSETS_PATH):
-    """Return {slot: {'name', 'colors'}} from the color sets file (R-P4).
+def load_color_set_file(path=COLORSETS_PATH):
+    """Return {'sets': [...], 'dropped': [...]} from the color sets file (R-P4).
 
-    Malformed entries are skipped; the built-in default fills slot 1 unless
-    the file defines it. A missing or unreadable file yields the default only.
+    Each set is {'slot': int or None, 'name', 'colors'}; slotted sets are
+    bound to digit keys, the rest form the pool. Malformed entries are
+    skipped; a missing or unreadable file yields no sets.
+    """
+    result = {"sets": [], "dropped": []}
+    try:
+        root = json.loads(Path(path).read_text())
+        entries = root.get("sets", [])
+        dropped = root.get("dropped", [])
+    except (OSError, ValueError, AttributeError):
+        return result
+    for e in entries if isinstance(entries, list) else []:
+        try:
+            name, colors = str(e["name"]), list(e["colors"])
+        except (KeyError, TypeError):
+            continue
+        slot = e.get("slot")
+        if slot is not None and not (isinstance(slot, int) and 0 <= slot <= 9):
+            continue
+        if len(colors) == 4 and all(_valid_color(c) for c in colors):
+            result["sets"].append({"slot": slot, "name": name,
+                                   "colors": [c.upper() for c in colors]})
+    if isinstance(dropped, list):
+        result["dropped"] = [str(n) for n in dropped]
+    return result
+
+
+def save_color_set_file(file, path=COLORSETS_PATH):
+    """Write the whole pool: sets in the given order (slot omitted when None)."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    entries = []
+    for e in file["sets"]:
+        entry = {} if e.get("slot") is None else {"slot": e["slot"]}
+        entry.update({"name": e["name"], "colors": list(e["colors"])})
+        entries.append(entry)
+    path.write_text(json.dumps({"sets": entries, "dropped": list(file["dropped"])}, indent=1) + "\n")
+
+
+def load_color_sets(path=COLORSETS_PATH):
+    """Return {slot: {'name', 'colors'}} for the digit-bound sets (R-U4).
+
+    The built-in default fills slot 1 unless the file defines it.
     """
     sets = {k: {"name": v["name"], "colors": list(v["colors"])}
             for k, v in DEFAULT_COLOR_SETS.items()}
-    try:
-        entries = json.loads(Path(path).read_text()).get("sets", [])
-    except (OSError, ValueError, AttributeError):
-        return sets
-    for e in entries if isinstance(entries, list) else []:
-        try:
-            slot, name, colors = e["slot"], str(e["name"]), list(e["colors"])
-        except (KeyError, TypeError):
-            continue
-        if (isinstance(slot, int) and 0 <= slot <= 9 and len(colors) == 4
-                and all(_valid_color(c) for c in colors)):
-            sets[slot] = {"name": name, "colors": [c.upper() for c in colors]}
+    for e in load_color_set_file(path)["sets"]:
+        if e["slot"] is not None:
+            sets[e["slot"]] = {"name": e["name"], "colors": list(e["colors"])}
     return sets
 
 
 def save_color_sets(sets, path=COLORSETS_PATH):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    entries = [{"slot": slot, "name": v["name"], "colors": list(v["colors"])}
+    """Replace the digit-bound sets, preserving the pool and the dropped list."""
+    file = load_color_set_file(path)
+    slotted = [{"slot": slot, "name": v["name"], "colors": list(v["colors"])}
                for slot, v in sorted(sets.items())]
-    path.write_text(json.dumps({"sets": entries}, indent=1) + "\n")
+    pool = [e for e in file["sets"] if e["slot"] is None]
+    save_color_set_file({"sets": slotted + pool, "dropped": file["dropped"]}, path)
 
 
 def load_candidates(path=CANDIDATES_PATH):

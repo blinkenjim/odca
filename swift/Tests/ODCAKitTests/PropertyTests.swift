@@ -12,7 +12,8 @@ final class PropertyTests: XCTestCase {
         return Store(
             stateDir: dir.appendingPathComponent("state"),
             keeperFile: dir.appendingPathComponent("interesting-rules.txt"),
-            colorSetsFile: dir.appendingPathComponent("colorsets.json"))
+            colorSetsFile: dir.appendingPathComponent("colorsets.json"),
+            candidatePalettesFile: dir.appendingPathComponent("candidates.json"))
     }
 
     // PT-1: mutation changes exactly one entry to a different valid state.
@@ -156,5 +157,38 @@ final class PropertyTests: XCTestCase {
         let store = try tempStore()
         store.saveColorSets(Store(colorSetsFile: reference).loadColorSets())
         XCTAssertEqual(try String(contentsOf: store.colorSetsFile, encoding: .utf8), original)
+    }
+
+    // R-P4: pool entries and the dropped list round-trip; saveColorSets keeps them.
+    func testColorSetFilePoolAndDropped() throws {
+        let store = try tempStore()
+        let file = ColorSetFile(sets: [
+            ColorSetEntry(slot: 1, name: "One", colors: ["#000000", "#111111", "#222222", "#333333"]),
+            ColorSetEntry(slot: nil, name: "Pool A", colors: ["#AAAAAA", "#BBBBBB", "#CCCCCC", "#DDDDDD"]),
+        ], dropped: ["Gone"])
+        store.saveColorSetFile(file)
+        XCTAssertEqual(store.loadColorSetFile(), file)
+        XCTAssertEqual(Set(store.loadColorSets().keys), [1])
+        store.saveColorSets([1: ColorSet(name: "One", colors: ["#333333", "#222222", "#111111", "#000000"]),
+                             2: ColorSet(name: "Two", colors: ["#010101", "#010101", "#010101", "#010101"])])
+        let after = store.loadColorSetFile()
+        XCTAssertEqual(after.sets.map(\.name), ["One", "Two", "Pool A"])
+        XCTAssertEqual(after.sets[0].colors[0], "#333333")
+        XCTAssertNil(after.sets[2].slot)
+        XCTAssertEqual(after.dropped, ["Gone"])
+        let text = try String(contentsOf: store.colorSetsFile, encoding: .utf8)
+        XCTAssertTrue(text.hasSuffix(" \"dropped\": [\n  \"Gone\"\n ]\n}\n"))
+        // A JSON null slot reads as pool-only.
+        try "{\"sets\": [{\"slot\": null, \"name\": \"N\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}]}"
+            .write(to: store.colorSetsFile, atomically: true, encoding: .utf8)
+        XCTAssertNil(store.loadColorSetFile().sets.first!.slot)
+    }
+
+    func testCandidatePalettesLoad() throws {
+        let store = try tempStore()
+        XCTAssertEqual(store.loadCandidatePalettes(), [])
+        try "{\"palettes\": [{\"index\": 0, \"name\": \"A\", \"colors\": [\"#0a0a0a\", \"#000000\", \"#000000\", \"#000000\"]}, {\"name\": \"bad\", \"colors\": [\"#12\"]}]}"
+            .write(to: store.candidatePalettesFile, atomically: true, encoding: .utf8)
+        XCTAssertEqual(store.loadCandidatePalettes(), [ColorSetEntry(slot: nil, name: "A", colors: ["#0A0A0A", "#000000", "#000000", "#000000"])])
     }
 }
