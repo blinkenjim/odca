@@ -25,10 +25,11 @@ Keys (single characters):
         default at startup)
     c   cycle the current color set through the 24 ways of assigning its
         four colors to the four states (each slot remembers its arrangement)
+    C   the same cycle in reverse
     S   save the current color set, with its current arrangement, to
         colorsets/colorsets.json
     ' ' pause / resume; while paused every key but space, Return, s, c,
-        S, the digits, and q is ignored
+        C, S, the digits, and q is ignored
     '\\n' (Return) while paused: compute and display one generation
         (single step), remaining paused; ignored when not paused
     s   while paused: run one screenful of generations at one eighth the
@@ -150,9 +151,9 @@ class Session:
         return [tuple(int(c[j:j + 2], 16) for j in (1, 3, 5))
                 for c in self._arranged_colors(self.color_set)]
 
-    def cycle_colors(self):  # R-K15
+    def cycle_colors(self, step=1):  # R-K15 ('c' forward, 'C' backward)
         slot = self.color_set
-        index = (self._arrangement.get(slot, 0) + 1) % len(ARRANGEMENTS)
+        index = (self._arrangement.get(slot, 0) + step) % len(ARRANGEMENTS)
         self._arrangement[slot] = index
         print(f"color set {slot} arrangement {index + 1}/{len(ARRANGEMENTS)}")  # R-O9
 
@@ -375,6 +376,8 @@ class Session:
                 self.screen_remaining += self.rows  # R-K13: queue a screenful
             elif key == "c":
                 self.cycle_colors()  # colors only: no computation involved
+            elif key == "C":
+                self.cycle_colors(-1)
             elif key == "S":
                 self.save_color_set()
             elif len(key) == 1 and key.isdigit() and int(key) in self.color_sets:
@@ -405,6 +408,8 @@ class Session:
             self.delay = min(self.delay * 2, MAX_DELAY)
         elif key == "c":
             self.cycle_colors()
+        elif key == "C":
+            self.cycle_colors(-1)
         elif key == "S":
             self.save_color_set()
         elif len(key) == 1 and key.isdigit():

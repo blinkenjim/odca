@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.11.1 — 2026-09-04
+Version 2.11.2 — 2026-09-04
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -88,7 +88,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-20 | R-K14 | No counter before the first resume; resume sets it to 0; after exactly `rows` further generations it reads 1 and `screen 1` is printed; generations from running, zipped screenfuls, and single steps all count; a further resume restarts it at 0. |
 | PT-21 | R-A1 | A row recurring exactly 10 × `rows` generations after its first appearance is boring (`repeating`); one recurring 10 × `rows` + 1 generations later is not. |
 | PT-22 | R-A1, R-O8 | Feeding a transient followed by a cycle of distinct rows whose period exceeds the repetition window, the detected period equals the true period exactly, `cycle period <n>` is printed once, subsequent reasons read `repeating (period <n>)`, and a rule change clears the detector; a short cycle (period 7) is likewise detected exactly. |
-| PT-23 | R-K15, R-K9 | With a stubbed color sets file: `c` yields the next lexicographic arrangement (first press swaps states 2 and 3), 24 presses return to the original, the arrangement is remembered per slot across slot switches, an undefined slot's digit is a no-op, and without a file only slot 1 exists. |
+| PT-23 | R-K15, R-K9 | With a stubbed color sets file: `c` yields the next lexicographic arrangement (first press swaps states 2 and 3), 24 presses return to the original, `C` steps back and wraps from 1 to 24, the arrangement is remembered per slot across slot switches, an undefined slot's digit is a no-op, and without a file only slot 1 exists. |
 | PT-24 | R-K16, R-P4 | `S` writes the active slot's arranged colors to the file (reloading shows them), resets its arrangement to 1, and the file loader tolerates malformed entries, out-of-range slots, and unparseable files, always supplying slot 1. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is off at startup. |
 

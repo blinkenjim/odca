@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 2.11.1 — 2026-09-04
+Version 2.11.2 — 2026-09-04
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -72,7 +72,8 @@ copy these choices, but they are known to work.
   the repo root, injectable for tests) and exposes `Session.palette`, the
   active set's four RGB tuples after arrangement; `viewer.py` builds its
   numpy palette from that each frame. `map_key` takes the pygame key code
-  plus `event.unicode` so shift-s (`S`) is distinguishable from `s`.
+  plus `event.unicode` so shift-s (`S`) and shift-c (`C`) are distinguishable
+  from `s` and `c`.
 - **Keeper-file anchor** (R-P3): `store.INTERESTING_PATH` resolves three
   levels up from `store.py` to the repository root, where
   `interesting-rules.txt` is shared by all implementations. Every port

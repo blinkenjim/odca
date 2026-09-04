@@ -215,6 +215,14 @@ def test_cycle_arrangements_and_save(make_store, capsys):  # PT-23, PT-24
     s.handle_key("c")  # arrangement index restarted from the saved base
     assert "arrangement 2/24" in capsys.readouterr().out
     assert s.palette == [(0, 0, 0), (0x11, 0x11, 0x11), (0x22, 0x22, 0x22), (0x33, 0x33, 0x33)]
+    s.handle_key("C")  # reverse: back to the saved arrangement
+    assert "arrangement 1/24" in capsys.readouterr().out
+    assert s.palette == [(0, 0, 0), (0x11, 0x11, 0x11), (0x33, 0x33, 0x33), (0x22, 0x22, 0x22)]
+    s.handle_key("C")  # wraps backward to 24
+    assert "arrangement 24/24" in capsys.readouterr().out
+    s.handle_key(" ")
+    s.handle_key("C")  # live while paused too
+    assert "arrangement 23/24" in capsys.readouterr().out
 
 
 ALL_ZERO = Rule.from_id("0" * 20)

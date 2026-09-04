@@ -37,8 +37,8 @@ _KEYS = {
 
 def map_key(key, unicode=""):
     """Translate a pygame key code (plus typed character) to a Session key."""
-    if unicode == "S":  # shift-s: save color set (R-K16)
-        return "S"
+    if unicode in ("S", "C"):  # shift-s saves a color set, shift-c cycles back
+        return unicode
     if pygame.K_0 <= key <= pygame.K_9:
         return str(key - pygame.K_0)
     return _KEYS.get(key)
