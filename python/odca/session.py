@@ -28,7 +28,8 @@ Keys (single characters):
         (single step), remaining paused; ignored when not paused
     a   toggle auto-init (off at startup): once every row on screen is
         boring — a state the rule can produce has gone extinct (and no
-        other minority state is still alive), or the rows are repeating —
+        other minority state is still alive), the rows are repeating, or
+        the minority population has been stagnant for several screens —
         re-initialize the cells as 'i' does
 
 At startup, if the loaded rule matches a saved rule the cycle position
@@ -52,6 +53,8 @@ MIN_DELAY = 1 / 16384  # R-K8
 MAX_DELAY = 8.0
 MAX_CANDIDATES = 64  # stash cap; background workers throttle once full (R-S3)
 MINORITY_FRACTION = 0.10  # a producible state below this share is a minority (R-A1)
+STAGNATION_SCREENS = 4  # minority population steady this many screens -> stagnant
+STAGNATION_SWING = 0.25  # (max - min) / mean below this counts as steady
 STEP_CAP = 2000  # per-tick catch-up cap so a stall can't freeze the UI (R-U5)
 
 KEY_SPACE = " "
@@ -84,6 +87,8 @@ class Session:
         self._boring_reason = None
         self._recent_rows = deque()  # row bytes of the last `rows` generations
         self._recent_counts = Counter()
+        # minority-state cell counts over the last STAGNATION_SCREENS screens
+        self._minority_counts = deque(maxlen=STAGNATION_SCREENS * rows)
 
         # The saved rules form a cycle with one extra slot for the "unsaved"
         # rule — the one running before browsing began. index None = on it.
@@ -149,14 +154,23 @@ class Session:
         extinct = [s for s in producible if census[s] == 0]
         # A living minority is a shrinking (or drifting) group whose fate is
         # still unresolved; an extinction only counts once none remain.
-        living_minority = any(
-            0 < census[s] < MINORITY_FRACTION * len(row) for s in producible
-        )
+        minority = [s for s in producible if 0 < census[s] < MINORITY_FRACTION * len(row)]
+        living_minority = bool(minority)
+        self._minority_counts.append(int(sum(census[s] for s in minority)))
+        stagnant = False
+        if len(self._minority_counts) == self._minority_counts.maxlen:
+            lo, hi = min(self._minority_counts), max(self._minority_counts)
+            mean = sum(self._minority_counts) / len(self._minority_counts)
+            # A steady minority population is a structure drifting in parallel
+            # with nothing growing or shrinking: long-period repetition.
+            stagnant = mean > 0 and (hi - lo) / mean < STAGNATION_SWING
         if extinct and not living_minority:
             plural = "s" if len(extinct) > 1 else ""
             reason = f"state{plural} {', '.join(map(str, extinct))} extinct"
         elif repeating:
             reason = "repeating"
+        elif stagnant:
+            reason = "stagnant"
         else:
             reason = None
         if reason is None:
@@ -170,6 +184,7 @@ class Session:
         self._boring_reason = None
         self._recent_rows.clear()
         self._recent_counts.clear()
+        self._minority_counts.clear()
 
     def tick(self, dt):
         """Advance by elapsed wall-clock seconds (R-U5); call at ~60 Hz."""

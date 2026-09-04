@@ -1,13 +1,13 @@
 # ODCA — Requirements
 
-Version 2.3.1 — 2026-09-03
+Version 2.3.2 — 2026-09-03
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
 the arrival of the Swift implementation; no behavioral change from 1.3.
 2.3.0: auto-initialization mode on `a` — R-K12, section 4a, R-O6.
 2.3.1: an extinction does not count while another minority state is
-still alive — R-A1.)
+still alive — R-A1. 2.3.2: stagnation detector — R-A1, R-O6.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -268,7 +268,15 @@ interesting row has just scrolled off the top of the display.
   user sees the collision; or
 - *repetition*: the row is identical to a row produced within the
   previous `rows` generations (the display height, R-U2) — the automaton
-  has died or entered a cycle of period at most `rows`.
+  has died or entered a cycle of period at most `rows`; or
+- *stagnation*: the minority population — the total number of cells in
+  living-minority states — has held steady over the previous 4 × `rows`
+  generations: its swing (maximum minus minimum, divided by its mean) is
+  below 0.25, with a nonzero mean. A steady minority population is a
+  structure drifting in parallel with nothing growing or shrinking: a
+  long-period repetition that exact row matching cannot see.
+The reason reported (R-O6) is the first of extinction, repetition,
+stagnation that applies.
 Generations are classified whenever they are computed, whether by timed
 evolution (R-U5) or single step (R-K11); the seed row itself is not
 classified.
@@ -281,7 +289,8 @@ present, else the repetition.
 
 **R-A3 (reset).** The consecutive-boring count and the repetition window
 reset on any rule change (R-B1) and on any re-initialization, manual or
-automatic; a non-boring generation resets the count. Consequently every
+automatic, as does the stagnation history; a non-boring generation resets
+the count. Consequently every
 new rule and every fresh seed gets a full screen of generations before it
 can be judged. The count is maintained whether or not the mode is on, so
 enabling the mode on an already-boring screen may trigger on the next
@@ -333,8 +342,8 @@ The program prints single-line, human-readable status to standard output:
 - **R-O5.** On `n`/`p` with no saved rules: `no saved interesting rules`.
 - **R-O6.** On `a`: `auto-init on` or `auto-init off`. On an automatic
   re-initialization: `auto-init (<reason>)`, where reason is
-  `state <k> extinct` (or `states <k>, <l> extinct`, ascending) or
-  `repeating`; this precedes nothing else (cells change, the rule does not).
+  `state <k> extinct` (or `states <k>, <l> extinct`, ascending),
+  `repeating`, or `stagnant`; this precedes nothing else (cells change, the rule does not).
 
 ---
 

@@ -247,3 +247,36 @@ def test_extinction_waits_for_living_minority(make_store):  # R-A1 refinement
     many[:7] = 1  # state 1 at 22%: a real population, so 0's extinction counts
     s._observe(many)
     assert s._boring_streak == 1 and s._boring_reason == "state 0 extinct"
+
+
+def _rows_with_minority(rng, n, count):
+    """Random 2/3 backgrounds (never repeating) carrying exactly `count` state-1 cells."""
+    for _ in range(n):
+        row = rng.integers(2, 4, 32).astype(np.uint8)
+        row[rng.choice(32, count, replace=False)] = 1
+        yield row
+
+
+def test_stagnant_minority_is_boring_after_four_screens(make_store):  # PT-18
+    from odca.session import STAGNATION_SCREENS
+    s = make_session(make_store(current=Rule.from_id("0123" * 5)))
+    rng = np.random.default_rng(3)
+    window = STAGNATION_SCREENS * s.rows
+    rows = list(_rows_with_minority(rng, window + 10, 2))
+    for row in rows[: window - 1]:
+        s._observe(row)
+    assert s._boring_streak == 0  # window not yet full: nothing is boring
+    for row in rows[window - 1 : window + 6]:
+        s._observe(row)
+    assert s._boring_streak == 7 and s._boring_reason == "stagnant"
+
+
+def test_changing_minority_is_not_stagnant(make_store):  # PT-18
+    from odca.session import STAGNATION_SCREENS
+    s = make_session(make_store(current=Rule.from_id("0123" * 5)))
+    rng = np.random.default_rng(4)
+    window = STAGNATION_SCREENS * s.rows
+    for g in range(window + 20):
+        row = next(_rows_with_minority(rng, 1, 1 if g % 2 else 6))  # swinging 1..6
+        s._observe(row)
+    assert s._boring_streak == 0 and s._boring_reason is None
