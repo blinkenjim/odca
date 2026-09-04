@@ -29,6 +29,10 @@ Keys (single characters):
     s   while paused: run one screenful of generations at one eighth the
         current delay, then remain paused; each press queues another
         screenful (when not paused, 's' saves the rule as above)
+
+Resuming from pause with space (re)starts a screen counter: from then on,
+every completed screenful of generations prints 'screen N', however the
+generations were computed (running, zipping, or single-stepping).
     a   toggle auto-init (off at startup): once every row on screen is
         boring — a state the rule can produce has gone extinct (and no
         other minority state is still alive), the rows are repeating, or
@@ -84,6 +88,8 @@ class Session:
         self.delay = INITIAL_DELAY
         self.paused = False
         self.screen_remaining = 0  # generations still to zip after a paused 's'
+        self.screen_counter = None  # screenfuls since the last resume; None = inactive
+        self._counted = 0  # generations since the counter started
         self.color_set = DEFAULT_COLOR_SET
         self.undo_stack = []
         self._accumulated = 0.0
@@ -138,6 +144,11 @@ class Session:
         row = self.automaton.step()
         self._push(row)
         self._observe(row)
+        if self.screen_counter is not None:  # R-K14
+            self._counted += 1
+            if self._counted % self.rows == 0:
+                self.screen_counter += 1
+                print(f"screen {self.screen_counter}")  # R-O7
         if self.auto_init and self._boring_streak >= self.rows:
             reason = self._boring_reason
             self.init_cells()
@@ -295,6 +306,8 @@ class Session:
             if key == KEY_SPACE:
                 self.paused = False
                 self.screen_remaining = 0
+                self.screen_counter = 0  # R-K14: resume (re)starts the screen counter
+                self._counted = 0
             elif key == KEY_RETURN:
                 self._advance()  # R-K11: single step, stay paused
             elif key == "s":

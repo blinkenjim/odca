@@ -71,7 +71,7 @@ consume candidates.
 | +   | speed up (halve the delay between generations) |
 | -   | slow down (double the delay between generations) |
 | 0-9 | select a color set                           |
-| space | pause / resume (while paused, all keys but space, return, and `q` are ignored) |
+| space | pause / resume (while paused, all keys but space, return, `s`, and `q` are ignored); resuming starts a screen counter that prints `screen N` after every screenful |
 | return | while paused: single-step one generation, staying paused |
 | a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, rows repeating, or a minority population stagnant for four screens), re-initialize the cells as `i` does; off at startup |
 | q   | quit                                         |

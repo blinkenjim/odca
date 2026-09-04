@@ -309,3 +309,27 @@ def test_paused_s_queues_and_space_cancels(make_store):  # PT-19
     assert not s.paused and s.screen_remaining == 0
     s.handle_key("s")  # unpaused: 's' saves, does not queue
     assert s.screen_remaining == 0 and s.store.load_interesting() == [s.rule]
+
+
+def test_screen_counter_runs_from_resume(make_store, capsys):  # PT-20
+    s = make_session(make_store())
+    s.tick(100.0)  # before any pause/resume: no counter
+    assert s.screen_counter is None and "screen" not in capsys.readouterr().out
+    s.handle_key(" ")
+    s.handle_key(" ")  # resume starts the counter at 0
+    assert s.screen_counter == 0
+    s.tick(s.delay * (s.rows - 1))  # one generation short of a screenful
+    assert s.screen_counter == 0 and "screen" not in capsys.readouterr().out
+    s.tick(s.delay * 1)
+    assert s.screen_counter == 1 and "screen 1" in capsys.readouterr().out
+    s.tick(s.delay * (2 * s.rows))  # two more screenfuls while running
+    assert s.screen_counter == 3 and "screen 3" in capsys.readouterr().out
+    s.handle_key(" ")  # pause: counter keeps its value and keeps counting
+    s.handle_key("s")
+    s.tick(100.0)  # zipped screenful counts too
+    assert s.screen_counter == 4 and "screen 4" in capsys.readouterr().out
+    for _ in range(s.rows):
+        s.handle_key("\n")  # single steps count too
+    assert s.screen_counter == 5
+    s.handle_key(" ")  # resume again: restart from 0
+    assert s.screen_counter == 0

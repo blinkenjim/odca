@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.5.0 — 2026-09-03
+Version 2.5.1 — 2026-09-03
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -8,7 +8,8 @@ the arrival of the Swift implementation; no behavioral change from 1.3.
 2.3.0: auto-initialization mode on `a` — R-K12, section 4a, R-O6.
 2.3.1: an extinction does not count while another minority state is
 still alive — R-A1. 2.3.2: stagnation detector — R-A1, R-O6. 2.5.0:
-paused `s` zips one screenful — R-K13.)
+paused `s` zips one screenful — R-K13. 2.5.1: screen counter started by
+resume — R-K14, R-O7.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -225,6 +226,13 @@ program is still paused. Each further press queues another screenful.
 Resuming with the spacebar discards any queued screenfuls. (When not
 paused, `s` saves the rule, R-K5.)
 
+**R-K14 (screen counter).** Resuming from pause with the spacebar
+(re)starts a screen counter at zero. From then on, each time `rows` more
+generations have been computed — by timed evolution, single step, or a
+zipped screenful — the counter increments and its value is printed
+(R-O7). Pausing does not stop or reset the counter; only the next resume
+resets it. Before the first resume of a run the counter is inactive.
+
 **R-K12 (`a` — auto-initialization).** Toggles auto-initialization mode
 (section 4a) and prints its new state (R-O6). The mode is off at startup
 and is not persisted.
@@ -351,7 +359,9 @@ The program prints single-line, human-readable status to standard output:
 - **R-O6.** On `a`: `auto-init on` or `auto-init off`. On an automatic
   re-initialization: `auto-init (<reason>)`, where reason is
   `state <k> extinct` (or `states <k>, <l> extinct`, ascending),
-  `repeating`, or `stagnant`; this precedes nothing else (cells change, the rule does not).
+  `repeating`, or `stagnant`;
+- **R-O7.** On each completed screenful while the screen counter is active
+  (R-K14): `screen <n>`. this precedes nothing else (cells change, the rule does not).
 
 ---
 
