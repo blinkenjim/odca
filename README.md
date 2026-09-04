@@ -27,8 +27,10 @@ its own directory.
 | `interesting-rules.txt` | the shared collection of saved rules (`rule <id>` per line) |
 | `python/` | the reference implementation (Python + pygame); see `python/README.md` |
 | `REQ-python.md` | implementation notes for the Python version |
+| `swift/` | Swift/SwiftUI implementation (macOS); see `swift/README.md` |
+| `REQ-swift.md` | implementation notes for the Swift version |
 
-Planned: `swift/` (SwiftUI), `cpp/`.
+Planned: `cpp/`.
 
 ## Versioning
 
