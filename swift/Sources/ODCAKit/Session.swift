@@ -1,21 +1,61 @@
 import Foundation
 
+/// An RGB color, states' display colors after arrangement (R-U4).
+public struct RGB: Equatable {
+    public let r: UInt8
+    public let g: UInt8
+    public let b: UInt8
+
+    public init(r: UInt8, g: UInt8, b: UInt8) {
+        self.r = r
+        self.g = g
+        self.b = b
+    }
+
+    /// Parse "#RRGGBB" (validated on load, so a bad string yields black).
+    public init(hex: String) {
+        let s = Array(hex.dropFirst())
+        func byte(_ i: Int) -> UInt8 { UInt8(String(s[i..<i + 2]), radix: 16) ?? 0 }
+        self.init(r: byte(0), g: byte(2), b: byte(4))
+    }
+}
+
 /// The toolkit-free orchestration layer: everything the interactive
 /// program does except rendering pixels and reading raw key events.
 /// The UI layer translates toolkit key events into `Session.Key`, calls
-/// `tick(_:)` at its refresh rate, and draws `history` with the palette
-/// for `colorSet`. See REQTS sections R-U, R-K, R-B, R-O.
+/// `tick(_:)` at its refresh rate, and draws `history` with `palette`.
+/// See REQTS sections R-U, R-K, R-B, R-A, R-P, R-O.
 public final class Session {
-    public static let definedColorSets = 3  // slots 0-2; 3-9 reserved (R-U4)
-    public static let defaultColorSet = 2
+    public static let defaultColorSet = 1  // slot active at startup (R-U4)
     public static let initialDelay = 1.0 / 60.0  // R-U5
     public static let minDelay = 1.0 / 16384.0  // R-K8
     public static let maxDelay = 8.0
     public static let maxCandidates = 64  // R-S3
     public static let stepCap = 2000  // per-tick catch-up cap (R-U5)
+    public static let screenSpeedup = 8.0  // paused 's' zips at delay / 8 (R-K13)
+    public static let repeatScreens = 10  // repetition window in screens (R-A1)
+    public static let minorityFraction = 0.10  // a producible state below this share is a minority (R-A1)
+    public static let stagnationScreens = 4  // minority population steady this long -> stagnant (R-A1)
+    public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
+
+    /// The 24 assignments of four colors to four states, lexicographic,
+    /// identity first (R-K15).
+    public static let arrangements: [[Int]] = permutations([0, 1, 2, 3])
+
+    private static func permutations(_ items: [Int]) -> [[Int]] {
+        if items.count <= 1 { return [items] }
+        var out: [[Int]] = []
+        for (i, x) in items.enumerated() {
+            var rest = items
+            rest.remove(at: i)
+            for p in permutations(rest) { out.append([x] + p) }
+        }
+        return out
+    }
 
     public enum Key: Equatable {
-        case q, r, m, u, s, i, n, p
+        case q, r, m, u, s, i, n, p, a
+        case c, C, S  // arrange colors forward / backward, save color set
         case plus, minus, space, ret
         case digit(Int)
     }
@@ -27,16 +67,35 @@ public final class Session {
     public private(set) var history: [[UInt8]] = []
     public private(set) var delay = Session.initialDelay
     public private(set) var paused = false
+    public private(set) var screenRemaining = 0  // generations still to zip (R-K13)
+    public private(set) var screenCounter: Int?  // screenfuls since last resume (R-K14)
+    public private(set) var autoInit = false  // R-K12: off at startup, not persisted
+    public private(set) var cyclePeriod: Int?  // exact period once Brent's finds a cycle
+    public private(set) var colorSets: [Int: ColorSet]
     public private(set) var colorSet = Session.defaultColorSet
     public private(set) var undoStack: [Rule] = []
     public private(set) var interestingIndex: Int?
     public private(set) var unsavedRule: Rule?
     public private(set) var candidates: [Rule]
+    /// Terminal output sink (R-O); the UI leaves it as print, tests capture it.
+    public var output: (String) -> Void = { print($0) }
 
     let store: Store
     let search: CandidateSearch
     var rng: Xoshiro256
     private var accumulated = 0.0
+    private var counted = 0  // generations since the screen counter started
+    private var arrangement: [Int: Int] = [:]  // slot -> index into arrangements
+
+    // Auto-init state (R-A); internal so tests can observe it.
+    var boringStreak = 0
+    var boringReason: String?
+    private var recentRows: [[UInt8]] = []
+    private var recentCounts: [[UInt8]: Int] = [:]
+    private var minorityCounts: [Int] = []
+    private var brentSnapshot: [UInt8]?
+    private var brentPower = 1
+    private var brentSteps = 0
 
     public init(
         cols: Int, rows: Int, store: Store = Store(),
@@ -66,9 +125,10 @@ public final class Session {
         }
 
         candidates = store.loadCandidates()
+        colorSets = store.loadColorSets()  // R-P4
         self.rng = rng
         pushRow(automaton.cells)
-        print("rule \(rule.id)")
+        output("rule \(rule.id)")
     }
 
     public var ruleID: String { automaton.rule.id }
@@ -81,19 +141,152 @@ public final class Session {
         if history.count > rows { history.removeFirst() }
     }
 
+    // MARK: - Colors (R-U4, R-K15, R-K16)
+
+    private func arrangedColors(_ slot: Int) -> [String] {
+        let base = colorSets[slot]!.colors
+        return Session.arrangements[arrangement[slot] ?? 0].map { base[$0] }
+    }
+
+    /// The active color set as four RGB colors, states 0-3, after arrangement.
+    public var palette: [RGB] { arrangedColors(colorSet).map { RGB(hex: $0) } }
+
+    private func cycleColors(_ step: Int) {
+        let n = Session.arrangements.count
+        let index = (((arrangement[colorSet] ?? 0) + step) % n + n) % n
+        arrangement[colorSet] = index
+        output("color set \(colorSet) arrangement \(index + 1)/\(n)")  // R-O9
+    }
+
+    private func saveColorSet() {
+        colorSets[colorSet]!.colors = arrangedColors(colorSet)
+        arrangement[colorSet] = 0
+        store.saveColorSets(colorSets)
+        output("saved color set \(colorSet) \(colorSets[colorSet]!.name)")  // R-O10
+    }
+
+    private func selectColorSet(_ slot: Int) {
+        if colorSets[slot] != nil { colorSet = slot }  // R-K9: undefined slot is a no-op
+    }
+
+    // MARK: - Evolution and auto-init (R-U5, R-A)
+
+    /// Compute one generation, display it, and apply auto-init (R-A).
+    private func advance() {
+        let row = automaton.step()
+        pushRow(row)
+        observe(row)
+        if screenCounter != nil {  // R-K14
+            counted += 1
+            if counted % rows == 0 {
+                screenCounter! += 1
+                output("screen \(screenCounter!)")  // R-O7
+            }
+        }
+        if autoInit && boringStreak >= rows {
+            let reason = boringReason ?? "boring"
+            initCells()
+            output("auto-init (\(reason))")  // R-O6
+        }
+    }
+
+    /// Classify a computed generation as boring or not (R-A1).
+    func observe(_ row: [UInt8]) {
+        // Brent's cycle detection: one saved row, refreshed at powers of two.
+        // The automaton is deterministic, so a recurring row proves the
+        // future periodic; steps since the snapshot are exactly the period.
+        if cyclePeriod == nil {
+            if brentSnapshot == nil {
+                brentSnapshot = row
+            } else {
+                brentSteps += 1
+                if row == brentSnapshot! {
+                    cyclePeriod = brentSteps
+                    output("cycle period \(brentSteps)")  // R-O8
+                } else if brentSteps == brentPower {
+                    brentSnapshot = row
+                    brentPower *= 2
+                    brentSteps = 0
+                }
+            }
+        }
+        // Window repetition: seen within the last repeatScreens screens.
+        let repeating = (recentCounts[row] ?? 0) > 0
+        recentRows.append(row)
+        recentCounts[row, default: 0] += 1
+        if recentRows.count > Session.repeatScreens * rows {
+            let old = recentRows.removeFirst()
+            if let n = recentCounts[old] {
+                if n <= 1 { recentCounts[old] = nil } else { recentCounts[old] = n - 1 }
+            }
+        }
+        // Census: extinction with living-minority patience, and stagnation.
+        var census = [Int](repeating: 0, count: Rule.stateCount)
+        for c in row { census[Int(c)] += 1 }
+        let producible = Set(automaton.rule.states.map { Int($0) }).sorted()
+        let extinct = producible.filter { census[$0] == 0 }
+        let minority = producible.filter {
+            census[$0] > 0 && Double(census[$0]) < Session.minorityFraction * Double(row.count)
+        }
+        minorityCounts.append(minority.reduce(0) { $0 + census[$1] })
+        let window = Session.stagnationScreens * rows
+        if minorityCounts.count > window { minorityCounts.removeFirst() }
+        var stagnant = false
+        if minorityCounts.count == window {
+            let lo = minorityCounts.min()!, hi = minorityCounts.max()!
+            let mean = Double(minorityCounts.reduce(0, +)) / Double(window)
+            stagnant = mean > 0 && Double(hi - lo) / mean < Session.stagnationSwing
+        }
+
+        let reason: String?
+        if !extinct.isEmpty && minority.isEmpty {
+            let names = extinct.map(String.init).joined(separator: ", ")
+            reason = "state\(extinct.count > 1 ? "s" : "") \(names) extinct"
+        } else if let period = cyclePeriod {
+            reason = "repeating (period \(period))"
+        } else if repeating {
+            reason = "repeating"
+        } else if stagnant {
+            reason = "stagnant"
+        } else {
+            reason = nil
+        }
+        boringStreak = reason == nil ? 0 : boringStreak + 1
+        boringReason = reason
+    }
+
+    private func resetBoredom() {  // R-A3
+        boringStreak = 0
+        boringReason = nil
+        recentRows.removeAll()
+        recentCounts.removeAll()
+        minorityCounts.removeAll()
+        brentSnapshot = nil
+        brentPower = 1
+        brentSteps = 0
+        cyclePeriod = nil
+    }
+
     /// Advance by elapsed wall-clock time (R-U5); call at ~60 Hz.
     public func tick(_ dt: Double) {
         drainSearch()
         accumulated += dt
         if paused {
-            accumulated = 0  // no catch-up burst on resume (R-K10)
+            if screenRemaining > 0 {  // R-K13: zip a queued screenful
+                let fast = delay / Session.screenSpeedup
+                let steps = min(Int(accumulated / fast), screenRemaining, Session.stepCap)
+                accumulated -= Double(steps) * fast
+                for _ in 0..<steps { advance() }
+                screenRemaining -= steps
+            }
+            if screenRemaining == 0 {
+                accumulated = 0  // no catch-up burst on resume (R-K10)
+            }
             return
         }
         let steps = Int(accumulated / delay)
         accumulated -= Double(steps) * delay
-        for _ in 0..<min(steps, Session.stepCap) {
-            pushRow(automaton.step())
-        }
+        for _ in 0..<min(steps, Session.stepCap) { advance() }
     }
 
     private func drainSearch() {
@@ -108,10 +301,13 @@ public final class Session {
         }
     }
 
+    // MARK: - Rules (R-K2..R-K6, R-B)
+
     private func setRule(_ rule: Rule) {
         automaton.rule = rule
+        resetBoredom()
         store.saveRule(rule)
-        print("rule \(rule.id)")  // R-O1
+        output("rule \(rule.id)")  // R-O1
     }
 
     private func setUnsavedRule(_ rule: Rule) {
@@ -130,7 +326,7 @@ public final class Session {
         } else {
             let (found, tries) = Classifier.findCandidate(using: &rng)
             if tries > 1 {
-                print("discarded \(tries - 1) rule\(tries > 2 ? "s" : "")")  // R-O2
+                output("discarded \(tries - 1) rule\(tries > 2 ? "s" : "")")  // R-O2
             }
             rule = found
         }
@@ -143,25 +339,24 @@ public final class Session {
     }
 
     private func undo() {  // R-K4
-        if let rule = undoStack.popLast() {
-            setRule(rule)
-        }
+        if let rule = undoStack.popLast() { setRule(rule) }
     }
 
     private func saveInteresting() {  // R-K5
         store.appendInteresting(automaton.rule)
-        print("saved rule \(automaton.rule.id)")  // R-O3
+        output("saved rule \(automaton.rule.id)")  // R-O3
     }
 
     private func initCells() {  // R-K6
         automaton.resetRandom(using: &rng)
         pushRow(automaton.cells)
+        resetBoredom()
     }
 
     private func selectInteresting(step: Int) {  // R-B2, R-B3
         let rules = store.loadInteresting()
         guard !rules.isEmpty else {
-            print("no saved interesting rules")  // R-O5
+            output("no saved interesting rules")  // R-O5
             return
         }
         let n = rules.count
@@ -171,24 +366,39 @@ public final class Session {
         undoStack.append(automaton.rule)
         if to == n {  // only reachable when the unsaved slot is occupied
             interestingIndex = nil
-            print("unsaved rule")  // R-O4
+            output("unsaved rule")  // R-O4
             setRule(unsavedRule!)
         } else {
             interestingIndex = to
-            print("interesting \(to + 1)/\(n)")  // R-O4
+            output("interesting \(to + 1)/\(n)")  // R-O4
             setRule(rules[to])
         }
     }
 
+    // MARK: - Keys (R-K)
+
     /// Returns false when the program should quit.
     public func handleKey(_ key: Key) -> Bool {
         if key == .q { return false }
-        if paused {  // R-K10: only space, Return, q are live
+        if paused {  // R-K10: space, Return, s, and the color keys are live
             switch key {
             case .space:
                 paused = false
-            case .ret:  // R-K11: single step, stay paused
-                pushRow(automaton.step())
+                screenRemaining = 0
+                screenCounter = 0  // R-K14: resume (re)starts the screen counter
+                counted = 0
+            case .ret:
+                advance()  // R-K11: single step, stay paused
+            case .s:
+                screenRemaining += rows  // R-K13: queue a screenful
+            case .c:
+                cycleColors(1)
+            case .C:
+                cycleColors(-1)
+            case .S:
+                saveColorSet()
+            case .digit(let d):
+                selectColorSet(d)
             default:
                 break
             }
@@ -211,12 +421,21 @@ public final class Session {
             selectInteresting(step: 1)
         case .p:
             selectInteresting(step: -1)
+        case .a:  // R-K12
+            autoInit.toggle()
+            output("auto-init \(autoInit ? "on" : "off")")  // R-O6
+        case .c:
+            cycleColors(1)
+        case .C:
+            cycleColors(-1)
+        case .S:
+            saveColorSet()
         case .plus:
             delay = max(delay / 2, Session.minDelay)
         case .minus:
             delay = min(delay * 2, Session.maxDelay)
         case .digit(let d):
-            if d >= 0 && d < Session.definedColorSets { colorSet = d }
+            selectColorSet(d)
         case .q, .ret:
             break
         }

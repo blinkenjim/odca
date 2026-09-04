@@ -11,7 +11,8 @@ final class PropertyTests: XCTestCase {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return Store(
             stateDir: dir.appendingPathComponent("state"),
-            keeperFile: dir.appendingPathComponent("interesting-rules.txt"))
+            keeperFile: dir.appendingPathComponent("interesting-rules.txt"),
+            colorSetsFile: dir.appendingPathComponent("colorsets.json"))
     }
 
     // PT-1: mutation changes exactly one entry to a different valid state.
@@ -126,5 +127,34 @@ final class PropertyTests: XCTestCase {
         search.stop()
         XCTAssertFalse(found.isEmpty, "no candidate found within 30s")
         XCTAssertTrue(found.allSatisfy { $0.states.count == Rule.tableSize })
+    }
+
+    // PT-24: color sets file round trip and tolerance (R-P4).
+    func testColorSetsRoundTripAndTolerance() throws {
+        let store = try tempStore()
+        XCTAssertEqual(Set(store.loadColorSets().keys), [1])  // missing file: default only
+        let sets = [0: ColorSet(name: "A", colors: ["#010203", "#040506", "#070809", "#0A0B0C"]),
+                    1: ColorSet(name: "Mine", colors: ["#000000", "#FFFFFF", "#FF0000", "#0000FF"])]
+        store.saveColorSets(sets)
+        XCTAssertEqual(store.loadColorSets(), sets)  // file's slot 1 overrides the built-in
+        try """
+            {"sets": [{"slot": 4, "name": "bad", "colors": ["#12"]},
+                      {"slot": 12, "name": "x", "colors": ["#000000", "#000000", "#000000", "#000000"]},
+                      {"slot": 7, "name": "ok", "colors": ["#abcdef", "#000000", "#111111", "#222222"]}]}
+            """.write(to: store.colorSetsFile, atomically: true, encoding: .utf8)
+        let loaded = store.loadColorSets()
+        XCTAssertEqual(Set(loaded.keys), [1, 7])
+        XCTAssertEqual(loaded[7]!.colors[0], "#ABCDEF")
+        try "not json".write(to: store.colorSetsFile, atomically: true, encoding: .utf8)
+        XCTAssertEqual(Set(store.loadColorSets().keys), [1])
+    }
+
+    /// Saving the shipped file back out must be byte-identical (shared file).
+    func testColorSetsFileLayoutMatchesReference() throws {
+        let reference = Store.repoRoot.appendingPathComponent("colorsets/colorsets.json")
+        let original = try String(contentsOf: reference, encoding: .utf8)
+        let store = try tempStore()
+        store.saveColorSets(Store(colorSetsFile: reference).loadColorSets())
+        XCTAssertEqual(try String(contentsOf: store.colorSetsFile, encoding: .utf8), original)
     }
 }

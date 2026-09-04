@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.0.0 — 2026-09-03
+Version 2.12.0 — 2026-09-04 (catch-up release: everything through Python 2.11.2)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -11,7 +11,7 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
 
 | target | role (spec sections) |
 |--------|----------------------|
-| `ODCAKit` (library) | engine `Rule`/`Automaton` (R-M), `Classifier` (R-C), `CandidateSearch` (R-S), `Store` (R-P), `Session` (R-U/K/B/O orchestration), `Xoshiro256` (R-N1) |
+| `ODCAKit` (library) | engine `Rule`/`Automaton` (R-M), `Classifier` (R-C), `CandidateSearch` (R-S), `Store` + `ColorSet` (R-P), `Session` (R-U/K/B/A/O orchestration), `Xoshiro256` (R-N1) |
 | `ODCA` (executable) | SwiftUI app: `ViewerModel` (timer, rendering, key translation), `ODCAApp`/`ContentView` |
 | `ODCAKitTests` | conformance runner + property tests (TESTS.md layers 1–2) |
 
@@ -35,7 +35,22 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
 - **Keyboard**: an `NSEvent.addLocalMonitorForEvents(.keyDown)` monitor
   (reliable regardless of focus within the window); Command-modified keys
   pass through to the system. Keypad Enter/+/− map like their main-row
-  equivalents (R-K8, R-K11).
+  equivalents (R-K8, R-K11). `charactersIgnoringModifiers` still reflects
+  Shift, so `S` and `C` (R-K16, R-K15) arrive as uppercase characters.
+- **Auto-init** (R-A): implemented in `Session.observe(_:)` — census-based
+  extinction with living-minority patience, a ten-screen repetition
+  window (`[[UInt8]: Int]` counts over an array window), stagnation over
+  four screens, and Brent's cycle detection with one saved row. Row
+  arrays serve directly as dictionary keys.
+- **Color sets** (R-U4, R-P4): `Store.loadColorSets()` parses the shared
+  JSON with `JSONSerialization` (tolerant of malformed entries) and
+  `saveColorSets` hand-formats the same layout as Python's
+  `json.dumps(indent=1)` so an `S` from either implementation leaves the
+  file byte-stable (a test round-trips the shipped file and asserts
+  identity). `Session.palette` yields the arranged `RGB` colors; the 24
+  arrangements are generated as lexicographic permutations.
+- **Output sink**: `Session.output` (default `print`) carries every R-O
+  line; tests capture it instead of stdout.
 - **Engine**: plain loops over `[UInt8]` rows — native code needs no numpy
   equivalent; the 0/1/4/16 weighted-sum lookup and 49-slot dense table
   match the reference. Conformance vectors certify equality.
@@ -54,7 +69,8 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   (`Tests/ODCAKitTests/ConformanceTests.swift`) locates
   `../conformance/vectors.json` via `#filePath`.
 - Session/property tests construct `Store` instances pointed at temp
-  directories — never the user's real `~/.odca` or the repo keeper file —
-  and use `CandidateSearch(workers: 0)` so no search threads start.
+  directories — never the user's real `~/.odca`, the repo keeper file, or
+  `colorsets/colorsets.json` — and use `CandidateSearch(workers: 0)` so
+  no search threads start. The suite covers PT-1..PT-24.
 - Tests run headless; no window is created (only the `ODCA` executable
   target touches AppKit/SwiftUI).

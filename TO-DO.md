@@ -1,13 +1,11 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-04, late):** Python is at 2.11.2: color sets are
-file-backed (colorsets/colorsets.json; slot 1 default, coolors.co
-palettes in 0 and 2-9), with c/C arranging colors and S saving, all live
-while paused. Seven commits (2.9.0 through the vision notes) are
-committed locally but NOT pushed. Next: (a) push; (b) the Swift catch-up
-release porting 2.3-2.11 (auto-init filter, paused s, screen counter,
-Brent's, file-backed color sets and c/C/S); (c) audition all 45 palettes
-and finalize the slots; (d) then the vision items below.
+**YOU ARE HERE (2026-09-04):** Python 2.11.2 and Swift 2.12.0 have feature
+parity (the Swift catch-up ported auto-init with all detectors and
+Brent's, paused 's' and the screen counter, and file-backed color sets
+with c/C/S). Next: (a) audition all 45 palettes (colorsets/audition.png)
+and finalize the slots; (b) the vision items below, starting with the
+declarative screensaver script design.
 
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)

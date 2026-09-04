@@ -12,13 +12,6 @@ final class ViewerModel: ObservableObject {
     static let cols = 1200 / cellSize
     static let rows = 800 / cellSize
 
-    /// Color sets per R-U4; state 0 first. Slots 3-9 are reserved.
-    static let colorSets: [[(UInt8, UInt8, UInt8)]] = [
-        [(0x07, 0xFF, 0x00), (0xFF, 0xFF, 0x00), (0x3B, 0x08, 0xFF), (0xCC, 0x00, 0x3B)],
-        [(0xFF, 0xFF, 0xFF), (0x07, 0xE3, 0x99), (0xFF, 0x1C, 0xFF), (0xFF, 0x81, 0x00)],
-        [(18, 18, 24), (235, 235, 225), (255, 161, 54), (64, 156, 255)],
-    ]
-
     let session: Session
     @Published var frame: CGImage?
     @Published var title = "ODCA"
@@ -67,7 +60,7 @@ final class ViewerModel: ObservableObject {
     private func renderImage() -> CGImage? {
         let cols = Self.cols
         let rows = Self.rows
-        let palette = Self.colorSets[session.colorSet]
+        let palette = session.palette  // arranged colors of the active set (R-U4)
         let background = palette[0]
         var pixels = [UInt8](repeating: 0, count: rows * cols * 4)
         let history = session.history
@@ -76,9 +69,9 @@ final class ViewerModel: ObservableObject {
             for col in 0..<cols {
                 let color = cells.map { palette[Int($0[col])] } ?? background
                 let base = (row * cols + col) * 4
-                pixels[base] = color.0
-                pixels[base + 1] = color.1
-                pixels[base + 2] = color.2
+                pixels[base] = color.r
+                pixels[base + 1] = color.g
+                pixels[base + 2] = color.b
                 pixels[base + 3] = 255
             }
         }
@@ -112,6 +105,10 @@ final class ViewerModel: ObservableObject {
         case "i": return .i
         case "n": return .n
         case "p": return .p
+        case "a": return .a
+        case "c": return .c
+        case "C": return .C  // shift-c (R-K15)
+        case "S": return .S  // shift-s (R-K16)
         case "+", "=": return .plus  // '=' is unshifted '+' on US layouts (R-K8)
         case "-": return .minus
         case " ": return .space

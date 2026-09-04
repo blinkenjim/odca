@@ -338,9 +338,9 @@ def test_changing_minority_is_not_stagnant(make_store):  # PT-18
     rng = np.random.default_rng(4)
     window = STAGNATION_SCREENS * s.rows
     for g in range(window + 20):
-        row = next(_rows_with_minority(rng, 1, 1 if g % 2 else 6))  # swinging 1..6
+        row = next(_rows_with_minority(rng, 1, 1 if g % 2 else 3))  # 1 and 3: both minorities, swing 1.0
         s._observe(row)
-    assert s._boring_streak == 0 and s._boring_reason is None
+        assert s._boring_streak == 0 and s._boring_reason is None
 
 
 def test_paused_s_zips_one_screenful(make_store):  # PT-19

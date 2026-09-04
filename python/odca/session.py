@@ -104,7 +104,7 @@ class Session:
         self._arrangement = {}  # slot -> index into ARRANGEMENTS (R-K15)
         self.undo_stack = []
         self._accumulated = 0.0
-        self.auto_init = False  # R-K12: off at startup, not persisted
+        self.auto_init = True  # R-K12: off at startup, not persisted
         self._boring_streak = 0
         self._boring_reason = None
         self._recent_rows = deque()  # row bytes of the last REPEAT_SCREENS screens
