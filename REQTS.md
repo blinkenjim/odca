@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.13.0 — 2026-09-04
+Version 2.15.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -15,7 +15,8 @@ R-O8. 2.9.0: color sets 3–9 defined — R-U4. 2.11.0: color sets
 rearranged and file-backed, `c` arranges, `S` saves — R-U4, R-K9,
 R-K15, R-K16, R-P4, R-O9, R-O10. 2.11.1: digits live while paused —
 R-K10. 2.11.2: `C` cycles arrangements backward — R-K15. 2.13.0:
-auto-initialization is on at startup — R-K12.)
+auto-initialization is on at startup — R-K12. 2.15.0: continuous
+scrolling at slow speeds, seamless resume — R-U3, R-K10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -136,11 +137,23 @@ window, giving 300 columns × 200 rows. The row count of the automaton
 equals the column count of the display.
 
 **R-U3 (scrolling).** The display shows the most recent generations as
-horizontal rows, newest at the bottom of the filled region. A display
-buffer of `rows` rows starts as all state 0; each new generation is
+horizontal rows, newest at the bottom of the filled region. A history
+buffer of `rows` + 1 rows starts as all state 0; each new generation is
 appended below the previous until the buffer is full, after which the
-buffer scrolls: the oldest visible row is discarded and the new row enters
-at the bottom. The initial (seed) generation is displayed.
+buffer scrolls: the oldest row is discarded and the new row enters at the
+bottom. The initial (seed) generation is displayed.
+
+The window shows `rows` rows of the buffer, scrolled into its top row by
+a *scroll offset* of 0 to 1 cell:
+- while the buffer is still filling: 0 (rows appear from the top down);
+- when paused, or when the delay is at most twice the initial delay
+  (30 generations per second or faster): 1 — the newest generation is
+  fully visible and each generation advances the picture by one whole
+  row (discrete scrolling);
+- otherwise (*continuous scrolling*): the fraction of the current delay
+  that has elapsed since the last generation, so the picture slides up at
+  a constant one cell per delay and the newest generation enters from the
+  bottom edge. Cells stay crisp; the offset is quantized to device pixels.
 
 **R-U4 (colors).** Each state maps to an RGB color through the active
 *color set*: four colors in state order, state 0 the background. Ten
@@ -230,7 +243,9 @@ undefined slot is a silent no-op.
 **R-K10 (spacebar — pause).** The spacebar freezes the display animation:
 no further generations are computed or shown until the spacebar is pressed
 again, which resumes at the normal rate with no catch-up burst (elapsed
-pause time is discarded). While paused, every key except the spacebar,
+pause time is discarded). Resuming computes exactly one generation on the
+first refresh so that the picture, which showed the newest row fully while
+paused, continues without a jump (R-U3). While paused, every key except the spacebar,
 Return (R-K11), `s` (R-K13), `c`/`C` (R-K15), `S` (R-K16), the digits
 (R-K9), and `q` is ignored; `q` quits normally. The digits, `c`, and `S`
 touch only colors, never computation, so they remain live (as does `C`). Pausing does not

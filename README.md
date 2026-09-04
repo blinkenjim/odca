@@ -68,7 +68,7 @@ consume candidates.
 | n   | next saved interesting rule (first press: rule 0) |
 | p   | previous saved interesting rule (first press: last rule) |
 | i   | initialize all cells to random contents      |
-| +   | speed up (halve the delay between generations) |
+| +   | speed up (halve the delay between generations); below 30 generations/s the scroll is continuous |
 | -   | slow down (double the delay between generations) |
 | 0-9 | select a color set                           |
 | c   | cycle the current color set through its 24 color-to-state arrangements |

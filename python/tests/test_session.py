@@ -152,8 +152,10 @@ def test_speed_clamps_and_tick(make_store):  # R-K8, R-U5
     s2.handle_key(" ")
     s2.tick(5.0)  # paused: time discarded
     s2.handle_key(" ")
+    s2.tick(0.0)  # resume computes exactly one generation, seamlessly (R-K10)
+    assert s2.automaton.generation == g0 + 61
     s2.tick(0.0)
-    assert s2.automaton.generation == g0 + 60
+    assert s2.automaton.generation == g0 + 61  # and no more without elapsed time
 
 
 def test_save_appends_keeper(make_store):  # R-K5
@@ -379,7 +381,8 @@ def test_screen_counter_runs_from_resume(make_store, capsys):  # PT-20
     s.handle_key(" ")
     s.handle_key(" ")  # resume starts the counter at 0
     assert s.screen_counter == 0
-    s.tick(s.delay * (s.rows - 1))  # one generation short of a screenful
+    s.tick(0.0)  # the seamless-resume generation (R-K10)
+    s.tick(s.delay * (s.rows - 2))  # now one generation short of a screenful
     assert s.screen_counter == 0 and "screen" not in capsys.readouterr().out
     s.tick(s.delay * 1)
     assert s.screen_counter == 1 and "screen 1" in capsys.readouterr().out
@@ -453,3 +456,29 @@ def test_brent_short_period_exact(make_store, capsys):  # PT-22
     for g in range(200):
         s._observe(cycle[g % 7])
     assert s.cycle_period == 7
+
+
+def test_scroll_offset_semantics(make_store):  # PT-25, R-U3
+    from odca.session import SMOOTH_SCROLL_DELAY
+    s = make_session(make_store())
+    s.handle_key("a")  # keep auto-init from re-seeding during the test
+    assert s.history.shape == (s.rows + 1, s.cols)
+    assert s.scroll_offset == 0.0  # filling: no scroll yet
+    s.tick(s.delay * s.rows)  # buffer full (seed row + rows generations)
+    assert s.filled == s.rows + 1
+    assert s.scroll_offset == 1.0  # default speed is faster than the threshold: discrete
+    for _ in range(2):
+        s.handle_key("-")  # 4x the delay: slower than half speed -> continuous
+    assert s.delay > SMOOTH_SCROLL_DELAY
+    s.tick(s.delay * 0.25)
+    assert abs(s.scroll_offset - 0.25) < 1e-9
+    s.tick(s.delay * 0.5)
+    assert abs(s.scroll_offset - 0.75) < 1e-9
+    g = s.automaton.generation
+    s.tick(s.delay * 0.3)  # crosses a generation: offset wraps, one row scrolls
+    assert s.automaton.generation == g + 1 and abs(s.scroll_offset - 0.05) < 1e-9
+    s.handle_key(" ")
+    assert s.scroll_offset == 1.0  # paused: newest row shown fully
+    s.handle_key(" ")
+    s.tick(0.0)  # seamless resume: one generation, offset back to 0
+    assert s.automaton.generation == g + 2 and s.scroll_offset == 0.0

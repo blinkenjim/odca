@@ -52,10 +52,15 @@ class Viewer:
         self.session = session
 
     def draw(self, screen):
-        palette = np.array(self.session.palette, dtype=np.uint8)
-        rgb = palette[self.session.history]  # (rows, cols, 3)
+        session = self.session
+        palette = np.array(session.palette, dtype=np.uint8)
+        rgb = palette[session.history]  # (rows + 1, cols, 3)
         surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))
-        pygame.transform.scale(surf, screen.get_size(), screen)
+        cell = self.cell_size
+        scaled = pygame.transform.scale(surf, (session.cols * cell, (session.rows + 1) * cell))
+        # R-U3: the buffer is one row taller than the window; scroll_offset
+        # says how far into the top row the view is (continuous at slow speeds).
+        screen.blit(scaled, (0, -int(round(session.scroll_offset * cell))))
 
     def run(self):
         session = self.session

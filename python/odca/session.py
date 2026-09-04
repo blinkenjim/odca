@@ -72,6 +72,7 @@ MINORITY_FRACTION = 0.10  # a producible state below this share is a minority (R
 STAGNATION_SCREENS = 4  # minority population steady this many screens -> stagnant
 STAGNATION_SWING = 0.25  # (max - min) / mean below this counts as steady
 STEP_CAP = 2000  # per-tick catch-up cap so a stall can't freeze the UI (R-U5)
+SMOOTH_SCROLL_DELAY = 2 * INITIAL_DELAY  # slower than this: continuous scrolling (R-U3)
 SCREEN_SPEEDUP = 8  # paused 's' zips a screenful at delay / SCREEN_SPEEDUP (R-K13)
 
 KEY_SPACE = " "
@@ -91,8 +92,9 @@ class Session:
         self.automaton = Automaton(cols, rule=rule, seed="random", rng=self.rng)
         self.store.save_rule(rule)
 
-        # history[i] is a row of cells; row 0 is the oldest visible generation.
-        self.history = np.zeros((rows, cols), dtype=np.uint8)
+        # history[i] is a row of cells; row 0 is the oldest. One row more than
+        # the display holds, so continuous scrolling has a row to slide in.
+        self.history = np.zeros((rows + 1, cols), dtype=np.uint8)
         self.filled = 0
         self.delay = INITIAL_DELAY
         self.paused = False
@@ -104,6 +106,7 @@ class Session:
         self._arrangement = {}  # slot -> index into ARRANGEMENTS (R-K15)
         self.undo_stack = []
         self._accumulated = 0.0
+        self._zip_accumulated = 0.0
         self.auto_init = True  # R-K12: on at startup, not persisted
         self._boring_streak = 0
         self._boring_reason = None
@@ -170,8 +173,23 @@ class Session:
     def stop_search(self):
         self.search.stop()
 
+    @property
+    def scroll_offset(self):
+        """How far the display is scrolled into the top history row, in cells (R-U3).
+
+        0 while the buffer is still filling; 1 (newest row fully shown) when
+        paused or at fast speeds; the fraction of the current delay that has
+        elapsed when scrolling continuously, so the picture slides up at one
+        cell per delay and the newest generation enters from the bottom.
+        """
+        if self.filled <= self.rows:
+            return 0.0
+        if self.paused or self.delay <= SMOOTH_SCROLL_DELAY:
+            return 1.0
+        return min(self._accumulated / self.delay, 1.0)
+
     def _push(self, row):
-        if self.filled < self.rows:
+        if self.filled < self.rows + 1:
             self.history[self.filled] = row
             self.filled += 1
         else:
@@ -267,18 +285,21 @@ class Session:
     def tick(self, dt):
         """Advance by elapsed wall-clock seconds (R-U5); call at ~60 Hz."""
         self._drain_search()
-        self._accumulated += dt
         if self.paused:
-            if self.screen_remaining > 0:  # R-K13: zip a queued screenful
+            # The main accumulator is frozen while paused (no catch-up burst,
+            # R-K10); a queued screenful (R-K13) paces on its own accumulator.
+            if self.screen_remaining > 0:
+                self._zip_accumulated += dt
                 delay = self.delay / SCREEN_SPEEDUP
-                steps = min(int(self._accumulated / delay), self.screen_remaining, STEP_CAP)
-                self._accumulated -= steps * delay
+                steps = min(int(self._zip_accumulated / delay), self.screen_remaining, STEP_CAP)
+                self._zip_accumulated -= steps * delay
                 for _ in range(steps):
                     self._advance()
                 self.screen_remaining -= steps
             if self.screen_remaining == 0:
-                self._accumulated = 0.0  # no catch-up burst on resume (R-K10)
+                self._zip_accumulated = 0.0
             return
+        self._accumulated += dt
         steps = int(self._accumulated / self.delay)
         self._accumulated -= steps * self.delay
         for _ in range(min(steps, STEP_CAP)):
@@ -368,6 +389,10 @@ class Session:
             if key == KEY_SPACE:
                 self.paused = False
                 self.screen_remaining = 0
+                # Resume seamlessly: the paused view shows the newest row fully
+                # (offset 1), so start a hair short of the next generation and
+                # let the first tick compute it — the picture does not jump.
+                self._accumulated = self.delay
                 self.screen_counter = 0  # R-K14: resume (re)starts the screen counter
                 self._counted = 0
             elif key == KEY_RETURN:

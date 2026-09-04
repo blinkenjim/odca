@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 2.13.0 — 2026-09-04
+Version 2.15.0 — 2026-09-04
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -45,10 +45,11 @@ copy these choices, but they are known to work.
   `uint8` table built from the 20-entry rule. The whole row updates in a
   few vectorized operations; the same sums feed the classifier's
   input-entropy measurement (R-C3) via `np.bincount`.
-- **Rendering**: the scroll buffer is a `(rows, cols)` uint8 array; a
-  palette lookup (`PALETTE[history]`) yields RGB, wrapped by
-  `pygame.surfarray.make_surface` and scaled with `pygame.transform.scale`.
-  No per-cell draw calls.
+- **Rendering**: the scroll buffer is a `(rows + 1, cols)` uint8 array; a
+  palette lookup yields RGB, wrapped by `pygame.surfarray.make_surface`,
+  scaled with `pygame.transform.scale` to one row taller than the window,
+  and blitted at `-scroll_offset * cell_size` (R-U3). No per-cell draw
+  calls.
 - **Timing** (R-U5): `pygame.time.Clock().tick(60)` paces refreshes; a
   float accumulator converts elapsed time to whole generations. Catch-up
   cap: 2000 steps/refresh.

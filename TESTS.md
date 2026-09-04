@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.13.0 — 2026-09-04
+Version 2.15.0 — 2026-09-04
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -90,6 +90,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-22 | R-A1, R-O8 | Feeding a transient followed by a cycle of distinct rows whose period exceeds the repetition window, the detected period equals the true period exactly, `cycle period <n>` is printed once, subsequent reasons read `repeating (period <n>)`, and a rule change clears the detector; a short cycle (period 7) is likewise detected exactly. |
 | PT-23 | R-K15, R-K9 | With a stubbed color sets file: `c` yields the next lexicographic arrangement (first press swaps states 2 and 3), 24 presses return to the original, `C` steps back and wraps from 1 to 24, the arrangement is remembered per slot across slot switches, an undefined slot's digit is a no-op, and without a file only slot 1 exists. |
 | PT-24 | R-K16, R-P4 | `S` writes the active slot's arranged colors to the file (reloading shows them), resets its arrangement to 1, and the file loader tolerates malformed entries, out-of-range slots, and unparseable files, always supplying slot 1. |
+| PT-25 | R-U3, R-K10 | The history holds `rows` + 1 rows; the scroll offset is 0 while filling, 1 at the default speed once full, the elapsed fraction of the delay (wrapping when a generation is computed) once the delay exceeds twice the initial delay, and 1 while paused; resuming computes exactly one generation on the first tick and returns the offset to 0. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
 
 ---
@@ -115,6 +116,9 @@ from `REQTS.md`.
 - **M-7** With the stash full and the program idle, worker CPU usage falls
   to ~zero; on quit, no orphan processes remain (R-S2, R-S5).
 - **M-8** Window title tracks the current rule (R-U6).
+- **M-9** At speeds below 30 generations per second the picture slides
+  continuously rather than stepping; pausing and resuming produce no
+  visible jump (R-U3, R-K10).
 
 ---
 
