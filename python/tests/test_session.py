@@ -280,3 +280,32 @@ def test_changing_minority_is_not_stagnant(make_store):  # PT-18
         row = next(_rows_with_minority(rng, 1, 1 if g % 2 else 6))  # swinging 1..6
         s._observe(row)
     assert s._boring_streak == 0 and s._boring_reason is None
+
+
+def test_paused_s_zips_one_screenful(make_store):  # PT-19
+    from odca.session import SCREEN_SPEEDUP
+    s = make_session(make_store())
+    s.handle_key(" ")
+    g0 = s.automaton.generation
+    s.handle_key("s")
+    assert s.screen_remaining == s.rows and s.paused
+    fast = s.delay / SCREEN_SPEEDUP
+    s.tick(fast * 4.5)  # paced at one eighth the delay: 4 generations
+    assert s.automaton.generation == g0 + 4 and s.screen_remaining == s.rows - 4
+    s.tick(10.0)  # plenty of time, but only the rest of the screenful runs
+    assert s.automaton.generation == g0 + s.rows and s.screen_remaining == 0
+    assert s.paused
+    s.tick(10.0)  # nothing more happens while paused
+    assert s.automaton.generation == g0 + s.rows
+
+
+def test_paused_s_queues_and_space_cancels(make_store):  # PT-19
+    s = make_session(make_store())
+    s.handle_key(" ")
+    s.handle_key("s")
+    s.handle_key("s")
+    assert s.screen_remaining == 2 * s.rows
+    s.handle_key(" ")  # resume cancels the queued screenfuls
+    assert not s.paused and s.screen_remaining == 0
+    s.handle_key("s")  # unpaused: 's' saves, does not queue
+    assert s.screen_remaining == 0 and s.store.load_interesting() == [s.rule]

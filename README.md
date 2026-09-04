@@ -64,7 +64,7 @@ consume candidates.
 | r   | new random rule, screened for maybe-Class-IV behavior (ID printed) |
 | m   | mutate the rule: one entry changes to a new state |
 | u   | undo the last rule change (repeatable)       |
-| s   | save the current rule to interesting-rules.txt |
+| s   | save the current rule to interesting-rules.txt; while paused: run one screenful at 8× speed, then stay paused (press again to queue more) |
 | n   | next saved interesting rule (first press: rule 0) |
 | p   | previous saved interesting rule (first press: last rule) |
 | i   | initialize all cells to random contents      |

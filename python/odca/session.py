@@ -26,6 +26,9 @@ Keys (single characters):
         is ignored
     '\\n' (Return) while paused: compute and display one generation
         (single step), remaining paused; ignored when not paused
+    s   while paused: run one screenful of generations at one eighth the
+        current delay, then remain paused; each press queues another
+        screenful (when not paused, 's' saves the rule as above)
     a   toggle auto-init (off at startup): once every row on screen is
         boring — a state the rule can produce has gone extinct (and no
         other minority state is still alive), the rows are repeating, or
@@ -56,6 +59,7 @@ MINORITY_FRACTION = 0.10  # a producible state below this share is a minority (R
 STAGNATION_SCREENS = 4  # minority population steady this many screens -> stagnant
 STAGNATION_SWING = 0.25  # (max - min) / mean below this counts as steady
 STEP_CAP = 2000  # per-tick catch-up cap so a stall can't freeze the UI (R-U5)
+SCREEN_SPEEDUP = 8  # paused 's' zips a screenful at delay / SCREEN_SPEEDUP (R-K13)
 
 KEY_SPACE = " "
 KEY_RETURN = "\n"
@@ -79,6 +83,7 @@ class Session:
         self.filled = 0
         self.delay = INITIAL_DELAY
         self.paused = False
+        self.screen_remaining = 0  # generations still to zip after a paused 's'
         self.color_set = DEFAULT_COLOR_SET
         self.undo_stack = []
         self._accumulated = 0.0
@@ -191,7 +196,15 @@ class Session:
         self._drain_search()
         self._accumulated += dt
         if self.paused:
-            self._accumulated = 0.0  # no catch-up burst on resume (R-K10)
+            if self.screen_remaining > 0:  # R-K13: zip a queued screenful
+                delay = self.delay / SCREEN_SPEEDUP
+                steps = min(int(self._accumulated / delay), self.screen_remaining, STEP_CAP)
+                self._accumulated -= steps * delay
+                for _ in range(steps):
+                    self._advance()
+                self.screen_remaining -= steps
+            if self.screen_remaining == 0:
+                self._accumulated = 0.0  # no catch-up burst on resume (R-K10)
             return
         steps = int(self._accumulated / self.delay)
         self._accumulated -= steps * self.delay
@@ -278,11 +291,14 @@ class Session:
         """Apply a single-character key; return False when the program should quit."""
         if key == "q":
             return False
-        if self.paused:  # R-K10: only space, Return, q are live
+        if self.paused:  # R-K10: only space, Return, s, q are live
             if key == KEY_SPACE:
                 self.paused = False
+                self.screen_remaining = 0
             elif key == KEY_RETURN:
                 self._advance()  # R-K11: single step, stay paused
+            elif key == "s":
+                self.screen_remaining += self.rows  # R-K13: queue a screenful
             return True
         if key == KEY_SPACE:
             self.paused = True
