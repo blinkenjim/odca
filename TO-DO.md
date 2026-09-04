@@ -1,5 +1,11 @@
 # ODCA to-do
 
+**YOU ARE HERE (2026-09-03):** resume the review of the auto-init
+"boring filter" (versions 2.3.0–2.7.0) against the saved rules in
+interesting-rules.txt. Several were checked and behaved correctly at
+default speed; continue where you left off. Feature work resumes with
+Python 2.9.0 (or the Swift catch-up at 2.8.0).
+
 - [ ] Choose the remaining seven color sets (keys 3–9)
 - [ ] Hold-to-run: while paused, holding the Return key resumes the
       animation at a slow rate; releasing Return returns to the paused
