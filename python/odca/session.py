@@ -39,7 +39,7 @@ Keys (single characters):
 Resuming from pause with space (re)starts a screen counter: from then on,
 every completed screenful of generations prints 'screen N', however the
 generations were computed (running, zipping, or single-stepping).
-    a   toggle auto-init (off at startup): once every row on screen is
+    a   toggle auto-init (on at startup): once every row on screen is
         boring — a state the rule can produce has gone extinct (and no
         other minority state is still alive), the rows are repeating (a
         cycle of any period, found by Brent's algorithm, or a row seen
@@ -104,7 +104,7 @@ class Session:
         self._arrangement = {}  # slot -> index into ARRANGEMENTS (R-K15)
         self.undo_stack = []
         self._accumulated = 0.0
-        self.auto_init = True  # R-K12: off at startup, not persisted
+        self.auto_init = True  # R-K12: on at startup, not persisted
         self._boring_streak = 0
         self._boring_reason = None
         self._recent_rows = deque()  # row bytes of the last REPEAT_SCREENS screens

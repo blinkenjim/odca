@@ -136,7 +136,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.automaton.cells, cells)
         XCTAssertEqual(session.delay, delay)
         XCTAssertEqual(session.interestingIndex, index)
-        XCTAssertFalse(session.autoInit)
+        XCTAssertTrue(session.autoInit)  // 'a' is ignored while paused
         _ = session.handleKey(.digit(7))  // undefined slot: still a no-op while paused
         XCTAssertEqual(session.colorSet, 1)
         let palette = session.palette
@@ -175,6 +175,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.delay, Session.maxDelay)
 
         let session2 = makeSession(try makeStore())
+        _ = session2.handleKey(.a)  // pacing test: keep auto-init from re-seeding mid-run
         let g0 = session2.automaton.generation
         session2.tick(1.0)
         XCTAssertEqual(session2.automaton.generation, g0 + 60)
@@ -190,10 +191,8 @@ final class SessionTests: XCTestCase {
     func testAutoInitFiresWhenScreenIsBoring() throws {
         let lines = Lines()
         let session = makeSession(try makeStore(currentRule: allZero), lines: lines)
-        XCTAssertFalse(session.autoInit)
-        _ = session.handleKey(.a)
-        XCTAssertTrue(session.autoInit)
-        XCTAssertTrue(lines.take().contains("auto-init on"))
+        XCTAssertTrue(session.autoInit)  // on at startup (R-K12)
+        _ = lines.take()
         for _ in 0..<16 { session.tick(1.0 / 60.0) }
         XCTAssertEqual(session.automaton.generation, 16)
         session.tick(1.0 / 60.0)
@@ -205,6 +204,9 @@ final class SessionTests: XCTestCase {
     func testAutoInitOffDoesNothing() throws {
         let lines = Lines()
         let session = makeSession(try makeStore(currentRule: allZero), lines: lines)
+        _ = session.handleKey(.a)  // turn the mode off
+        XCTAssertFalse(session.autoInit)
+        XCTAssertTrue(lines.take().contains("auto-init off"))
         for _ in 0..<40 { session.tick(1.0 / 60.0) }
         XCTAssertEqual(session.automaton.generation, 40)
         XCTAssertFalse(lines.take().contains("auto-init ("))
@@ -213,7 +215,6 @@ final class SessionTests: XCTestCase {
     func testAutoInitReportsExtinction() throws {
         let lines = Lines()
         let session = makeSession(try makeStore(currentRule: killsThree), lines: lines)
-        _ = session.handleKey(.a)
         var fired = false
         for _ in 0..<200 {
             let before = session.automaton.generation
@@ -233,15 +234,14 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.boringStreak, 0)
         _ = session.handleKey(.a)
         _ = session.handleKey(.a)
-        let out = lines.take()
-        XCTAssertTrue(out.contains("auto-init on") && out.contains("auto-init off"))
-        XCTAssertFalse(session.autoInit)
+        let out = lines.all
+        XCTAssertEqual(out.suffix(2), ["auto-init off", "auto-init on"])
+        XCTAssertTrue(session.autoInit)
     }
 
     func testAutoInitViaSingleStepWhilePaused() throws {
         let lines = Lines()
         let session = makeSession(try makeStore(currentRule: allZero), lines: lines)
-        _ = session.handleKey(.a)
         _ = session.handleKey(.space)
         for _ in 0..<17 { _ = session.handleKey(.ret) }
         XCTAssertEqual(session.automaton.generation, 0)

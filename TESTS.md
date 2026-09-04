@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.11.2 — 2026-09-04
+Version 2.13.0 — 2026-09-04
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -80,7 +80,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-12 | R-S2, R-S3 | Candidates delivered by workers are valid rules; the stash never exceeds its cap. |
 | PT-13 | R-K10 | While paused, every command key except space, Return, `s`, `c`, `S`, the digits, and `q` is a no-op (rule, cells, speed, and cycle state unchanged), while the digits switch slots, `c` re-arranges colors, and `S` saves; space resumes; `q` still quits. |
 | PT-14 | R-K11 | While paused, Return advances the automaton exactly one generation per press and the program stays paused; when not paused, Return changes nothing. |
-| PT-15 | R-K12, R-A2 | With auto-init on and a rule whose rows repeat (e.g. the all-zero rule), the cells are re-initialized exactly when the `rows`-th consecutive boring generation is computed (generation counter returns to 0, reason `repeating` printed); with the mode off, nothing happens. |
+| PT-15 | R-K12, R-A2 | With auto-init on (the startup default) and a rule whose rows repeat (e.g. the all-zero rule), the cells are re-initialized exactly when the `rows`-th consecutive boring generation is computed (generation counter returns to 0, reason `repeating (period 1)` printed); after `a` turns the mode off, nothing happens. |
 | PT-16 | R-A1, R-A2 | With a rule under which a producible state dies out, the re-initialization reason names that state as extinct. |
 | PT-16a | R-A1 | A row with one producible state extinct is boring when the remaining states are all real populations (≥ 10%), but not boring while another producible state survives as a minority (> 0 and < 10% of cells); two extinct states with no minority are boring. |
 | PT-18 | R-A1 | Feeding non-repeating rows that carry a constant minority population: nothing is boring until the 4 × `rows` window is full, then every generation is boring with reason `stagnant`; rows whose minority population swings widely are never stagnant. |
@@ -90,7 +90,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-22 | R-A1, R-O8 | Feeding a transient followed by a cycle of distinct rows whose period exceeds the repetition window, the detected period equals the true period exactly, `cycle period <n>` is printed once, subsequent reasons read `repeating (period <n>)`, and a rule change clears the detector; a short cycle (period 7) is likewise detected exactly. |
 | PT-23 | R-K15, R-K9 | With a stubbed color sets file: `c` yields the next lexicographic arrangement (first press swaps states 2 and 3), 24 presses return to the original, `C` steps back and wraps from 1 to 24, the arrangement is remembered per slot across slot switches, an undefined slot's digit is a no-op, and without a file only slot 1 exists. |
 | PT-24 | R-K16, R-P4 | `S` writes the active slot's arranged colors to the file (reloading shows them), resets its arrangement to 1, and the file loader tolerates malformed entries, out-of-range slots, and unparseable files, always supplying slot 1. |
-| PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is off at startup. |
+| PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
 
 ---
 

@@ -76,7 +76,7 @@ consume candidates.
 | S   | save the current color set (with its arrangement) to colorsets/colorsets.json |
 | space | pause / resume (while paused, only space, return, `s`, the color keys `c`/`C`/`S`/digits, and `q` are live); resuming starts a screen counter that prints `screen N` after every screenful |
 | return | while paused: single-step one generation, staying paused |
-| a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; off at startup |
+| a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; on at startup |
 | q   | quit                                         |
 
 The `n`/`p` cycle includes one extra slot holding the unsaved rule that was

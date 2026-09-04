@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.12.0 — 2026-09-04 (catch-up release: everything through Python 2.11.2)
+Version 2.14.0 — 2026-09-04 (feature parity with Python 2.13.0)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.

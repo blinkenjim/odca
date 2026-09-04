@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.11.2 — 2026-09-04
+Version 2.13.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -14,7 +14,8 @@ R-A1. 2.7.0: cycles of any period detected by Brent's algorithm — R-A1,
 R-O8. 2.9.0: color sets 3–9 defined — R-U4. 2.11.0: color sets
 rearranged and file-backed, `c` arranges, `S` saves — R-U4, R-K9,
 R-K15, R-K16, R-P4, R-O9, R-O10. 2.11.1: digits live while paused —
-R-K10. 2.11.2: `C` cycles arrangements backward — R-K15.)
+R-K10. 2.11.2: `C` cycles arrangements backward — R-K15. 2.13.0:
+auto-initialization is on at startup — R-K12.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -266,8 +267,9 @@ colors with its current arrangement (which becomes arrangement 1 of 24),
 write all color sets to the file (R-P4), and print confirmation (R-O10).
 
 **R-K12 (`a` — auto-initialization).** Toggles auto-initialization mode
-(section 4a) and prints its new state (R-O6). The mode is off at startup
-and is not persisted.
+(section 4a) and prints its new state (R-O6). The mode is on at startup
+(since 2.13.0; it was off while the filter was being tuned) and is not
+persisted.
 
 ---
 

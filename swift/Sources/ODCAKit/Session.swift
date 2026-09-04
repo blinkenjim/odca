@@ -69,7 +69,7 @@ public final class Session {
     public private(set) var paused = false
     public private(set) var screenRemaining = 0  // generations still to zip (R-K13)
     public private(set) var screenCounter: Int?  // screenfuls since last resume (R-K14)
-    public private(set) var autoInit = false  // R-K12: off at startup, not persisted
+    public private(set) var autoInit = true  // R-K12: on at startup, not persisted
     public private(set) var cyclePeriod: Int?  // exact period once Brent's finds a cycle
     public private(set) var colorSets: [Int: ColorSet]
     public private(set) var colorSet = Session.defaultColorSet

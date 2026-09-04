@@ -145,6 +145,7 @@ def test_speed_clamps_and_tick(make_store):  # R-K8, R-U5
     assert s.delay == MAX_DELAY
 
     s2 = make_session(make_store())
+    s2.handle_key("a")  # pacing test: keep auto-init from re-seeding mid-run
     g0 = s2.automaton.generation
     s2.tick(1.0)  # 1 s at 60 gen/s
     assert s2.automaton.generation == g0 + 60
@@ -233,9 +234,8 @@ KILLS_THREE = Rule([3] + [1] * 19)
 
 def test_auto_init_fires_when_screen_is_boring(make_store, capsys):  # PT-15
     s = make_session(make_store(current=ALL_ZERO))
-    assert s.auto_init is False  # off at startup (R-K12)
-    s.handle_key("a")
-    assert s.auto_init and "auto-init on" in capsys.readouterr().out
+    assert s.auto_init is True  # on at startup (R-K12)
+    capsys.readouterr()
     # gen 1 is the first all-zero row; gen 2 onward repeats it. The 16th
     # consecutive boring generation is gen 17, which must trigger.
     for _ in range(16):
@@ -249,6 +249,8 @@ def test_auto_init_fires_when_screen_is_boring(make_store, capsys):  # PT-15
 
 def test_auto_init_off_does_nothing(make_store, capsys):  # PT-15
     s = make_session(make_store(current=ALL_ZERO))
+    s.handle_key("a")  # turn the mode off
+    assert s.auto_init is False and "auto-init off" in capsys.readouterr().out
     for _ in range(40):
         s.tick(1 / 60)
     assert s.automaton.generation == 40
@@ -257,7 +259,6 @@ def test_auto_init_off_does_nothing(make_store, capsys):  # PT-15
 
 def test_auto_init_reports_extinction(make_store, capsys):  # PT-16
     s = make_session(make_store(current=KILLS_THREE))
-    s.handle_key("a")
     fired = False
     for _ in range(200):
         before = s.automaton.generation
@@ -279,13 +280,12 @@ def test_boring_count_resets_on_rule_change_and_toggle_prints(make_store, capsys
     s.handle_key("a")
     s.handle_key("a")
     out = capsys.readouterr().out
-    assert "auto-init on" in out and "auto-init off" in out
-    assert s.auto_init is False
+    assert out.index("auto-init off") < out.index("auto-init on")
+    assert s.auto_init is True
 
 
 def test_auto_init_via_single_step_while_paused(make_store, capsys):  # R-A4
     s = make_session(make_store(current=ALL_ZERO))
-    s.handle_key("a")
     s.handle_key(" ")
     for _ in range(17):
         s.handle_key("\n")

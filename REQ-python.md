@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 2.11.2 — 2026-09-04
+Version 2.13.0 — 2026-09-04
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
