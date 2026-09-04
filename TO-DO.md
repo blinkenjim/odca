@@ -80,6 +80,17 @@ viewer sees. Roadmap, roughly in order:
       would be describing behavior the program already has the
       vocabulary for. The rules run; the filter listens; the script
       decides what the eye sees next.
+- [ ] Native macOS screensaver (.saver bundle, built on the ScreenSaver
+      framework — ScreenSaverView — or whatever Apple currently provides):
+      installed through the OS mechanism, selectable as the active system
+      screensaver, and activated by macOS when needed. Power-aware: on
+      battery, run in a low-power state (drastically slowed, background
+      Class IV hunter paused, etc.); on charger, full speed or a bit
+      faster. Shares ODCAKit and the screensaver-mode script with the app.
+- [ ] Plain macOS app with a screensaver mode: generates the same
+      displays the same way, from the same script, with no need to
+      install anything as a screensaver. Separate delivery target from
+      the .saver bundle.
 - [ ] Packaging for distribution: Linux, macOS, iPadOS (iOS not ruled out).
 - [ ] Open-source license (attribution + share-alike spirit; must be
       compatible with App Store distribution) and copyright notice.
