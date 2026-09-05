@@ -14,6 +14,17 @@ declarative screensaver script design.
 
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
+- [ ] "Most interesting of the interesting" score, layered on the 'r'
+      screen: (1) how much the cell population's state census varies
+      over time — homogeneous rules barely vary, interesting ones swing as
+      minorities grow and shrink; (2) mean time-to-boredom from random
+      seeds — how many generations, averaged over several seeds, before
+      the auto-init detector fires (capped; chaotic never-boring rules
+      must be excluded by the existing entropy test, not rewarded).
+      Build first as an offline scorer in the Python lab, rank the saved
+      rules and the candidate stash, check the ranking against taste,
+      then wire the score into 'r' / the background searcher (natural
+      fit for the GPU-batched screener).
 - [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
       or expose a reduced, safe set of keys (no quitting, nothing that can
       leave the app in a messed-up state) for installations where the
