@@ -109,6 +109,176 @@
     "#FFA136",
     "#409CFF"
    ]
+  },
+  {
+   "rule": "31302333103000132112",
+   "colorset": "Midnight Sun Dance",
+   "colors": [
+    "#041523",
+    "#FCEDD4",
+    "#2E606B",
+    "#EE8432"
+   ]
+  },
+  {
+   "rule": "32122113022022110111",
+   "colorset": "Ocean Blue Horizon",
+   "colors": [
+    "#4E7BAD",
+    "#DDE4ED",
+    "#1F498C",
+    "#88A3C9"
+   ]
+  },
+  {
+   "rule": "33012322311330322233",
+   "colorset": "Vibrant Rainbow Burst",
+   "colors": [
+    "#6BCBAE",
+    "#F8D45D",
+    "#DC5068",
+    "#4D146A"
+   ]
+  },
+  {
+   "rule": "33012322311330322233",
+   "colorset": "Vibrant Rainbow Burst",
+   "colors": [
+    "#6BCBAE",
+    "#F8D45D",
+    "#DC5068",
+    "#4D146A"
+   ]
+  },
+  {
+   "rule": "33310322110231231012",
+   "colorset": "Fiery Ice Cream Delight",
+   "colors": [
+    "#102F47",
+    "#E78531",
+    "#F3C15F",
+    "#C53A32"
+   ]
+  },
+  {
+   "rule": "20113322210323221031",
+   "colorset": "Golden Autumn Twilight",
+   "colors": [
+    "#4D9CB9",
+    "#F4BA41",
+    "#EC8B33",
+    "#112F45"
+   ]
+  },
+  {
+   "rule": "10210122121113000311",
+   "colorset": "Cherry Blossom Sky",
+   "colors": [
+    "#2B2D40",
+    "#8F99AC",
+    "#EEF2F4",
+    "#DC3C44"
+   ]
+  },
+  {
+   "rule": "10210122121113000311",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "22120320303032113302",
+   "colorset": "Midnight Sun Dance",
+   "colors": [
+    "#041523",
+    "#FCEDD4",
+    "#2E606B",
+    "#EE8432"
+   ]
+  },
+  {
+   "rule": "20102233320223330212",
+   "colorset": "Midnight Sun Dance",
+   "colors": [
+    "#041523",
+    "#FCEDD4",
+    "#2E606B",
+    "#EE8432"
+   ]
+  },
+  {
+   "rule": "20122210220333331203",
+   "colorset": "Seaside Serenity",
+   "colors": [
+    "#ACCDEE",
+    "#6C95B7",
+    "#304B74",
+    "#E8ECEF"
+   ]
+  },
+  {
+   "rule": "11123110223101202133",
+   "colorset": "Deep Sea Adventure",
+   "colors": [
+    "#08151E",
+    "#213937",
+    "#B65120",
+    "#EBD7B1"
+   ]
+  },
+  {
+   "rule": "22123332101312202310",
+   "colorset": "Golden Autumn Twilight",
+   "colors": [
+    "#4D9CB9",
+    "#F4BA41",
+    "#112F45",
+    "#EC8B33"
+   ]
+  },
+  {
+   "rule": "22123332101312202310",
+   "colorset": "Golden Autumn Twilight",
+   "colors": [
+    "#4D9CB9",
+    "#F4BA41",
+    "#112F45",
+    "#EC8B33"
+   ]
+  },
+  {
+   "rule": "32012020130330322010",
+   "colorset": "Midnight Sun Dance",
+   "colors": [
+    "#041523",
+    "#FCEDD4",
+    "#2E606B",
+    "#EE8432"
+   ]
+  },
+  {
+   "rule": "20030033232103330311",
+   "colorset": "Golden Autumn Twilight",
+   "colors": [
+    "#4D9CB9",
+    "#F4BA41",
+    "#112F45",
+    "#EC8B33"
+   ]
+  },
+  {
+   "rule": "32133001012223003210",
+   "colorset": "Deep Sea Adventure",
+   "colors": [
+    "#08151E",
+    "#213937",
+    "#B65120",
+    "#EBD7B1"
+   ]
   }
  ]
 }
