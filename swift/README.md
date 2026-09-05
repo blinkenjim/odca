@@ -12,6 +12,10 @@ All commands below run from this `swift/` directory.
 swift run odca
 ```
 
+Workbench modes (see the root README): `--colorset-review`,
+`--screensaver-review <file>`, `--consistency-check <file>`,
+`--screensaver <file>`.
+
 ## Tests
 
 ```sh

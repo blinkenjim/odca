@@ -35,10 +35,12 @@ Planned: `cpp/`.
 ## Versioning
 
 Semantic versioning across the whole code base, with one convention for
-the two implementations: new work is developed in Python first at **odd**
-minor versions (2.1.0, 2.3.0, …) and ported to Swift at the following
-**even** minor (2.2.0, 2.4.0, …), so an even release means both
-implementations agree on features. The specification (`REQTS.md`) carries
+the two implementations: Swift is the gallery and leads at **even** minor
+versions (2.30.0, 2.34.0, …); Python is the laboratory and catches up on
+every special mode at the following **odd** minor (2.17.0, …), skipping
+only gallery polish such as display-link pacing, the resizable window, and
+pointer hiding. (Before 2.16 the direction was the reverse: Python first at
+odd minors, Swift porting at even.) The specification (`REQTS.md`) carries
 the version at which its behavior last changed. MAJOR = incompatible
 change, MINOR = new or changed behavior, PATCH = fixes and
 clarifications. Each implementation exposes its version (Python:
@@ -80,7 +82,7 @@ consume candidates.
 | a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; on at startup |
 | q   | quit                                         |
 
-The window is resizable (Swift for now), snapping to whole 4-point cells,
+The Swift window is resizable (Python's is fixed-size), snapping to whole 4-point cells,
 with full screen available; the automaton's width follows the window,
 keeping the picture centered while cells appear or vanish at the edges,
 and a taller window uncovers remembered rows.
@@ -99,7 +101,7 @@ blue), active at startup; the others are palettes from coolors.co: **0** Ocean S
 `c` cycles the current set through the 24 ways of assigning its four
 colors to the four states; `S` saves the current arrangement to the file.
 The file is also the pool of every kept color set; a hidden review mode
-(`--colorset-review`, Swift for now) steps through the whole pool with
+(`--colorset-review`, both implementations) steps through the whole pool with
 `N`/`P` and drops sets with `X`, saving as it goes. A second hidden mode,
 `--screensaver-review <file>`, composes a screensaver file of rule and
 color set pairs: `N`/`P` step through pairs, `[`/`]` walk the pool, `s`
@@ -108,7 +110,7 @@ saves the pair under review, `S` appends a new one, `X` deletes.
 pairs viewed grouped by rule (file order is untouched), for judging
 whether a rule's color sets are too alike.
 
-**Screensaver mode** (`--screensaver <file>`, Swift for now) plays a
+**Screensaver mode** (`--screensaver <file>`, both implementations) plays a
 screensaver file pair by pair in order, looping. Every pair gets two
 minutes of screen time, re-seeding in place whenever it goes boring; then
 it hands over at the first quiet minute since its last re-seed (or at its
