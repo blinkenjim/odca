@@ -30,7 +30,13 @@ vision items below, starting with the declarative script design.
       first as an offline scorer in the Python lab (2.17.0), rank the
       saved rules and the candidate stash, and check the ranking against
       taste (the vein and glider rules should top it, the stripes rule
-      sink) before the score gets any say over 'r'.
+      sink) before the score gets any say over 'r'. Caveat (user,
+      2026-09-04): long life is not the path to interest by itself — some
+      rules are boring after a screenful or two yet *very* interesting
+      while alive ("fireworks"). Treat survival and intensity-while-alive
+      as separate dimensions; never let time-to-boredom alone sink a
+      high-variance rule. Equal screen time with in-place re-seeding
+      (2.30.0) already suits fireworks: they go off many times per turn.
 - [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
       or expose a reduced, safe set of keys (no quitting, nothing that can
       leave the app in a messed-up state) for installations where the
