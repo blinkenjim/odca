@@ -1,0 +1,114 @@
+{
+ "pairs": [
+  {
+   "rule": "33233022210132010013",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "32332010022312200210",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "22310203230002331122",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "32202201003022321010",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "22022321121130110123",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "12113201332331012311",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "32332010022312200210",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "10323213122100120233",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "02320201313001213222",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "02013102133123220323",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  },
+  {
+   "rule": "23232130000031203331",
+   "colorset": "ODCA default",
+   "colors": [
+    "#121218",
+    "#EBEBE1",
+    "#FFA136",
+    "#409CFF"
+   ]
+  }
+ ]
+}

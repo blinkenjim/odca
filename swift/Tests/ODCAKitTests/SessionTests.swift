@@ -918,4 +918,36 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.digit(1))
         XCTAssertEqual(session.palette[0], RGB(hex: "#0A0A0A"))
     }
+
+    // MARK: PT-34 saved rules carry their presentation (R-K5, R-B2)
+
+    func testSavedRuleCarriesItsColorSetAndCycleAppliesIt() throws {
+        let lines = Lines()
+        let store = try reviewStore()
+        let session = makeSession(store, lines: lines)
+        _ = session.handleKey(.digit(3))  // S3
+        _ = session.handleKey(.c)  // arranged (0,1,3,2)
+        let rule = session.automaton.rule
+        _ = lines.take()
+        _ = session.handleKey(.s)
+        XCTAssertTrue(lines.take().contains("saved rule \(rule.id) S3"))
+        let pairs = store.loadInterestingPairs()
+        XCTAssertEqual(pairs.count, 1)
+        XCTAssertEqual(pairs[0].colorset, "S3")
+        XCTAssertEqual(pairs[0].colors, ["#1E1E1E", "#1F1F1F", "#212121", "#202020"])
+
+        // Change rule and colors, then browse: the saved pair brings its colors back,
+        // and the unsaved slot brings back the set that was showing with the unsaved rule.
+        _ = session.handleKey(.m)
+        let mutant = session.automaton.rule
+        _ = session.handleKey(.digit(7))  // S7 showing with the unsaved (mutant) rule
+        XCTAssertEqual(session.unsavedSet?.name, "S3")  // captured when the mutant arrived
+        _ = session.handleKey(.n)
+        XCTAssertEqual(session.automaton.rule, rule)
+        XCTAssertEqual(session.palette.map(\.r), [0x1E, 0x1F, 0x21, 0x20])
+        XCTAssertTrue(lines.take().contains("interesting 1/1 S3"))
+        _ = session.handleKey(.n)  // back to the unsaved slot: mutant with S3 (as captured)
+        XCTAssertEqual(session.automaton.rule, mutant)
+        XCTAssertEqual(session.palette[0], RGB(hex: "#1E1E1E"))
+    }
 }

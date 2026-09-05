@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.32.0 — 2026-09-04
+Version 2.34.0 — 2026-09-05
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -72,7 +72,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-5 | R-C6 | The synchronous search always returns a valid rule within its attempt bound, including when forced to its fallback (e.g. bound = 1). |
 | PT-6 | R-P1 | Current-rule save/load round-trips; a missing or corrupt file loads as absent (triggering the random-rule fallback), never an error. |
 | PT-7 | R-P2 | Candidate stash save/load round-trips in order; invalid lines are skipped. |
-| PT-8 | R-P3 | Keeper-file append matches the `rule <id>` line format exactly and preserves prior content; the loader returns saved rules in order and ignores non-conforming lines. |
+| PT-8 | R-P3 | Keeper-file append writes a screensaver-format pair (rule, color set name, arranged colors; the default set when none is given) preserving prior pairs; the loader returns saved rules in order, skips malformed pairs, reads as a screensaver file, and no longer reads the old `rule <id>` text format. Re-saving the shipped keeper file is byte-identical. |
 | PT-9 | R-K4 | Undo restores rules in LIFO order; undo on an empty stack is a no-op. |
 | PT-10 | R-B2, R-B3 | With a stubbed keeper file of k rules and a startup rule not in it: first `n` selects rule 0; first `p` selects rule k−1; stepping past either end reaches the unsaved slot; after `m` (or `r`) the unsaved slot holds the new rule and the position is on it. |
 | PT-10a | R-U1, R-B3 | With a startup rule equal to saved rule j: the cycle position starts at j (`n` selects j+1, `p` selects j−1), the cycle wraps over the k saved rules with no unsaved slot, and the unsaved slot reappears holding the new rule after `m`/`r`. |
@@ -99,6 +99,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-30 | R-W7 | With a file of pairs whose rules run A, B, A, C, B: the grouped view order is A A B B C; entry and each crossing into another rule's group print the group marker, steps within a group do not; `S` appends to the file's end but joins its group in the view without moving the position; `s` rewrites the pair at its file position; `X` removes the pair from its file position and activates the pair now at that view position; the file is written in file order throughout. |
 | PT-31 | R-X1–R-X6, R-O13 | With a two-pair file whose rules die at once: entry plays pair 1 (its rule and colors, generation 0, no reason printed); before the watchdog expires, a screenful of boring rows re-seeds in place with an `auto-init` line and no transition; once 120 unpaused seconds have passed, the next firing transitions to pair 2 with a fresh seed and the reason printed; the old rows still read pair 1's colors and the new seed row pair 2's (R-X5); a further expiry and firing loops back to pair 1; `N`/`P` step between pairs with a fresh seed and reasons `next`/`previous`, wrapping, also while paused. With auto-init off: a manual `i` at 100 s resets the grace period but not the watchdog, no transition at 120 s or 159.5 s, transition at 160 s with reason `timeout`, paused time counting for nothing; a quiet pair transitions at 120 s exactly. |
 | PT-32 | R-U8 | After 40 generations at 32 × 16: narrowing to 20 keeps the middle 20 cells of the live row and of every remembered row, keeps the history, resets the boring count, and prints `resized 20x16`; widening to 30 keeps those 20 centered with state-0 padding in old rows and random cells in the live row; a taller window shows the last rows + 1 remembered rows; a no-op resize returns false; sizes clamp to the minimum. The history never exceeds 2048 rows. |
+| PT-34 | R-K5, R-B2, R-B3 | `s` appends the current rule with the active set's name and arranged colors and prints them; `n` onto that pair restores both the rule and the colors; stepping onto the unsaved slot restores the unsaved rule with the set that was active when it arrived. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
 
 ---

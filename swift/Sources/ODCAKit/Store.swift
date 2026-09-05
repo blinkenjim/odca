@@ -24,7 +24,7 @@ public struct Store {
     public init(
         stateDir: URL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".odca"),
-        keeperFile: URL = Store.repoRoot.appendingPathComponent("interesting-rules.txt"),
+        keeperFile: URL = Store.repoRoot.appendingPathComponent("interesting-rules.json"),
         colorSetsFile: URL = Store.repoRoot.appendingPathComponent("colorsets/colorsets.json"),
         candidatePalettesFile: URL = Store.repoRoot.appendingPathComponent("colorsets/candidates.json")
     ) {
@@ -71,27 +71,24 @@ public struct Store {
             .write(to: candidatesFile, atomically: true, encoding: .utf8)
     }
 
-    // R-P3: keeper file, "rule <id>" lines; non-conforming lines ignored.
-    public func appendInteresting(_ rule: Rule) {
-        let line = "rule \(rule.id)\n"
-        if let handle = try? FileHandle(forWritingTo: keeperFile) {
-            defer { try? handle.close() }
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: Data(line.utf8))
-        } else {
-            try? line.write(to: keeperFile, atomically: true, encoding: .utf8)
-        }
+    // R-P3: keeper file — a screensaver-format file of rule / color set pairs.
+    public func loadInterestingPairs() -> [ScreensaverPair] {
+        Store.loadScreensaver(keeperFile) ?? []
     }
 
+    /// The saved rules in order (one per pair; a rule may recur with other colors).
     public func loadInteresting() -> [Rule] {
-        guard let text = try? String(contentsOf: keeperFile, encoding: .utf8) else {
-            return []
-        }
-        return text.split(separator: "\n").compactMap { line in
-            let parts = line.split(whereSeparator: { $0.isWhitespace })
-            guard parts.count == 2, parts[0] == "rule" else { return nil }
-            return try? Rule(id: String(parts[1]))
-        }
+        loadInterestingPairs().compactMap { try? Rule(id: $0.rule) }
+    }
+
+    public func appendInteresting(_ pair: ScreensaverPair) {
+        Store.saveScreensaver(loadInterestingPairs() + [pair], to: keeperFile)
+    }
+
+    /// Convenience: save a rule with the built-in default color set.
+    public func appendInteresting(_ rule: Rule) {
+        let d = Store.defaultColorSets[1]!
+        appendInteresting(ScreensaverPair(rule: rule.id, colorset: d.name, colors: d.colors))
     }
 
     // R-P4: color sets file, shared by all implementations.

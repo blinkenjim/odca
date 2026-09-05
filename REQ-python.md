@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 2.15.1 — 2026-09-04 (pool-preserving color set save; review mode not yet ported)
+Version 2.15.2 — 2026-09-05 (format compatibility only: pool-preserving color set save, keeper file as pairs; no review or screensaver modes)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -77,8 +77,11 @@ copy these choices, but they are known to work.
   from `s` and `c`.
 - **Keeper-file anchor** (R-P3): `store.INTERESTING_PATH` resolves three
   levels up from `store.py` to the repository root, where
-  `interesting-rules.txt` is shared by all implementations. Every port
-  must make an equivalent anchoring decision.
+  `interesting-rules.json` is shared by all implementations. Every port
+  must make an equivalent anchoring decision. Python writes pairs with the
+  active slot's arranged colors (`json.dumps(indent=1)`, the reference
+  layout); its `n`/`p` apply the rule only, not the saved colors, since
+  Python still draws through a digit slot.
 
 ## Testing notes (see TESTS.md for the normative plan)
 
@@ -91,7 +94,7 @@ copy these choices, but they are known to work.
 - Headless UI checks: set `SDL_VIDEODRIVER=dummy` and drive
   `Viewer.handle_key` directly.
 - **Warning:** a default-constructed `Session` (or `Viewer`) touches real
-  user state (`$HOME/.odca/`, `interesting-rules.txt`). Any ad-hoc script
+  user state (`$HOME/.odca/`, `interesting-rules.json`). Any ad-hoc script
   must construct `Session(..., store=Store(state_dir=tmp, keeper_file=tmp/...))`
   and pass it to `Viewer(session=...)` — a smoke test once leaked a dummy
   rule into the user's real state file.

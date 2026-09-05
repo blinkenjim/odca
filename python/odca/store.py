@@ -10,7 +10,7 @@ CANDIDATES_PATH = Path.home() / ".odca" / "candidates"
 # Repository root: python/odca/store.py -> python/odca -> python -> root.
 # The keeper file is shared by all implementations (R-P3).
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-INTERESTING_PATH = _REPO_ROOT / "interesting-rules.txt"
+INTERESTING_PATH = _REPO_ROOT / "interesting-rules.json"  # screensaver-format pairs (R-P3)
 COLORSETS_PATH = _REPO_ROOT / "colorsets" / "colorsets.json"  # shared (R-P4)
 
 # Built-in fallback so the default slot always exists (R-U4).
@@ -31,27 +31,47 @@ def save_rule(rule, path=DEFAULT_PATH):
     path.write_text(rule.id + "\n")
 
 
-def append_interesting(rule, path=INTERESTING_PATH):
-    """Append the rule to the keeper file, matching its 'rule <id>' format."""
-    with open(path, "a") as f:
-        f.write(f"rule {rule.id}\n")
+def load_interesting_pairs(path=INTERESTING_PATH):
+    """Return the keeper file's pairs [{'rule', 'colorset', 'colors'}] (R-P3, R-P5).
+
+    Malformed pairs are skipped; a missing or unparseable file yields none.
+    """
+    try:
+        entries = json.loads(Path(path).read_text()).get("pairs", [])
+    except (OSError, ValueError, AttributeError):
+        return []
+    pairs = []
+    for e in entries if isinstance(entries, list) else []:
+        try:
+            rule = Rule.from_id(str(e["rule"]))
+            name, colors = str(e["colorset"]), list(e["colors"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if len(colors) == 4 and all(_valid_color(c) for c in colors):
+            pairs.append({"rule": rule.id, "colorset": name, "colors": [c.upper() for c in colors]})
+    return pairs
+
+
+def save_interesting_pairs(pairs, path=INTERESTING_PATH):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    entries = [{"rule": p["rule"], "colorset": p["colorset"], "colors": list(p["colors"])} for p in pairs]
+    path.write_text(json.dumps({"pairs": entries}, indent=1) + "\n")
+
+
+def append_interesting(rule, path=INTERESTING_PATH, colorset=None, colors=None):
+    """Append the rule, with its presentation, as a pair (default color set if none given)."""
+    if colorset is None or colors is None:
+        d = DEFAULT_COLOR_SETS[1]
+        colorset, colors = d["name"], d["colors"]
+    pairs = load_interesting_pairs(path)
+    pairs.append({"rule": rule.id, "colorset": colorset, "colors": list(colors)})
+    save_interesting_pairs(pairs, path)
 
 
 def load_interesting(path=INTERESTING_PATH):
-    """Return the Rules in the keeper file, in order, skipping invalid lines."""
-    try:
-        lines = Path(path).read_text().splitlines()
-    except OSError:
-        return []
-    rules = []
-    for line in lines:
-        parts = line.split()
-        if len(parts) == 2 and parts[0] == "rule":
-            try:
-                rules.append(Rule.from_id(parts[1]))
-            except ValueError:
-                pass
-    return rules
+    """Return the saved Rules in order (one per pair)."""
+    return [Rule.from_id(p["rule"]) for p in load_interesting_pairs(path)]
 
 
 def _valid_color(c):
@@ -176,8 +196,11 @@ class Store:
     def save_candidates(self, rules):
         save_candidates(rules, self.candidates_file)
 
-    def append_interesting(self, rule):
-        append_interesting(rule, self.keeper_file)
+    def append_interesting(self, rule, colorset=None, colors=None):
+        append_interesting(rule, self.keeper_file, colorset, colors)
+
+    def load_interesting_pairs(self):
+        return load_interesting_pairs(self.keeper_file)
 
     def load_interesting(self):
         return load_interesting(self.keeper_file)

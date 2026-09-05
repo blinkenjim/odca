@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.32.0 — 2026-09-04 (color set and screensaver review modes; ahead of Python)
+Version 2.34.0 — 2026-09-05 (color set and screensaver review modes; ahead of Python)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -108,7 +108,10 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   initializer seeds from OS entropy (each search worker gets its own).
 - **Keeper-file anchor** (R-P3): `Store.repoRoot` resolves four levels up
   from `Store.swift` via `#filePath` to the repository root. `Store` takes
-  injectable paths, which is also how tests isolate state.
+  injectable paths, which is also how tests isolate state. The keeper file
+  is read and written with the screensaver-file code
+  (`loadInterestingPairs`, `appendInteresting(_ pair:)`); `Session.unsavedSet`
+  remembers the set shown with the unsaved rule.
 - **Launch via `swift run`** (no app bundle): the app delegate sets
   `NSApp.setActivationPolicy(.regular)` and activates, so the window
   appears and takes keyboard focus.

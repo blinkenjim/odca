@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.32.0 — 2026-09-04
+Version 2.34.0 — 2026-09-05
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -33,7 +33,8 @@ screen; frozen during a live resize — R-U2, R-U8. 2.30.0: equal screen
 time per pair — watchdog 180 s with a 60 s grace period — R-X2, R-X3.
 2.30.1: watchdog 120 s. 2.32.0: `[`/`]` walk the whole pool in every
 mode; the active set model everywhere — R-K17, R-K15, R-K16, R-O9,
-R-O10, R-O15.)
+R-O10, R-O15. 2.34.0: saved rules carry their presentation; the keeper
+file is a screensaver-format file — R-K5, R-B2, R-B3, R-P3, R-O3, R-O4.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -267,8 +268,12 @@ makes that rule current per R-B1. With an empty stack, `u` is a silent
 no-op. Undo does not alter the interesting-rule cycle position or the
 unsaved slot.
 
-**R-K5 (`s` — save).** Append the current rule to the keeper file (R-P3)
-and print confirmation (R-O3). No other state changes.
+**R-K5 (`s` — save).** Append the current *presentation* — the rule with
+the active color set's name and arranged colors, exactly as a screensaver
+pair (R-P5) — to the keeper file (R-P3) and print confirmation (R-O3). A
+rule isn't interesting until an interesting way of presenting it exists,
+so the two are saved together; the same rule may be saved again with other
+colors. No other state changes.
 
 **R-K6 (`i` — initialize).** Set every cell to an independent uniformly
 random state. The rule, scroll buffer, and all other state are unchanged
@@ -348,19 +353,21 @@ persisted.
 `u`, `n`, or `p` — the program must persist it as the current rule (R-P1)
 and print it (R-O1).
 
-**R-B2 (the cycle).** The saved rules in the keeper file (R-P3), in file
-order, form a cycle of n+1 slots: slots 0…n−1 are the saved rules and one
+**R-B2 (the cycle).** The saved pairs in the keeper file (R-P3), in file
+order, form a cycle of n+1 slots: slots 0…n−1 are the saved pairs and one
 extra slot holds the *unsaved rule*. The keeper file is re-read on every
-`n`/`p` press, so rules saved during the session are immediately
+`n`/`p` press, so pairs saved during the session are immediately
 reachable. `n` steps forward one slot (mod n+1) and `p` steps backward
-one slot; the selected slot's rule becomes current per R-B1 (pushing undo
-per R-K4). Position output per R-O4.
+one slot; the selected pair's rule becomes current per R-B1 (pushing undo
+per R-K4) and its colors become the active color set at arrangement 1 —
+a saved item is a presentation, not just a rule. Position output per R-O4.
 
 **R-B3 (the unsaved slot).** The unsaved slot holds the most recent rule
 that arrived from outside the saved set: the startup rule (unless it
 matched a saved rule, see R-U1 step 6), or the last rule produced by `r`
-or `m`. When `r` or `m` fires, its new rule occupies the unsaved slot and
-the cycle position moves to that slot. While the unsaved slot is empty —
+or `m` — together with the color set that was active when it arrived,
+which is restored with it. When `r` or `m` fires, its new rule occupies
+the unsaved slot and the cycle position moves to that slot. While the unsaved slot is empty —
 startup matched a saved rule and no `r`/`m` has fired yet — the cycle
 consists of the n saved rules only. When the cycle position starts on the
 unsaved slot, the first `n` selects saved rule 0 and the first `p`
@@ -618,13 +625,15 @@ line, oldest first — the persisted form of the candidate stash (R-S4).
 Rewritten whenever the stash changes; read at startup. Invalid lines are
 skipped.
 
-**R-P3 (keeper file).** File `interesting-rules.txt` in the repository
+**R-P3 (keeper file).** File `interesting-rules.json` in the repository
 root, shared by all implementations (each must document how it anchors
-this path). Each saved rule is a
-line of the form `rule <id>`. `s` appends; the file is never otherwise
-modified by the program, and users may hand-edit it. Readers must ignore
-any line that is not exactly `rule` + whitespace + a valid rule ID, so
-comments and notes are permitted.
+this path). It is a screensaver-format file (R-P5): each saved item is a
+pair of rule ID, color set name, and arranged colors, so the collection
+of interesting rules is directly playable (section 4d) and reviewable
+(section 4c). `s` appends a pair; the program never otherwise modifies
+the file, and users may hand-edit it. Readers skip malformed pairs. (Until
+2.34.0 this was `interesting-rules.txt` with one `rule <id>` line per
+saved rule; the migration gave every existing rule the default color set.)
 
 ---
 
@@ -662,10 +671,10 @@ The program prints single-line, human-readable status to standard output:
 - **R-O2.** After a synchronous screening search that rejected k ≥ 1
   rules: `discarded <k> rule` (k = 1) or `discarded <k> rules` (k > 1),
   before the R-O1 line.
-- **R-O3.** On `s`: `saved rule <id>`.
-- **R-O4.** On `n`/`p` selecting saved rule i (0-based) of n:
-  `interesting <i+1>/<n>`; selecting the unsaved slot: `unsaved rule`.
-  Either precedes the R-O1 line.
+- **R-O3.** On `s`: `saved rule <id> <colorset>`.
+- **R-O4.** On `n`/`p` selecting saved pair i (0-based) of n:
+  `interesting <i+1>/<n> <colorset>`; selecting the unsaved slot: `unsaved
+  rule`. Either precedes the R-O1 line.
 - **R-O5.** On `n`/`p` with no saved rules: `no saved interesting rules`.
 - **R-O6.** On `a`: `auto-init on` or `auto-init off`. On an automatic
   re-initialization: `auto-init (<reason>)`, where reason is

@@ -346,9 +346,11 @@ class Session:
         if self.undo_stack:
             self._set_rule(self.undo_stack.pop())
 
-    def save_interesting(self):  # R-K5
-        self.store.append_interesting(self.automaton.rule)
-        print(f"saved rule {self.automaton.rule.id}")  # R-O3
+    def save_interesting(self):  # R-K5: the rule with its presentation
+        name = self.color_sets[self.color_set]["name"]
+        colors = self._arranged_colors(self.color_set)
+        self.store.append_interesting(self.automaton.rule, name, colors)
+        print(f"saved rule {self.automaton.rule.id} {name}")  # R-O3
 
     def init_cells(self):  # R-K6
         self.automaton.reset("random")

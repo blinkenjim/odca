@@ -97,19 +97,25 @@ final class PropertyTests: XCTestCase {
         XCTAssertEqual(store.loadCandidates(), [rules[0]])
     }
 
-    // PT-8: keeper append format and tolerant loading.
+    // PT-8: keeper file — screensaver-format pairs — append and tolerant loading.
     func testKeeperAppendAndLoad() throws {
         let store = try tempStore()
         var rng = Xoshiro256(seed: 8)
         let first = Rule.random(using: &rng)
         let second = Rule.random(using: &rng)
-        store.appendInteresting(first)
-        store.appendInteresting(second)
-        let text = try String(contentsOf: store.keeperFile, encoding: .utf8)
-        XCTAssertEqual(text, "rule \(first.id)\nrule \(second.id)\n")
-        try (text + "# a comment\nrule notarule\nstray line\n").write(
-            to: store.keeperFile, atomically: true, encoding: .utf8)
+        store.appendInteresting(first)  // default color set
+        store.appendInteresting(ScreensaverPair(rule: second.id, colorset: "Mine", colors: ["#000000", "#111111", "#222222", "#333333"]))
+        let pairs = store.loadInterestingPairs()
+        XCTAssertEqual(pairs.map(\.rule), [first.id, second.id])
+        XCTAssertEqual(pairs[0].colorset, "ODCA default")
+        XCTAssertEqual(pairs[1].colors[3], "#333333")
         XCTAssertEqual(store.loadInteresting(), [first, second])
+        XCTAssertEqual(Store.loadScreensaver(store.keeperFile), pairs)  // same format as a screensaver file
+        try "{\"pairs\": [{\"rule\": \"notarule\", \"colorset\": \"x\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}, {\"rule\": \"\(first.id)\", \"colorset\": \"ok\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}]}"
+            .write(to: store.keeperFile, atomically: true, encoding: .utf8)
+        XCTAssertEqual(store.loadInteresting(), [first])
+        try "rule \(first.id)\n".write(to: store.keeperFile, atomically: true, encoding: .utf8)  // the old text format
+        XCTAssertEqual(store.loadInteresting(), [])
     }
 
     // PT-11: stop() terminates workers; stopping an unstarted search is safe.
@@ -211,5 +217,14 @@ final class PropertyTests: XCTestCase {
         XCTAssertEqual(Store.loadScreensaver(url)!.first!.colors[0], "#0A0A0A")
         try "not json".write(to: url, atomically: true, encoding: .utf8)
         XCTAssertEqual(Store.loadScreensaver(url), [])
+    }
+
+    /// The keeper file (written by Python's json.dumps) round-trips byte-identically.
+    func testKeeperFileLayoutMatchesReference() throws {
+        let reference = Store.repoRoot.appendingPathComponent("interesting-rules.json")
+        let original = try String(contentsOf: reference, encoding: .utf8)
+        let store = try tempStore()
+        Store.saveScreensaver(Store.loadScreensaver(reference)!, to: store.keeperFile)
+        XCTAssertEqual(try String(contentsOf: store.keeperFile, encoding: .utf8), original)
     }
 }

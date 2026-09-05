@@ -1,6 +1,6 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-04):** Swift 2.28.0 (resizable, full-screen window), Python 2.15.1. The color set
+**YOU ARE HERE (2026-09-05):** Swift 2.34.0, Python 2.15.2 (format compatibility only). The color set
 pool is reviewed (30 kept, 16 dropped). Swift has the two workshop modes
 (`--colorset-review`, `--screensaver-review <file>` with
 `--consistency-check <file>`) and the first study of the art itself:
@@ -37,6 +37,15 @@ vision items below, starting with the declarative script design.
       as separate dimensions; never let time-to-boredom alone sink a
       high-variance rule. Equal screen time with in-place re-seeding
       (2.30.0) already suits fireworks: they go off many times per turn.
+- [ ] DECIDE: Python's role. It has not been ported since 2.15 (continuous
+      scrolling); everything after — pool and review modes, screensaver
+      play, resizing, brackets, saved presentations — is Swift-only, and
+      the odd/even convention has inverted in practice. Options: (a) keep
+      Python as the laboratory (conformance reference, engine/detector
+      experiments, offline scorer) and format-compatible with every shared
+      file, presentation features Swift-only; (b) a large Python catch-up.
+      Linux delivery is the consideration for (a): Swift on Linux with a
+      non-AppKit view, or a C++ port.
 - [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
       or expose a reduced, safe set of keys (no quitting, nothing that can
       leave the app in a messed-up state) for installations where the

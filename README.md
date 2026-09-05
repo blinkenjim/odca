@@ -24,7 +24,7 @@ its own directory.
 | `REQTS.md` | language-independent requirements — the program can be re-created from this document alone |
 | `TESTS.md` | normative test plan for all implementations |
 | `conformance/vectors.json` | golden engine vectors every implementation must pass |
-| `interesting-rules.txt` | the shared collection of saved rules (`rule <id>` per line) |
+| `interesting-rules.json` | the shared collection of saved rules, each with its color set — a screensaver-format file |
 | `python/` | the reference implementation (Python + pygame); see `python/README.md` |
 | `REQ-python.md` | implementation notes for the Python version |
 | `swift/` | Swift/SwiftUI implementation (macOS); see `swift/README.md` |
@@ -64,9 +64,9 @@ consume candidates.
 | r   | new random rule, screened for maybe-Class-IV behavior (ID printed) |
 | m   | mutate the rule: one entry changes to a new state |
 | u   | undo the last rule change (repeatable)       |
-| s   | save the current rule to interesting-rules.txt; while paused: run one screenful at 8× speed, then stay paused (press again to queue more) |
-| n   | next saved interesting rule (first press: rule 0) |
-| p   | previous saved interesting rule (first press: last rule) |
+| s   | save the current rule with its color set to interesting-rules.json; while paused: run one screenful at 8× speed, then stay paused (press again to queue more) |
+| n   | next saved interesting rule, with its saved colors (first press: rule 0) |
+| p   | previous saved interesting rule, with its saved colors (first press: last rule) |
 | i   | initialize all cells to random contents      |
 | +   | speed up (halve the delay between generations); below 30 generations/s the scroll is continuous |
 | -   | slow down (double the delay between generations) |

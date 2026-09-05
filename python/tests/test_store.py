@@ -21,16 +21,20 @@ def test_load_corrupt_file_returns_none(tmp_path):
     assert load_rule(path) is None
 
 
-def test_append_interesting_appends_in_keeper_format(tmp_path):
-    path = tmp_path / "interesting-rules.txt"
-    path.write_text("rule 00000000000000000000\n")
+def test_append_interesting_writes_pairs(tmp_path):
+    from odca.store import load_interesting_pairs
+    path = tmp_path / "interesting-rules.json"
     rule = Rule.random(np.random.default_rng(6))
-    append_interesting(rule, path)
-    assert path.read_text() == f"rule 00000000000000000000\nrule {rule.id}\n"
+    append_interesting(rule, path)  # default color set
+    append_interesting(rule, path, "Mine", ["#000000", "#111111", "#222222", "#333333"])
+    pairs = load_interesting_pairs(path)
+    assert [p["rule"] for p in pairs] == [rule.id, rule.id]
+    assert pairs[0]["colorset"] == "ODCA default" and pairs[1]["colors"][3] == "#333333"
+    assert path.read_text().startswith('{\n "pairs": [\n  {\n   "rule": "')
 
 
 def test_load_interesting_round_trip(tmp_path):
-    path = tmp_path / "interesting-rules.txt"
+    path = tmp_path / "interesting-rules.json"
     rng = np.random.default_rng(7)
     rules = [Rule.random(rng) for _ in range(3)]
     for rule in rules:
@@ -38,11 +42,15 @@ def test_load_interesting_round_trip(tmp_path):
     assert load_interesting(path) == rules
 
 
-def test_load_interesting_skips_invalid_lines(tmp_path):
-    path = tmp_path / "interesting-rules.txt"
+def test_load_interesting_skips_invalid_pairs(tmp_path):
+    path = tmp_path / "interesting-rules.json"
     rule = Rule.random(np.random.default_rng(8))
-    path.write_text(f"# comment\nrule notarule\nrule {rule.id}\nstray line\n")
+    path.write_text('{"pairs": [{"rule": "notarule", "colorset": "x", "colors": ["#000000"]*4}, '
+                    f'{{"rule": "{rule.id}", "colorset": "ok", "colors": ["#000000", "#000000", "#000000", "#000000"]}}]}}'
+                    .replace('["#000000"]*4', '["#000000", "#000000", "#000000", "#000000"]'))
     assert load_interesting(path) == [rule]
+    path.write_text(f"rule {rule.id}\n")  # the old text format is no longer read
+    assert load_interesting(path) == []
 
 
 def test_load_interesting_missing_file(tmp_path):

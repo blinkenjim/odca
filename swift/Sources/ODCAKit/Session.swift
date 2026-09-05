@@ -118,6 +118,7 @@ public final class Session {
     public private(set) var undoStack: [Rule] = []
     public private(set) var interestingIndex: Int?
     public private(set) var unsavedRule: Rule?
+    public private(set) var unsavedSet: ColorSetEntry?  // the set shown with the unsaved rule (R-B3)
     public private(set) var candidates: [Rule]
     /// Terminal output sink (R-O); the UI leaves it as print, tests capture it.
     public var output: (String) -> Void = { print($0) }
@@ -184,6 +185,7 @@ public final class Session {
         pool = poolOrder()
         let d = colorSets[colorSet]!
         activeSet = ColorSetEntry(slot: colorSet, name: d.name, colors: d.colors)
+        unsavedSet = activeSet
         pushRow(automaton.cells)
         output("rule \(rule.id)")
         if reviewMode { loadReview() }
@@ -775,8 +777,15 @@ public final class Session {
 
     private func setUnsavedRule(_ rule: Rule) {
         unsavedRule = rule
+        unsavedSet = activeSet
         interestingIndex = nil
         setRule(rule)
+    }
+
+    /// Show a saved or unsaved presentation: its colors become the active set (R-B2).
+    private func showColors(name: String, colors: [String]) {
+        activeSet = ColorSetEntry(slot: nil, name: name, colors: colors)
+        activeArrangement = 0  // stored colors are already arranged
     }
 
     private func newRule() {  // R-K2
@@ -805,9 +814,10 @@ public final class Session {
         if let rule = undoStack.popLast() { setRule(rule) }
     }
 
-    private func saveInteresting() {  // R-K5
-        store.appendInteresting(automaton.rule)
-        output("saved rule \(automaton.rule.id)")  // R-O3
+    private func saveInteresting() {  // R-K5: the rule with its presentation
+        let pair = currentPair()
+        store.appendInteresting(pair)
+        output("saved rule \(pair.rule) \(pair.colorset)")  // R-O3
     }
 
     private func initCells() {  // R-K6
@@ -818,12 +828,12 @@ public final class Session {
     }
 
     private func selectInteresting(step: Int) {  // R-B2, R-B3
-        let rules = store.loadInteresting()
-        guard !rules.isEmpty else {
+        let pairs = store.loadInterestingPairs().filter { (try? Rule(id: $0.rule)) != nil }
+        guard !pairs.isEmpty else {
             output("no saved interesting rules")  // R-O5
             return
         }
-        let n = rules.count
+        let n = pairs.count
         let total = unsavedRule != nil ? n + 1 : n
         let at = interestingIndex ?? n
         let to = ((at + step) % total + total) % total
@@ -832,10 +842,13 @@ public final class Session {
             interestingIndex = nil
             output("unsaved rule")  // R-O4
             setRule(unsavedRule!)
+            if let set = unsavedSet { showColors(name: set.name, colors: set.colors) }
         } else {
             interestingIndex = to
-            output("interesting \(to + 1)/\(n)")  // R-O4
-            setRule(rules[to])
+            let pair = pairs[to]
+            output("interesting \(to + 1)/\(n) \(pair.colorset)")  // R-O4
+            setRule(try! Rule(id: pair.rule))
+            showColors(name: pair.colorset, colors: pair.colors)
         }
     }
 
