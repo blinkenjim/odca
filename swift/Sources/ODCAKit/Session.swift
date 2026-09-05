@@ -389,6 +389,9 @@ public final class Session {
         activeSet = ColorSetEntry(slot: nil, name: pair.colorset, colors: pair.colors)
         activeArrangement = 0  // stored colors are already arranged
         output("screensaver \(position + 1)/\(pairs.count) \(pair.colorset)")  // R-O12
+        // R-W8: fill the screen with the pair's own output at once, so every
+        // navigation looks the same whether or not the rule changed.
+        for _ in 0..<rows { advance() }
     }
 
     private func screensaverStep(_ step: Int) {  // R-W2: no wrap

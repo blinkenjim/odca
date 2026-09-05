@@ -613,9 +613,12 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.S)
         XCTAssertEqual(Store.loadScreensaver(file)!.count, 2)
 
-        _ = session.handleKey(.N)  // activates pair 1: rule0, S3 arranged
+        let gBefore = session.automaton.generation
+        _ = session.handleKey(.N)  // activates pair 1: rule0, S3 arranged, and blasts a screenful
         XCTAssertEqual(session.pairIndex, 0)
         XCTAssertEqual(session.automaton.rule, rule0)
+        XCTAssertEqual(session.automaton.generation, gBefore + session.rows)  // R-W8
+        XCTAssertEqual(session.history.count, session.rows + 1)
         XCTAssertEqual(session.palette.map(\.r), [0x1E, 0x1F, 0x21, 0x20])
         XCTAssertTrue(lines.take().contains("screensaver 1/2 S3"))
         _ = session.handleKey(.P)  // no wrap at the start

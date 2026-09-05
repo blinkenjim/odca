@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.24.0 — 2026-09-04
+Version 2.24.1 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -23,7 +23,7 @@ R-P4; color set review mode behind `--colorset-review` — section 4b;
 developer flags permitted — section 10. 2.22.0: screensaver review mode
 and file — section 4c, R-P5; color set review saves on every drop and
 no longer bakes arrangements — R-V5, R-V6. 2.24.0: consistency check —
-R-W7.)
+R-W7. 2.24.1: every pair activation fills the screen at once — R-W8.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -487,6 +487,14 @@ never changed by the view: `s` and `X` act on the pair at its existing
 file position, `S` appends to the end of the file (while the new pair
 joins its rule's group in the view, at the end of that group or as a new
 last group), and the file is always written in file order.
+
+**R-W8 (activation fills the screen).** Every activation by `N`/`P`
+(sections 4c, R-W2 and R-W7) immediately computes and displays a full
+screenful (`rows` generations) under the activated pair, paused or not,
+so that navigation looks the same whether or not the rule changed: the
+whole screen is the new pair's output rather than a re-colored old one
+or a slowly arriving new one. Generations so computed count for auto-init
+(R-A) and the screen counter (R-K14) as usual.
 
 ---
 
