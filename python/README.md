@@ -19,6 +19,10 @@ python3 -m venv .venv
 .venv/bin/python -m odca
 ```
 
+Workbench modes (see the root README): `--colorset-review`,
+`--screensaver-review <file>`, `--consistency-check <file>`,
+`--screensaver <file>`.
+
 ## Tests
 
 ```sh

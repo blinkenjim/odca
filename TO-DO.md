@@ -157,6 +157,18 @@ viewer sees. Roadmap, roughly in order:
       (4) TestFlight on the user's own Apple TV; (5) App Store submission,
       artifacts and answers prepared in advance, the web forms walked
       through together.
+- [ ] Run straight out of a fresh clone, both sides (user, 2026-09-05).
+      Today Python needs a venv and a pip install by hand, and Swift needs
+      the toolchain and `swift run` from the right directory. Aim for one
+      obvious command per side that works on a new Mac with nothing else
+      set up: e.g. a `run` script (or Makefile target) that creates the venv
+      and installs requirements on first use, a `swift run` wrapper or
+      documented one-liner, and a README quick start at the root that shows
+      both. The Swift wrapper must build release: the debug build is choppy
+      on any Mac (confirmed on an M1 Pro, 2026-09-05; the per-frame pixel
+      loop is unoptimized), so `swift run -c release odca` is the command.
+      Check the Python version floor (3.9 on a stock Mac) and pygame's
+      wheel availability on Apple silicon. Precursor to packaging.
 - [ ] Packaging for distribution: Linux, macOS, iPadOS (iOS not ruled out).
 - [ ] Open-source license (attribution + share-alike spirit; must be
       compatible with App Store distribution) and copyright notice.
