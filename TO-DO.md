@@ -37,15 +37,19 @@ vision items below, starting with the declarative script design.
       as separate dimensions; never let time-to-boredom alone sink a
       high-variance rule. Equal screen time with in-place re-seeding
       (2.30.0) already suits fireworks: they go off many times per turn.
-- [ ] DECIDE: Python's role. It has not been ported since 2.15 (continuous
-      scrolling); everything after — pool and review modes, screensaver
-      play, resizing, brackets, saved presentations — is Swift-only, and
-      the odd/even convention has inverted in practice. Options: (a) keep
-      Python as the laboratory (conformance reference, engine/detector
-      experiments, offline scorer) and format-compatible with every shared
-      file, presentation features Swift-only; (b) a large Python catch-up.
-      Linux delivery is the consideration for (a): Swift on Linux with a
-      non-AppKit view, or a C++ port.
+- [x] DECIDED (2026-09-05): Python is the laboratory / workbench, Swift the
+      gallery (gold-standard smoothness, packaging, tvOS). Python still gets
+      every *special mode* because the modes are the workbench; it does not
+      chase the gallery polish (display-link pacing, resizable / full-screen
+      window, pointer hiding). The odd/even convention stands with the
+      direction inverted: Swift leads at even minors, Python ports at odd.
+- [ ] Python catch-up (2.17.0): the pool and active-set model with `[`/`]`,
+      arrangements by name and `S` by name; color set review
+      (`--colorset-review`); screensaver review and consistency check
+      (`--screensaver-review`, `--consistency-check`) with the screen-fill
+      on steps; screensaver play (`--screensaver`, watchdog and grace, rows
+      keeping their colors, N/P); saved presentations applied by n/p.
+      Pygame's resizable window is optional; smoothness is not a goal.
 - [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
       or expose a reduced, safe set of keys (no quitting, nothing that can
       leave the app in a messed-up state) for installations where the
