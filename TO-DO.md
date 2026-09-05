@@ -19,10 +19,17 @@ vision items below, starting with the declarative script design.
       seeds — how many generations, averaged over several seeds, before
       the auto-init detector fires (capped; chaotic never-boring rules
       must be excluded by the existing entropy test, not rewarded).
-      Build first as an offline scorer in the Python lab, rank the saved
-      rules and the candidate stash, check the ranking against taste,
-      then wire the score into 'r' / the background searcher (natural
-      fit for the GPU-batched screener).
+      Notes: census variance is the positive form of the stagnation
+      detector's signal and a cousin of the classifier's input-entropy
+      variance (rule-table usage vs. population; the census is closer to
+      what the eye sees). Time-to-boredom reuses the exact judgment the
+      art uses, hence the more powerful metric, but costs thousands of
+      generations per seed: a second stage after the cheap screen, or
+      the unattended searcher's job (and later the GPU batch). Build
+      first as an offline scorer in the Python lab (2.17.0), rank the
+      saved rules and the candidate stash, and check the ranking against
+      taste (the vein and glider rules should top it, the stripes rule
+      sink) before the score gets any say over 'r'.
 - [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
       or expose a reduced, safe set of keys (no quitting, nothing that can
       leave the app in a messed-up state) for installations where the
