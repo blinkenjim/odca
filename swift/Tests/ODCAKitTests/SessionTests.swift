@@ -507,9 +507,11 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(lines.take().contains("review 1/13 S1"))
         XCTAssertEqual(session.palette[0], RGB(hex: "#0A0A0A"))  // S1 = grey(10)
 
+        let g0 = session.automaton.generation
         _ = session.handleKey(.N)
         XCTAssertEqual(lines.take(), "review 2/13 S2")
         XCTAssertEqual(session.palette[0], RGB(hex: "#141414"))
+        XCTAssertEqual(session.automaton.generation, g0 + session.rows)  // R-V7: a screenful at once
         _ = session.handleKey(.P)
         _ = session.handleKey(.P)  // past the start: wraps to the end
         let out = lines.take()

@@ -281,6 +281,7 @@ public final class Session {
         }
         reviewIndex = index
         announceReview()
+        for _ in 0..<rows { advance() }  // R-V7: fill the screen under the new set
     }
 
     private func dropReview() {  // R-V4
@@ -295,6 +296,7 @@ public final class Session {
         }
         announceReview()
         saveReview()  // R-V5: every drop is saved at once
+        if !reviewEntries.isEmpty { for _ in 0..<rows { advance() } }  // R-V7
     }
 
     /// Write the kept sets: the first ten in review order own the digit

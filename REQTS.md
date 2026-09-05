@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.24.1 — 2026-09-04
+Version 2.24.2 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -23,7 +23,8 @@ R-P4; color set review mode behind `--colorset-review` — section 4b;
 developer flags permitted — section 10. 2.22.0: screensaver review mode
 and file — section 4c, R-P5; color set review saves on every drop and
 no longer bakes arrangements — R-V5, R-V6. 2.24.0: consistency check —
-R-W7. 2.24.1: every pair activation fills the screen at once — R-W8.)
+R-W7. 2.24.1: every pair activation fills the screen at once — R-W8. 2.24.2:
+so does every color set review step — R-V7.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -427,6 +428,11 @@ color sets, <d> dropped`. `S` has no binding in this mode.
 **R-V6 (arrangement).** `c`/`C` arrange the set under review for preview
 only, remembered per set for the session and never written to the pool;
 arrangements are recorded in screensaver pairs instead (section 4c).
+
+**R-V7 (steps fill the screen).** Every `N`/`P` step, and the display of
+the next set after `X`, immediately computes and displays a full
+screenful (`rows` generations) under the newly shown set, paused or not,
+as in R-W8.
 
 ---
 
