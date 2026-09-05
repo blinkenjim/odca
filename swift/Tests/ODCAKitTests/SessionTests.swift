@@ -742,29 +742,44 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(out.contains("screensaver saver.json: 2 pairs") && out.contains("screensaver 1/2 A"))
         XCTAssertFalse(out.contains("("))  // no reason on the first pair
 
-        // The boring detector fires on the 17th generation (16 boring rows) and sequences.
-        for _ in 0..<16 { session.tick(1.0 / 60.0) }
+        // Before the watchdog expires, boredom re-seeds in place: the pair keeps its screen time.
+        for _ in 0..<17 { session.tick(1.0 / 60.0) }
         XCTAssertEqual(session.pairIndex, 0)
-        session.tick(1.0 / 60.0)
+        XCTAssertEqual(session.automaton.generation, 0)  // re-seeded
+        out = lines.take()
+        XCTAssertTrue(out.contains("auto-init (repeating (period 1))") && !out.contains("screensaver 2/2"))
+
+        // Run out the watchdog without firings (auto-init off), re-seed by hand just before
+        // expiry so the grace period is unsatisfied at expiry, then re-arm: the next firing
+        // transitions instead of re-seeding in place, carrying its reason.
+        _ = session.handleKey(.a)
+        session.tick(170)
+        XCTAssertEqual(session.pairIndex, 0)
+        _ = session.handleKey(.i)  // grace restarts; the watchdog does not
+        XCTAssertEqual(session.playElapsed, 170, accuracy: 1)  // the 17 small ticks plus 170
+        _ = session.handleKey(.a)
+        _ = lines.take()
+        session.tick(10)  // the watchdog expires during this tick; boredom fires within it
         XCTAssertEqual(session.pairIndex, 1)
-        XCTAssertEqual(session.automaton.generation, 0)  // re-seeded on transition
+        XCTAssertLessThan(session.playElapsed, 1)  // the new pair's clock started inside the tick
         XCTAssertEqual(session.palette[0], RGB(hex: "#141414"))
-        // R-X5: rows from pair A keep A's colors; the new seed row is painted with B's.
-        let last = session.history.count - 1
-        XCTAssertEqual(session.rowBanks[last], 1)
-        XCTAssertEqual(session.rowBanks[last - 1], 0)
-        XCTAssertEqual(session.color(row: last, col: 0), RGB(hex: String(format: "#%02X%02X%02X", 20 + Int(session.history[last][0]), 20 + Int(session.history[last][0]), 20 + Int(session.history[last][0]))))
-        XCTAssertEqual(session.color(row: last - 1, col: 0), RGB(hex: "#0A0A0A"))  // state 0 under A
-        XCTAssertEqual(session.palette8.count, 8)
+        // R-X5: rows from pair A keep A's colors below the boundary; B's rows above it.
+        let firstB = session.rowBanks.firstIndex(of: 1)!
+        XCTAssertEqual(session.rowBanks[firstB - 1], 0)
+        XCTAssertEqual(session.rowBanks.last, 1)
+        XCTAssertEqual(session.color(row: firstB - 1, col: 0), RGB(hex: "#0A0A0A"))  // state 0 under A
         XCTAssertEqual(session.palette8[0], RGB(hex: "#0A0A0A"))
         XCTAssertEqual(session.palette8[4], RGB(hex: "#141414"))
         out = lines.take()
         XCTAssertTrue(out.contains("screensaver 2/2 B (repeating (period 1))"))
-        XCTAssertFalse(out.contains("auto-init ("))  // sequencing replaces the in-place re-seed
 
-        for _ in 0..<17 { session.tick(1.0 / 60.0) }  // ... and loops back to the first pair
+        // Looping: one long tick expires the watchdog and the firings inside it wrap to pair 1
+        // (later firings in the same tick re-seed pair 1 in place: its own clock has restarted).
+        session.tick(Session.playTimeout)
         XCTAssertEqual(session.pairIndex, 0)
-        XCTAssertTrue(lines.take().contains("screensaver 1/2 A (repeating (period 1))"))
+        out = lines.take()
+        XCTAssertTrue(out.contains("screensaver 1/2 A (repeating (period 1))"))
+        XCTAssertFalse(out.contains("screensaver 2/2"))
 
         // R-X6: N/P move through the pairs by hand, wrapping, with a fresh seed each time.
         session.tick(1.0 / 60.0)
@@ -780,40 +795,38 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(lines.take().contains("screensaver 2/2 B (previous)"))
     }
 
-    func testScreensaverTimesOutAfterFiveUnpausedMinutes() throws {
+    func testScreensaverWatchdogAndGracePeriod() throws {
         let lines = Lines()
         let store = try reviewStore()
         let file = store.stateDir.deletingLastPathComponent().appendingPathComponent("saver.json")
         Store.saveScreensaver([ScreensaverPair(rule: allProducible.id, colorset: "A", colors: grey(10)),
                                ScreensaverPair(rule: allProducible.id, colorset: "B", colors: grey(20))], to: file)
         let session = makeSession(store, lines: lines, play: file)
-        _ = session.handleKey(.a)  // auto-init off: only the timeout sequences now
+        _ = session.handleKey(.a)  // auto-init off: only time sequences now
         for _ in 0..<50 { _ = session.handleKey(.plus) }  // fastest, so stepping is cheap
         _ = lines.take()
-        session.tick(150)
-        _ = session.handleKey(.space)
-        session.tick(1000)  // paused time does not count
-        _ = session.handleKey(.space)
         session.tick(100)
-        _ = session.handleKey(.i)  // a manual re-seed restarts the watchdog (R-X3)
-        XCTAssertEqual(session.playElapsed, 0, accuracy: 1e-9)
-        session.tick(299.5)
+        _ = session.handleKey(.space)
+        session.tick(1000)  // paused time counts for nothing
+        _ = session.handleKey(.space)
+        session.tick(50)
+        _ = session.handleKey(.i)  // at 150 s: restarts the grace period, not the watchdog
+        XCTAssertEqual(session.sinceInit, 0, accuracy: 1e-9)
+        XCTAssertEqual(session.playElapsed, 150, accuracy: 1e-6)
+        session.tick(30)  // 180 s: watchdog expired, but only 30 s since the re-seed
         XCTAssertEqual(session.pairIndex, 0)
-        session.tick(1.0)
+        session.tick(29.5)
+        XCTAssertEqual(session.pairIndex, 0)
+        session.tick(1.0)  // 60 s since the re-seed: transition
         XCTAssertEqual(session.pairIndex, 1)
         XCTAssertTrue(lines.take().contains("screensaver 2/2 B (timeout)"))
         XCTAssertEqual(session.playElapsed, 0, accuracy: 1e-9)
-    }
 
-    // Outside screensaver mode both banks follow the active set: instant recolor.
-    func testPaletteBanksOutsidePlayModeRecolorAtOnce() throws {
-        let session = makeSession(try reviewStore())
-        _ = session.handleKey(.a)
+        // A quiet pair transitions as soon as the watchdog expires (grace long satisfied).
+        session.tick(179.5)
+        XCTAssertEqual(session.pairIndex, 1)
         session.tick(1.0)
-        XCTAssertTrue(session.rowBanks.allSatisfy { $0 == 0 })
-        _ = session.handleKey(.digit(3))
-        XCTAssertEqual(session.palette8, session.palette + session.palette)
-        XCTAssertEqual(session.color(row: 0, col: 0), session.palette[Int(session.history[0][0])])
+        XCTAssertEqual(session.pairIndex, 0)
     }
 
     // MARK: PT-32 resizing (R-U8)

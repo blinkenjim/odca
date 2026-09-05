@@ -38,7 +38,8 @@ public final class Session {
     public static let minorityFraction = 0.10  // a producible state below this share is a minority (R-A1)
     public static let stagnationScreens = 4  // minority population steady this long -> stagnant (R-A1)
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
-    public static let playTimeout = 300.0  // screensaver: seconds on a pair before advancing (R-X3)
+    public static let playTimeout = 180.0  // screensaver: a pair's screen time before it may advance (R-X3)
+    public static let playGrace = 60.0  // screensaver: no transition within this long of an initialization (R-X3)
     public static let historyDepth = 2048  // rows remembered beyond the screen (R-U8)
     public static let minCols = 3  // R-M2
 
@@ -105,6 +106,7 @@ public final class Session {
     // Screensaver mode (R-X): play the pairs of a file in order.
     public let playFile: URL?
     public private(set) var playElapsed = 0.0  // unpaused seconds on the current pair
+    public private(set) var sinceInit = 0.0  // unpaused seconds since the last (re)initialization
     public private(set) var activeSet: ColorSetEntry?  // the set in use (any pool member)
     private var activeArrangement = 0
     private var pool: [ColorSetEntry] = []  // whole pool in review order for [ / ]
@@ -561,7 +563,7 @@ public final class Session {
         activeSet = ColorSetEntry(slot: nil, name: pair.colorset, colors: pair.colors)
         activeArrangement = 0
         initCells()
-        playElapsed = 0
+        playElapsed = 0  // the pair's screen time starts now
         let why = reason.map { " (\($0))" } ?? ""
         output("screensaver \(index + 1)/\(pairs.count) \(pair.colorset)\(why)")  // R-O13
     }
@@ -634,8 +636,8 @@ public final class Session {
         }
         if autoInit && boringStreak >= rows {
             let reason = boringReason ?? "boring"
-            if playMode && !pairs.isEmpty {
-                nextPlayPair(reason: reason)  // R-X2: the boring detector sequences
+            if playMode && !pairs.isEmpty && playElapsed >= Session.playTimeout {
+                nextPlayPair(reason: reason)  // R-X3: watchdog expired, a re-init transitions
             } else {
                 initCells()
                 output("auto-init (\(reason))")  // R-O6
@@ -738,12 +740,16 @@ public final class Session {
             return
         }
         accumulated += dt
+        // Clocks advance before the generations, so a re-seed made by those
+        // generations restarts the grace period from this instant (R-X3).
+        sinceInit += dt
+        if playMode { playElapsed += dt }
         let steps = Int(accumulated / delay)
         accumulated -= Double(steps) * delay
         for _ in 0..<min(steps, Session.stepCap) { advance() }
-        if playMode && !pairs.isEmpty {  // R-X3: advance after playTimeout unpaused seconds
-            playElapsed += dt
-            if playElapsed >= Session.playTimeout { nextPlayPair(reason: "timeout") }
+        if playMode && !pairs.isEmpty  // R-X3: watchdog expired and the grace period observed
+            && playElapsed >= Session.playTimeout && sinceInit >= Session.playGrace {
+            nextPlayPair(reason: "timeout")
         }
     }
 
@@ -809,7 +815,7 @@ public final class Session {
         automaton.resetRandom(using: &rng)
         pushRow(automaton.cells)
         resetBoredom()
-        playElapsed = 0  // R-X3: a fresh seed restarts the watchdog
+        sinceInit = 0  // R-X3: any initialization restarts the grace period
     }
 
     private func selectInteresting(step: Int) {  // R-B2, R-B3

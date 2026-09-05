@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.28.1 — 2026-09-04
+Version 2.30.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -29,7 +29,8 @@ so does every color set review step — R-V7. 2.26.0: screensaver mode
 across transitions — R-X5. 2.26.2: watchdog 300 s, restarted by `i` —
 R-X3. 2.26.3: `N`/`P` step between pairs — R-X6. 2.28.0: resizable
 window and geometry — R-U2, R-U8, R-O14. 2.28.1: pointer hidden in full
-screen; frozen during a live resize — R-U2, R-U8.)
+screen; frozen during a live resize — R-U2, R-U8. 2.30.0: equal screen
+time per pair — watchdog 180 s with a 60 s grace period — R-X2, R-X3.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -546,21 +547,25 @@ over the review flags. On entry the program prints `screensaver <file>:
 <n> pairs` and, if the list is non-empty, plays pair 1. An empty file
 leaves the program running as usual.
 
-**R-X2 (advance on boredom).** Whenever auto-initialization would fire
-(R-A2: the mode on, a screenful of boring generations), the screensaver
-advances to the next pair instead of re-seeding in place. Turning
-auto-initialization off with `a` (R-K12) therefore leaves only the
-timeout to advance the sequence.
+**R-X2 (equal screen time).** Every pair gets the same screen time: a
+*watchdog* of 180 unpaused seconds, counted from the moment the pair
+starts and unaffected by re-initializations. Until it expires,
+auto-initialization behaves as everywhere else (R-A2): the pair is
+re-seeded in place, as often as it takes, and stays on screen.
 
-**R-X3 (advance on timeout).** If a pair has run for 300 unpaused seconds
-(five minutes) without the detector firing, the screensaver advances. The
-clock restarts with each pair and with every re-seed, including a manual
-`i` (R-K6), and does not run while paused.
+**R-X3 (transition).** Once the watchdog has expired, the screensaver
+advances to the next pair at the first of: (a) the *grace period* being
+satisfied — 60 unpaused seconds since the pair's last initialization,
+automatic or manual — or (b) the boring detector firing, which then
+transitions (with its reason) instead of re-seeding in place. A manual
+`i` (R-K6) never transitions; it restarts the grace period only, before
+or after expiry. Neither clock runs while paused. With auto-initialization
+off (R-K12), only (a) applies.
 
 **R-X4 (playing a pair).** Playing a pair sets its rule (a rule change,
 R-B1, printed and persisted, but not pushed on the undo stack), makes its
-stored colors the active color set at arrangement 1, and re-seeds the
-cells as `i` does (R-K6). There is no screen fill: the previous pair
+stored colors the active color set at arrangement 1, re-seeds the cells
+as `i` does (R-K6), and starts both clocks. There is no screen fill: the previous pair
 scrolls off the top as the new one grows in from its fresh field — the
 transition, until cross-fades exist. Every ordinary key keeps its meaning;
 there are no review keys, and the file is never written.
@@ -677,7 +682,8 @@ The program prints single-line, human-readable status to standard output:
 - **R-O13.** In screensaver mode (section 4d): on entry `screensaver
   <file>: <n> pairs`; on playing a pair `screensaver <i>/<n> <colorset>`,
   followed on advances by the reason in parentheses — the auto-init
-  reason (R-O6), `timeout`, `next`, or `previous`. this precedes nothing else (cells change, the rule does not).
+  reason (R-O6) when a re-init transitions, `timeout` when the grace
+  period does, `next`, or `previous`. this precedes nothing else (cells change, the rule does not).
 
 ---
 
