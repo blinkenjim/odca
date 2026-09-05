@@ -99,3 +99,33 @@ def test_save_color_sets_preserves_pool_and_dropped(tmp_path):  # R-P4
     assert f["dropped"] == ["Gone"]
     text = path.read_text()
     assert text.endswith(' "dropped": [\n  "Gone"\n ]\n}\n')
+
+
+def test_candidate_palettes_load_and_skip_malformed(tmp_path):  # PT-27
+    from odca.store import load_candidate_palettes
+    path = tmp_path / "candidates.json"
+    path.write_text('{"palettes": [{"index": 0, "name": "Good", "colors": ["#0a0a0a", "#111111", "#222222", "#333333"]},'
+                    ' {"index": 1, "name": "Short", "colors": ["#000000"]},'
+                    ' {"index": 2, "colors": ["#000000", "#000000", "#000000", "#000000"]},'
+                    ' {"index": 3, "name": "Bad", "colors": ["#000000", "#000000", "#000000", "nope"]}]}')
+    assert load_candidate_palettes(path) == [
+        {"slot": None, "name": "Good", "colors": ["#0A0A0A", "#111111", "#222222", "#333333"]}]
+    assert load_candidate_palettes(tmp_path / "missing.json") == []
+
+
+def test_screensaver_file_round_trip(tmp_path):  # PT-29
+    from odca.store import load_screensaver, save_screensaver
+    path = tmp_path / "saver.json"
+    assert load_screensaver(path) is None  # missing
+    save_screensaver([], path)
+    assert path.read_text() == '{\n "pairs": []\n}\n'
+    assert load_screensaver(path) == []
+    rule = Rule.random(np.random.default_rng(9))
+    pairs = [{"rule": rule.id, "colorset": 'Say "hi"', "colors": ["#000000", "#111111", "#222222", "#333333"]}]
+    save_screensaver(pairs, path)
+    assert load_screensaver(path) == pairs
+    assert '\\"hi\\"' in path.read_text()
+    path.write_text('{"pairs": [{"rule": "notarule", "colorset": "x", "colors": ["#000000", "#000000", "#000000", "#000000"]}]}')
+    assert load_screensaver(path) == []
+    path.write_text("{not json")
+    assert load_screensaver(path) == []

@@ -3,13 +3,15 @@
 All file access goes to a temp Store; the search never starts workers.
 """
 
+import json
+
 import numpy as np
 import pytest
 
 from odca.automaton import Rule
 from odca.search import CandidateSearch
 from odca.session import INITIAL_DELAY, MAX_DELAY, MIN_DELAY, Session
-from odca.store import Store
+from odca.store import Store, load_screensaver, save_screensaver
 
 FOUR = [Rule.from_id(d * 20) for d in "0123"]
 OUTSIDE = Rule.from_id("01230123012301230123")
@@ -22,6 +24,7 @@ def make_store(tmp_path):
             state_dir=tmp_path / "state",
             keeper_file=tmp_path / "interesting-rules.txt",
             colorsets_file=tmp_path / "colorsets.json",
+            candidates_file=tmp_path / "candidates.json",
         )
         for rule in saved:
             store.append_interesting(rule)
@@ -32,10 +35,10 @@ def make_store(tmp_path):
     return _make
 
 
-def make_session(store, seed=1):
+def make_session(store, seed=1, **modes):
     return Session(
         32, 16, store=store, search=CandidateSearch(workers=0),
-        rng=np.random.default_rng(seed),
+        rng=np.random.default_rng(seed), **modes,
     )
 
 
@@ -204,16 +207,16 @@ def test_cycle_arrangements_and_save(make_store, capsys):  # PT-23, PT-24
     assert len(ARRANGEMENTS) == 24 and ARRANGEMENTS[0] == (0, 1, 2, 3)
     s.handle_key("c")
     assert s.palette == [(0, 0, 0), (0x11, 0x11, 0x11), (0x33, 0x33, 0x33), (0x22, 0x22, 0x22)]  # (0,1,3,2)
-    assert "color set 3 arrangement 2/24" in capsys.readouterr().out
+    assert "color set Three arrangement 2/24" in capsys.readouterr().out
     for _ in range(23):
         s.handle_key("c")
     assert s.palette == [(0, 0, 0), (0x11, 0x11, 0x11), (0x22, 0x22, 0x22), (0x33, 0x33, 0x33)]  # wrapped
     s.handle_key("c")
-    s.handle_key("1")  # switch away and back: arrangement remembered per slot
+    s.handle_key("1")  # switch away and back: arrangement remembered per set
     s.handle_key("3")
     assert s.palette[2] == (0x33, 0x33, 0x33)
     s.handle_key("S")
-    assert "saved color set 3 Three" in capsys.readouterr().out
+    assert "saved color set Three" in capsys.readouterr().out
     assert store.load_color_sets()[3]["colors"] == ["#000000", "#111111", "#333333", "#222222"]
     s.handle_key("c")  # arrangement index restarted from the saved base
     assert "arrangement 2/24" in capsys.readouterr().out
@@ -229,6 +232,7 @@ def test_cycle_arrangements_and_save(make_store, capsys):  # PT-23, PT-24
 
 
 ALL_ZERO = Rule.from_id("0" * 20)
+ALL_PRODUCIBLE = Rule.from_id("0123" * 5)
 # Every neighborhood -> 1 except three 3s -> 3: state 3 is producible but
 # any run of 3s shrinks from both ends each generation, so 3 dies out.
 KILLS_THREE = Rule([3] + [1] * 19)
@@ -482,3 +486,362 @@ def test_scroll_offset_semantics(make_store):  # PT-25, R-U3
     s.handle_key(" ")
     s.tick(0.0)  # seamless resume: one generation, offset back to 0
     assert s.automaton.generation == g + 2 and s.scroll_offset == 0.0
+
+
+# ---------------------------------------------------------------- special modes
+
+def grey(v):
+    return ["#%02X%02X%02X" % (v + i, v + i, v + i) for i in range(4)]
+
+
+def review_store(make_store):
+    """Slots 0..9 as S0..S9, one pool-only set, one dropped name, four candidates."""
+    store = make_store()
+    sets = [{"slot": slot, "name": f"S{slot}", "colors": grey(slot * 10)} for slot in range(10)]
+    sets.append({"slot": None, "name": "PoolA", "colors": grey(100)})
+    store.save_color_set_file({"sets": sets, "dropped": ["Rejected"]})
+    store.candidate_palettes_file.write_text(json.dumps({"palettes": [
+        {"index": 0, "name": "S3", "colors": ["#000000"] * 4},
+        {"index": 1, "name": "Rejected", "colors": ["#000000"] * 4},
+        {"index": 2, "name": "CandB", "colors": ["#0B0B0B", "#0C0C0C", "#0D0D0D", "#0E0E0E"]},
+        {"index": 3, "name": "CandC", "colors": ["#1B1B1B", "#1C1C1C", "#1D1D1D", "#1E1E1E"]}]}))
+    return store
+
+
+def rgb(hex_):
+    return tuple(int(hex_[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def test_review_order_and_stepping(make_store, capsys):  # PT-26
+    store = review_store(make_store)
+    s = make_session(store, review_mode=True)
+    assert [e["name"] for e in s.review_entries] == [
+        "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S0", "PoolA", "CandB", "CandC"]
+    assert s.dropped_names == ["Rejected"]
+    assert "review 1/13 S1" in capsys.readouterr().out
+    assert s.palette[0] == rgb("#0A0A0A")
+    g0 = s.automaton.generation
+    s.handle_key("N")
+    assert capsys.readouterr().out.strip() == "review 2/13 S2"
+    assert s.palette[0] == rgb("#141414")
+    assert s.automaton.generation == g0 + s.rows  # R-V7: a screenful at once
+    s.handle_key("P")
+    s.handle_key("P")  # past the start: wraps to the end
+    out = capsys.readouterr().out
+    assert "review wrapped" in out and "review 13/13 CandC" in out
+    s.handle_key("5")  # digits are disabled in review mode
+    assert s.palette[0] == rgb("#1B1B1B")
+    s.handle_key("N")  # past the end: wraps to the start
+    assert "review wrapped" in capsys.readouterr().out
+    assert s.review_index == 0
+    s.handle_key(" ")
+    s.handle_key("N")  # live while paused
+    assert s.review_index == 1
+    s.handle_key("]")  # '[' / ']' are synonyms for P / N here (R-K17)
+    assert s.review_index == 2
+    s.handle_key("[")
+    assert s.review_index == 1
+
+
+def test_review_drop_save_and_slot_rotation(make_store, capsys):  # PT-26
+    store = review_store(make_store)
+    s = make_session(store, review_mode=True)
+    s.handle_key("c")  # arrange S1: preview only, never saved (R-V6)
+    s.handle_key("N")
+    s.handle_key("X")  # drop S2: advances to S3 and saves at once
+    out = capsys.readouterr().out
+    assert "dropped S2" in out and "review 2/12 S3" in out
+    assert "saved 12 color sets, 2 dropped" in out
+    assert store.load_color_set_file()["dropped"] == ["Rejected", "S2"]
+    assert s.palette[0] == rgb("#1E1E1E")
+    for _ in range(10):
+        s.handle_key("N")  # to CandC (last)
+    s.handle_key("X")  # drop the last: wraps to the start
+    out = capsys.readouterr().out
+    assert "dropped CandC" in out and "review wrapped" in out and "review 1/11 S1" in out
+    assert "saved 11 color sets, 3 dropped" in out
+    s.handle_key("S")  # no binding in review mode
+    assert capsys.readouterr().out == ""
+    file = store.load_color_set_file()
+    assert file["dropped"] == ["Rejected", "S2", "CandC"]
+    by_slot = {e["slot"]: e["name"] for e in file["sets"] if e["slot"] is not None}
+    assert by_slot == {1: "S1", 2: "S3", 3: "S4", 4: "S5", 5: "S6", 6: "S7", 7: "S8", 8: "S9", 9: "S0", 0: "PoolA"}
+    assert [e["name"] for e in file["sets"] if e["slot"] is None] == ["CandB"]
+    assert next(e for e in file["sets"] if e["name"] == "S1")["colors"] == grey(10)  # not baked
+    again = make_session(store, review_mode=True)
+    assert [e["name"] for e in again.review_entries] == [
+        "S1", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S0", "PoolA", "CandB"]
+    assert again.dropped_names == ["Rejected", "S2", "CandC"]
+    again.handle_key("X")  # drop S1; finish() saves at exit
+    again.finish()
+    assert store.load_color_sets()[1]["name"] == "S3"
+    assert store.load_color_set_file()["dropped"][-1] == "S1"
+
+
+def test_review_keys_inert_outside_review_mode(make_store):  # PT-26
+    store = review_store(make_store)
+    s = make_session(store)
+    assert not s.review_mode
+    palette = s.palette
+    for k in "NPX":
+        s.handle_key(k)
+    assert s.palette == palette
+    assert store.load_color_set_file()["dropped"] == ["Rejected"]
+    s.finish()
+    assert len(store.load_color_set_file()["sets"]) == 11
+    assert s.pairs == []
+
+
+def test_screensaver_review_lifecycle(make_store, tmp_path, capsys):  # PT-28
+    store = review_store(make_store)
+    file = tmp_path / "saver.json"
+    s = make_session(store, screensaver_file=file)
+    assert s.screensaver_mode and not s.review_mode
+    assert load_screensaver(file) == []  # a new, empty file was created
+    assert s.pair_index is None
+    assert "screensaver saver.json: 0 pairs" in capsys.readouterr().out
+    rule0 = s.automaton.rule
+    s.handle_key("N")
+    assert capsys.readouterr().out == ""
+    s.handle_key("s")
+    assert "no pair under review" in capsys.readouterr().out
+
+    s.handle_key("3")  # S3 = grey(30)
+    s.handle_key("c")  # arranged (0,1,3,2)
+    s.handle_key("S")  # append pair 1; position unchanged
+    out = capsys.readouterr().out
+    assert "added pair 1/1" in out and "saved 1 pair to saver.json" in out
+    assert s.pair_index is None
+    saved = load_screensaver(file)
+    assert saved == [{"rule": rule0.id, "colorset": "S3", "colors": ["#1E1E1E", "#1F1F1F", "#212121", "#202020"]}]
+
+    s.handle_key("m")
+    rule1 = s.automaton.rule
+    s.handle_key("]")  # from S3 to S4
+    assert "color set S4" in capsys.readouterr().out
+    s.handle_key("S")
+    assert len(load_screensaver(file)) == 2
+
+    g_before = s.automaton.generation
+    s.handle_key("N")  # activates pair 1: rule0, S3 arranged, and a screenful at once
+    assert s.pair_index == 0
+    assert s.automaton.rule == rule0
+    assert s.automaton.generation == g_before + s.rows  # R-W8
+    assert [c[0] for c in s.palette] == [0x1E, 0x1F, 0x21, 0x20]
+    assert "screensaver 1/2 S3" in capsys.readouterr().out
+    s.handle_key("P")  # no wrap at the start
+    assert "screensaver end" in capsys.readouterr().out
+    assert s.pair_index == 0
+
+    s.handle_key("5")
+    s.handle_key("s")  # save in place
+    out = capsys.readouterr().out
+    assert "saved pair 1/2" in out and "saved 2 pairs to saver.json" in out
+    saved = load_screensaver(file)
+    assert saved[0]["colorset"] == "S5" and saved[0]["colors"] == grey(50)
+    assert saved[1]["rule"] == rule1.id
+
+    s.handle_key("N")
+    assert s.automaton.rule == rule1
+    s.handle_key("N")
+    assert "screensaver end" in capsys.readouterr().out
+    s.handle_key("X")  # delete the last: shows the previous
+    out = capsys.readouterr().out
+    assert "deleted pair 2/2" in out and "saved 1 pair to saver.json" in out
+    assert s.pair_index == 0
+    assert len(load_screensaver(file)) == 1
+    s.handle_key("X")
+    assert s.pair_index is None
+    assert load_screensaver(file) == []
+
+    save_screensaver([{"rule": rule1.id, "colorset": "S7", "colors": grey(70)}], file)
+    again = make_session(store, screensaver_file=file)
+    assert again.pair_index == 0 and again.automaton.rule == rule1
+    assert again.palette[0] == rgb("#464646")
+    again.handle_key("[")  # walks the pool backward from S7
+    assert again.palette[0] == rgb("#3C3C3C")  # S6
+
+
+def test_consistency_check_groups_by_rule_for_view_only(make_store, tmp_path, capsys):  # PT-30
+    store = review_store(make_store)
+    file = tmp_path / "saver.json"
+    a, b, c = "0" * 20, "1" * 20, "2" * 20
+    original = [{"rule": r, "colorset": n, "colors": grey(int(n[1:]) * 10)}
+                for r, n in [(a, "S1"), (b, "S2"), (a, "S3"), (c, "S4"), (b, "S5")]]
+    save_screensaver(original, file)
+    s = make_session(store, screensaver_file=file, group_by_rule=True)
+    assert s.view_order == [0, 2, 1, 4, 3]  # A A B B C
+    out = capsys.readouterr().out
+    assert "--- rule group 1/3 ---" in out and "screensaver 1/5 S1" in out
+    s.handle_key("N")
+    out = capsys.readouterr().out
+    assert "screensaver 2/5 S3" in out and "rule group" not in out
+    s.handle_key("N")
+    out = capsys.readouterr().out
+    assert "--- rule group 2/3 ---" in out and "screensaver 3/5 S2" in out
+    assert s.pair_index == 1
+    s.handle_key("S")  # append a B pair: end of file, grouped with B in the view
+    assert len(s.pairs) == 6
+    assert s.view_order == [0, 2, 1, 4, 5, 3]
+    assert s.view_position == 2
+    s.handle_key("N")
+    s.handle_key("N")  # the appended pair, same group: no marker
+    out = capsys.readouterr().out
+    assert "screensaver 5/6" in out and "rule group" not in out
+    assert s.pair_index == 5
+    s.handle_key("N")
+    assert "--- rule group 3/3 ---" in capsys.readouterr().out
+    assert s.pair_index == 3
+    s.handle_key("7")
+    s.handle_key("s")
+    saved = load_screensaver(file)
+    assert [p["colorset"] for p in saved] == ["S1", "S2", "S3", "S7", "S5", "S2"]
+    assert saved[5]["rule"] == b
+    s.handle_key("P")
+    s.handle_key("X")  # delete the appended pair: file loses its last entry
+    saved = load_screensaver(file)
+    assert [p["colorset"] for p in saved] == ["S1", "S2", "S3", "S7", "S5"]
+    assert s.view_position == 4 and s.pair_index == 3
+
+
+def test_screensaver_plays_pairs_in_order_and_loops(make_store, tmp_path, capsys):  # PT-31
+    from odca.session import PLAY_TIMEOUT
+    store = review_store(make_store)
+    file = tmp_path / "saver.json"
+    save_screensaver([{"rule": ALL_ZERO.id, "colorset": "A", "colors": grey(10)},
+                      {"rule": ALL_ZERO.id, "colorset": "B", "colors": grey(20)}], file)
+    s = make_session(store, play_file=file)
+    assert s.play_mode and not s.screensaver_mode and not s.review_mode
+    assert s.pair_index == 0 and s.automaton.rule == ALL_ZERO
+    assert s.palette[0] == rgb("#0A0A0A")
+    assert s.automaton.generation == 0
+    out = capsys.readouterr().out
+    assert "screensaver saver.json: 2 pairs" in out and "screensaver 1/2 A" in out
+    assert "(" not in out.split("screensaver 1/2 A")[1]
+    for _ in range(17):
+        s.tick(1 / 60)
+    assert s.pair_index == 0 and s.automaton.generation == 0  # re-seeded in place
+    out = capsys.readouterr().out
+    assert "auto-init (repeating (period 1))" in out and "screensaver 2/2" not in out
+    s.handle_key("a")
+    s.tick(110)
+    assert s.pair_index == 0
+    s.handle_key("i")  # grace restarts; the watchdog does not
+    assert abs(s.play_elapsed - 110) < 1
+    s.handle_key("a")
+    for _ in range(5):
+        s.handle_key("-")  # ~18 generations in the next tick: the transition leaves old rows on screen
+    capsys.readouterr()
+    s.tick(10)  # the watchdog expires during this tick; boredom fires within it
+    assert s.pair_index == 1
+    assert s.play_elapsed < 1
+    assert s.palette[0] == rgb("#141414")
+    banks = list(s.row_banks)
+    first_b = banks.index(1)
+    assert banks[first_b - 1] == 0 and banks[-1] == 1  # R-X5
+    assert s.color(first_b - 1, 0) == rgb("#0A0A0A")
+    assert s.palette8[0] == rgb("#0A0A0A") and s.palette8[4] == rgb("#141414")
+    assert "screensaver 2/2 B (repeating (period 1))" in capsys.readouterr().out
+    s.tick(PLAY_TIMEOUT)  # loops back to pair 1
+    assert s.pair_index == 0
+    out = capsys.readouterr().out
+    assert "screensaver 1/2 A (repeating (period 1))" in out and "screensaver 2/2" not in out
+    s.tick(1 / 60)
+    s.handle_key("N")
+    assert s.pair_index == 1 and s.automaton.generation == 0
+    assert "screensaver 2/2 B (next)" in capsys.readouterr().out
+    s.handle_key("N")  # wraps
+    assert s.pair_index == 0
+    s.handle_key(" ")
+    s.handle_key("P")  # live while paused; wraps backward
+    assert s.pair_index == 1
+    assert "screensaver 2/2 B (previous)" in capsys.readouterr().out
+
+
+def test_screensaver_watchdog_and_grace_period(make_store, tmp_path, capsys):  # PT-31
+    store = review_store(make_store)
+    file = tmp_path / "saver.json"
+    save_screensaver([{"rule": ALL_PRODUCIBLE.id, "colorset": "A", "colors": grey(10)},
+                      {"rule": ALL_PRODUCIBLE.id, "colorset": "B", "colors": grey(20)}], file)
+    s = make_session(store, play_file=file)
+    s.handle_key("a")  # auto-init off: only time sequences now
+    for _ in range(50):
+        s.handle_key("+")
+    capsys.readouterr()
+    s.tick(100)
+    s.handle_key(" ")
+    s.tick(1000)  # paused time counts for nothing
+    s.handle_key(" ")
+    s.handle_key("i")  # at 100 s: restarts the grace period, not the watchdog
+    assert s.since_init == 0 and abs(s.play_elapsed - 100) < 1e-6
+    s.tick(20)
+    assert s.pair_index == 0
+    s.tick(39.5)
+    assert s.pair_index == 0
+    s.tick(1.0)  # 60 s since the re-seed: transition
+    assert s.pair_index == 1
+    assert "screensaver 2/2 B (timeout)" in capsys.readouterr().out
+    assert s.play_elapsed == 0
+    s.tick(119.5)
+    assert s.pair_index == 1
+    s.tick(1.0)
+    assert s.pair_index == 0
+
+
+def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33
+    store = review_store(make_store)
+    s = make_session(store)
+    assert s.active_name == "S1" and s.palette[0] == rgb("#0A0A0A")
+    s.handle_key("]")
+    assert s.active_name == "S2" and s.color_set == 2
+    assert "color set S2" in capsys.readouterr().out
+    for _ in range(8):
+        s.handle_key("]")
+    assert s.active_name == "S0"
+    s.handle_key("]")  # beyond the hot ten: the pool
+    assert s.active_name == "PoolA" and s.active_set["slot"] is None
+    assert s.palette[0] == rgb("#646464")
+    s.handle_key("]")  # wraps
+    assert s.active_name == "S1"
+    s.handle_key("[")
+    s.handle_key("[")
+    assert s.active_name == "S0"
+    s.handle_key("4")
+    assert s.active_name == "S4"
+    for _ in range(7):
+        s.handle_key("]")  # S5 .. S0, PoolA
+    assert s.active_name == "PoolA"
+    s.handle_key("c")
+    s.handle_key("S")
+    assert "saved color set PoolA" in capsys.readouterr().out
+    entry = next(e for e in store.load_color_set_file()["sets"] if e["name"] == "PoolA")
+    assert entry["slot"] is None
+    g = grey(100)
+    assert entry["colors"] == [g[0], g[1], g[3], g[2]]
+    s.handle_key("1")
+    assert s.palette[0] == rgb("#0A0A0A")
+
+
+def test_saved_rule_carries_its_color_set_and_cycle_applies_it(make_store, capsys):  # PT-34
+    store = review_store(make_store)
+    s = make_session(store)
+    s.handle_key("3")
+    s.handle_key("c")
+    rule = s.automaton.rule
+    capsys.readouterr()
+    s.handle_key("s")
+    assert f"saved rule {rule.id} S3" in capsys.readouterr().out
+    pairs = store.load_interesting_pairs()
+    assert len(pairs) == 1 and pairs[0]["colorset"] == "S3"
+    assert pairs[0]["colors"] == ["#1E1E1E", "#1F1F1F", "#212121", "#202020"]
+    s.handle_key("m")
+    mutant = s.automaton.rule
+    s.handle_key("7")  # S7 showing with the unsaved (mutant) rule
+    assert s.unsaved_set["name"] == "S3"  # captured when the mutant arrived
+    s.handle_key("n")
+    assert s.automaton.rule == rule
+    assert [c[0] for c in s.palette] == [0x1E, 0x1F, 0x21, 0x20]
+    assert "interesting 1/1 S3" in capsys.readouterr().out
+    s.handle_key("n")  # back to the unsaved slot: mutant with S3
+    assert s.automaton.rule == mutant
+    assert s.palette[0] == rgb("#1E1E1E")

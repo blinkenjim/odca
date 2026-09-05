@@ -12,6 +12,7 @@ CANDIDATES_PATH = Path.home() / ".odca" / "candidates"
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 INTERESTING_PATH = _REPO_ROOT / "interesting-rules.json"  # screensaver-format pairs (R-P3)
 COLORSETS_PATH = _REPO_ROOT / "colorsets" / "colorsets.json"  # shared (R-P4)
+CANDIDATE_PALETTES_PATH = _REPO_ROOT / "colorsets" / "candidates.json"  # raw pool source (R-V2)
 
 # Built-in fallback so the default slot always exists (R-U4).
 DEFAULT_COLOR_SETS = {1: {"name": "ODCA default", "colors": ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]}}
@@ -31,14 +32,17 @@ def save_rule(rule, path=DEFAULT_PATH):
     path.write_text(rule.id + "\n")
 
 
-def load_interesting_pairs(path=INTERESTING_PATH):
-    """Return the keeper file's pairs [{'rule', 'colorset', 'colors'}] (R-P3, R-P5).
-
-    Malformed pairs are skipped; a missing or unparseable file yields none.
+def load_screensaver(path):
+    """Return a screensaver file's pairs [{'rule', 'colorset', 'colors'}] (R-P5),
+    None if the file is missing, [] if unparseable; malformed pairs are skipped.
     """
     try:
-        entries = json.loads(Path(path).read_text()).get("pairs", [])
-    except (OSError, ValueError, AttributeError):
+        text = Path(path).read_text()
+    except OSError:
+        return None
+    try:
+        entries = json.loads(text).get("pairs", [])
+    except (ValueError, AttributeError):
         return []
     pairs = []
     for e in entries if isinstance(entries, list) else []:
@@ -52,11 +56,21 @@ def load_interesting_pairs(path=INTERESTING_PATH):
     return pairs
 
 
-def save_interesting_pairs(pairs, path=INTERESTING_PATH):
+def save_screensaver(pairs, path):
+    """Write a screensaver file (R-P5) in the shared layout."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     entries = [{"rule": p["rule"], "colorset": p["colorset"], "colors": list(p["colors"])} for p in pairs]
     path.write_text(json.dumps({"pairs": entries}, indent=1) + "\n")
+
+
+def load_interesting_pairs(path=INTERESTING_PATH):
+    """The keeper file's pairs (R-P3): a screensaver file; missing reads as none."""
+    return load_screensaver(path) or []
+
+
+def save_interesting_pairs(pairs, path=INTERESTING_PATH):
+    save_screensaver(pairs, path)
 
 
 def append_interesting(rule, path=INTERESTING_PATH, colorset=None, colors=None):
@@ -143,6 +157,23 @@ def save_color_sets(sets, path=COLORSETS_PATH):
     save_color_set_file({"sets": slotted + pool, "dropped": file["dropped"]}, path)
 
 
+def load_candidate_palettes(path=CANDIDATE_PALETTES_PATH):
+    """Palettes from colorsets/candidates.json, the raw pool source (R-V2), slot None."""
+    try:
+        entries = json.loads(Path(path).read_text()).get("palettes", [])
+    except (OSError, ValueError, AttributeError):
+        return []
+    out = []
+    for e in entries if isinstance(entries, list) else []:
+        try:
+            name, colors = str(e["name"]), list(e["colors"])
+        except (KeyError, TypeError):
+            continue
+        if len(colors) == 4 and all(_valid_color(c) for c in colors):
+            out.append({"slot": None, "name": name, "colors": [c.upper() for c in colors]})
+    return out
+
+
 def load_candidates(path=CANDIDATES_PATH):
     """Return the saved candidate Rules, skipping any invalid lines."""
     try:
@@ -171,10 +202,11 @@ class Store:
     keeper file; tests point both at a temporary directory (R-P).
     """
 
-    def __init__(self, state_dir=None, keeper_file=None, colorsets_file=None):
+    def __init__(self, state_dir=None, keeper_file=None, colorsets_file=None, candidates_file=None):
         self.state_dir = Path(state_dir) if state_dir else Path.home() / ".odca"
         self.keeper_file = Path(keeper_file) if keeper_file else INTERESTING_PATH
         self.colorsets_file = Path(colorsets_file) if colorsets_file else COLORSETS_PATH
+        self.candidate_palettes_file = Path(candidates_file) if candidates_file else CANDIDATE_PALETTES_PATH
 
     @property
     def rule_file(self):
@@ -207,6 +239,15 @@ class Store:
 
     def load_color_sets(self):
         return load_color_sets(self.colorsets_file)
+
+    def load_color_set_file(self):
+        return load_color_set_file(self.colorsets_file)
+
+    def save_color_set_file(self, file):
+        save_color_set_file(file, self.colorsets_file)
+
+    def load_candidate_palettes(self):
+        return load_candidate_palettes(self.candidate_palettes_file)
 
     def save_color_sets(self, sets):
         save_color_sets(sets, self.colorsets_file)

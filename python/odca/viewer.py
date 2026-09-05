@@ -3,7 +3,8 @@
 All behavior lives in session.py (the toolkit-free orchestration layer);
 this module only opens the window, turns pygame key events into Session
 keys, calls Session.tick at the refresh rate, and blits Session.history
-through the active color set (Session.palette). See session.py for the controls.
+through the two-bank palette (Session.palette8, Session.row_banks). See
+session.py for the controls and modes.
 """
 
 import numpy as np
@@ -37,7 +38,7 @@ _KEYS = {
 
 def map_key(key, unicode=""):
     """Translate a pygame key code (plus typed character) to a Session key."""
-    if unicode in ("S", "C"):  # shift-s saves a color set, shift-c cycles back
+    if unicode in ("S", "C", "N", "P", "X", "[", "]"):  # shifted / review / pool keys
         return unicode
     if pygame.K_0 <= key <= pygame.K_9:
         return str(key - pygame.K_0)
@@ -53,8 +54,9 @@ class Viewer:
 
     def draw(self, screen):
         session = self.session
-        palette = np.array(session.palette, dtype=np.uint8)
-        rgb = palette[session.history]  # (rows + 1, cols, 3)
+        palette8 = np.array(session.palette8, dtype=np.uint8)  # two banks of four (R-X5)
+        index = session.row_banks[:, None].astype(np.int64) * 4 + session.history
+        rgb = palette8[index]  # (rows + 1, cols, 3)
         surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))
         cell = self.cell_size
         scaled = pygame.transform.scale(surf, (session.cols * cell, (session.rows + 1) * cell))
@@ -83,5 +85,6 @@ class Viewer:
             self.draw(screen)
             pygame.display.set_caption(f"ODCA — rule {session.rule_id}")  # R-U6
             pygame.display.flip()
+        session.finish()  # color set review saves the kept sets (R-V5)
         session.stop_search()
         pygame.quit()

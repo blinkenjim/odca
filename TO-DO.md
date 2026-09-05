@@ -1,15 +1,16 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-05):** Swift 2.34.0, Python 2.15.2 (format compatibility only). The color set
-pool is reviewed (30 kept, 16 dropped). Swift has the two workshop modes
-(`--colorset-review`, `--screensaver-review <file>` with
-`--consistency-check <file>`) and the first study of the art itself:
-`--screensaver <file>` plays pairs sequentially, two minutes each
-(re-seeding in place when boring, then handing over after a quiet minute
-or at the next re-seed), rows keeping their colors across transitions,
-N/P by hand. Python has none of the review or screensaver modes yet (port =
-Python 2.19.0). Next: compose and watch screensaver files; then the
-vision items below, starting with the declarative script design.
+**YOU ARE HERE (2026-09-05):** Swift 2.34.0, Python 2.17.0: at par on
+every special mode. The color set pool is reviewed (30 kept, 16 dropped).
+Both have the two workshop modes (`--colorset-review`,
+`--screensaver-review <file>` with `--consistency-check <file>`) and the
+first study of the art itself: `--screensaver <file>` plays pairs
+sequentially, two minutes each (re-seeding in place when boring, then
+handing over after a quiet minute or at the next re-seed), rows keeping
+their colors across transitions, N/P by hand. Python skips only the gallery
+polish (display-link pacing, resizable window, pointer hiding). Next:
+compose and watch screensaver files; then the vision items below, starting
+with the declarative script design.
 
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
@@ -43,13 +44,14 @@ vision items below, starting with the declarative script design.
       chase the gallery polish (display-link pacing, resizable / full-screen
       window, pointer hiding). The odd/even convention stands with the
       direction inverted: Swift leads at even minors, Python ports at odd.
-- [ ] Python catch-up (2.17.0): the pool and active-set model with `[`/`]`,
-      arrangements by name and `S` by name; color set review
+- [x] Python catch-up (2.17.0, 2026-09-05): the pool and active-set model
+      with `[`/`]`, arrangements by name and `S` by name; color set review
       (`--colorset-review`); screensaver review and consistency check
       (`--screensaver-review`, `--consistency-check`) with the screen-fill
       on steps; screensaver play (`--screensaver`, watchdog and grace, rows
       keeping their colors, N/P); saved presentations applied by n/p.
-      Pygame's resizable window is optional; smoothness is not a goal.
+      Pygame's window stays fixed-size (resizable optional, not done);
+      smoothness is not a goal.
 - [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
       or expose a reduced, safe set of keys (no quitting, nothing that can
       leave the app in a messed-up state) for installations where the

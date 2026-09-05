@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 2.15.2 — 2026-09-05 (format compatibility only: pool-preserving color set save, keeper file as pairs; no review or screensaver modes)
+Version 2.17.0 — 2026-09-05 (catch-up: active-set pool model with `[`/`]`, color set review, screensaver review and consistency check, screensaver play, saved presentations by n/p; gallery polish stays Swift-only)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -68,29 +68,49 @@ copy these choices, but they are known to work.
   `K_KP_MINUS` (R-K8).
 - **RNG** (R-N1): `numpy.random.default_rng()` (PCG64). Worker processes
   seed from OS entropy so their streams differ.
-- **Color sets** (R-U4, R-P4): `Session` loads `{slot: {name, colors}}`
-  via `Store.load_color_sets` (anchored to `colorsets/colorsets.json` at
-  the repo root, injectable for tests) and exposes `Session.palette`, the
-  active set's four RGB tuples after arrangement; `viewer.py` builds its
-  numpy palette from that each frame. `map_key` takes the pygame key code
-  plus `event.unicode` so shift-s (`S`) and shift-c (`C`) are distinguishable
-  from `s` and `c`.
+- **Color sets** (R-U4, R-P4, R-K17): `Session` keeps an *active set*
+  (`active_set`: slot or None, name, colors) that may be any pool member;
+  digits pick the hot ten through `Store.load_color_sets`, `[`/`]` walk the
+  whole pool in review order (`Session.pool`), and arrangements are
+  remembered per set name; `S` bakes the arrangement into the pool entry by
+  name through `Store.load_color_set_file`/`save_color_set_file`. Paths are
+  anchored to `colorsets/colorsets.json` and `colorsets/candidates.json` at
+  the repo root, injectable for tests (`Store(candidates_file=...)`).
+  `Session.palette8` and `Session.row_banks` give the two-bank palette of
+  R-X5; `viewer.py` indexes `palette8[row_banks * 4 + history]` each frame
+  (outside screensaver mode both banks are the active set). `map_key` takes
+  the pygame key code plus `event.unicode` so `S`, `C`, `N`, `P`, `X`, `[`,
+  and `]` arrive as typed.
+- **Modes** (REQTS 4b–4d): `python -m odca --colorset-review`,
+  `--screensaver-review <file>`, `--consistency-check <file>` (must exist;
+  the grouped view of R-W7), `--screensaver <file>` (must exist; play, with
+  precedence over the review flags). `__main__.py` parses them by hand and
+  passes `review_mode`, `screensaver_file`, `group_by_rule`, `play_file` to
+  `Session`; `Viewer.run` calls `Session.finish()` at exit so color set
+  review saves (R-V5). Play mode clocks (`play_elapsed`, `since_init`)
+  advance in `tick` before the generations, so a re-seed inside a tick
+  restarts the grace period from that tick. Pygame's window is fixed-size;
+  display-link pacing, resizing, and pointer hiding are Swift-only by
+  decision (TO-DO, 2026-09-05).
 - **Keeper-file anchor** (R-P3): `store.INTERESTING_PATH` resolves three
   levels up from `store.py` to the repository root, where
   `interesting-rules.json` is shared by all implementations. Every port
   must make an equivalent anchoring decision. Python writes pairs with the
-  active slot's arranged colors (`json.dumps(indent=1)`, the reference
-  layout); its `n`/`p` apply the rule only, not the saved colors, since
-  Python still draws through a digit slot.
+  active set's name and arranged colors (`json.dumps(indent=1)`, the
+  reference layout, shared with `store.save_screensaver`); `n`/`p` apply a
+  saved pair's colors as the active set, and the unsaved slot restores the
+  set that was showing when the unsaved rule arrived (`unsaved_set`).
 
 ## Testing notes (see TESTS.md for the normative plan)
 
 - Run everything: `.venv/bin/python -m pytest`. Layer 1 runner:
   `tests/test_conformance.py`; Layer 2 lives across
   `tests/test_automaton.py`, `test_classify.py`, `test_search.py`,
-  `test_store.py`, and `test_session.py` (PT-9/10/10a/13/14 against a
-  headless `Session` with a temp `Store` and `CandidateSearch(workers=0)`),
-  using pytest `tmp_path` for all file paths.
+  `test_store.py`, and `test_session.py` (PT-9/10/10a/13/14 and
+  PT-26–PT-31, PT-33, PT-34 against a headless `Session` with a temp
+  `Store` and `CandidateSearch(workers=0)`; PT-27 and PT-29 in
+  `test_store.py`), using pytest `tmp_path` for all file paths. PT-32
+  (resizing) is Swift-only.
 - Headless UI checks: set `SDL_VIDEODRIVER=dummy` and drive
   `Viewer.handle_key` directly.
 - **Warning:** a default-constructed `Session` (or `Viewer`) touches real
