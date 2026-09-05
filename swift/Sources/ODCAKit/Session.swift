@@ -39,6 +39,8 @@ public final class Session {
     public static let stagnationScreens = 4  // minority population steady this long -> stagnant (R-A1)
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
     public static let playTimeout = 300.0  // screensaver: seconds on a pair before advancing (R-X3)
+    public static let historyDepth = 2048  // rows remembered beyond the screen (R-U8)
+    public static let minCols = 3  // R-M2
 
     /// Digit keys in review order (R-V): the first ten kept sets own these.
     public static let keyOrder = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]
@@ -67,11 +69,13 @@ public final class Session {
         case digit(Int)
     }
 
-    public let cols: Int
-    public let rows: Int
+    public private(set) var cols: Int
+    public private(set) var rows: Int
     public private(set) var automaton: Automaton
-    /// The most recent generations, oldest first, at most `rows + 1` entries:
-    /// one more than the display, so continuous scrolling has a row to slide in.
+    /// Remembered generations, oldest first, up to `historyDepth` (never
+    /// fewer than `rows + 1`). The display shows the last `rows + 1`: one
+    /// more than the window, so continuous scrolling has a row to slide in;
+    /// a taller window uncovers older rows (R-U8).
     public private(set) var history: [[UInt8]] = []
     /// Palette bank (0 or 1) each history row was painted from (R-X5).
     public private(set) var rowBanks: [UInt8] = []
@@ -199,10 +203,51 @@ public final class Session {
         }
         history.append(row)
         rowBanks.append(UInt8(bank))
-        if history.count > rows + 1 {
-            history.removeFirst()
-            rowBanks.removeFirst()
+        trimHistory()
+    }
+
+    private func trimHistory() {
+        let keep = max(Session.historyDepth, rows + 1)
+        if history.count > keep {
+            history.removeFirst(history.count - keep)
+            rowBanks.removeFirst(rowBanks.count - keep)
         }
+    }
+
+    /// Index of the first history row the display shows (R-U3, R-U8).
+    public var visibleStart: Int { max(0, history.count - (rows + 1)) }
+
+    /// Change the geometry (R-U8): the state vector keeps its center — cropped
+    /// from both edges when narrower, padded at both edges when wider, the
+    /// new cells seeded at random (older rows padded with state 0) — and the
+    /// boring detectors start afresh. Returns whether anything changed.
+    @discardableResult
+    public func resize(cols newCols: Int, rows newRows: Int) -> Bool {
+        let newCols = max(Session.minCols, newCols)
+        let newRows = max(1, newRows)
+        guard newCols != cols || newRows != rows else { return false }
+        if newCols != cols {
+            func fit(_ row: [UInt8], padding: (Int) -> [UInt8]) -> [UInt8] {
+                if newCols < row.count {
+                    let left = (row.count - newCols) / 2
+                    return Array(row[left..<(left + newCols)])
+                }
+                let add = newCols - row.count
+                return padding(add / 2) + row + padding(add - add / 2)
+            }
+            history = history.map { fit($0) { [UInt8](repeating: 0, count: $0) } }
+            var rng = self.rng
+            let cells = fit(automaton.cells) { Automaton.randomCells(width: $0, using: &rng) }
+            self.rng = rng
+            automaton = try! Automaton(width: newCols, rule: automaton.rule, cells: cells)
+            if !history.isEmpty { history[history.count - 1] = cells }
+        }
+        cols = newCols
+        rows = newRows
+        trimHistory()
+        resetBoredom()
+        output("resized \(cols)x\(rows)")  // R-O14
+        return true
     }
 
     /// The eight-entry display palette: two banks of four (R-X5). Outside

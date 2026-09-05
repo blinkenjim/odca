@@ -79,6 +79,11 @@ consume candidates.
 | a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; on at startup |
 | q   | quit                                         |
 
+The window is resizable (Swift for now), snapping to whole 4-point cells,
+with full screen available; the automaton's width follows the window,
+keeping the picture centered while cells appear or vanish at the edges,
+and a taller window uncovers remembered rows.
+
 The `n`/`p` cycle includes one extra slot holding the unsaved rule that was
 running before browsing began: stepping past the last saved rule (or back
 from rule 0) returns to it. Pressing `r` or `m` makes the new rule occupy

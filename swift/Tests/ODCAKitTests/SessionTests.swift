@@ -815,4 +815,53 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.palette8, session.palette + session.palette)
         XCTAssertEqual(session.color(row: 0, col: 0), session.palette[Int(session.history[0][0])])
     }
+
+    // MARK: PT-32 resizing (R-U8)
+
+    func testResizePreservesCenterAndUncoversHistory() throws {
+        let lines = Lines()
+        let session = makeSession(try makeStore(), lines: lines)
+        _ = session.handleKey(.a)  // keep auto-init out of the way
+        session.tick(session.delay * 40)  // 41 rows remembered, 16 + 1 shown
+        XCTAssertEqual(session.history.count, 41)
+        XCTAssertEqual(session.visibleStart, 41 - 17)
+        let before = session.automaton.cells  // 32 cells
+        let oldTop = session.history[0]
+
+        // Narrower: the middle 20 cells survive, in every remembered row.
+        XCTAssertTrue(session.resize(cols: 20, rows: 16))
+        XCTAssertEqual(session.cols, 20)
+        XCTAssertEqual(session.automaton.cells, Array(before[6..<26]))
+        XCTAssertEqual(session.history[0], Array(oldTop[6..<26]))
+        XCTAssertEqual(session.history.count, 41)  // history kept
+        XCTAssertEqual(session.boringStreak, 0)  // detectors reset
+        XCTAssertTrue(lines.take().contains("resized 20x16"))
+
+        // Wider: the 20 stay centered, older rows padded with 0, the live row with random cells.
+        let mid = session.automaton.cells
+        XCTAssertTrue(session.resize(cols: 30, rows: 16))
+        XCTAssertEqual(Array(session.automaton.cells[5..<25]), mid)
+        XCTAssertEqual(Array(session.history[0][0..<5]), [0, 0, 0, 0, 0])
+        XCTAssertEqual(session.history.last!, session.automaton.cells)
+        for _ in 0..<5 { session.tick(session.delay) }
+        XCTAssertEqual(session.automaton.cells.count, 30)
+
+        // Taller: the window uncovers remembered rows instead of showing blank.
+        XCTAssertTrue(session.resize(cols: 30, rows: 40))
+        XCTAssertEqual(session.visibleStart, max(0, session.history.count - 41))
+        XCTAssertEqual(session.scrollOffset, 1)  // 46 rows remembered > 40: still "full"
+        XCTAssertFalse(session.resize(cols: 30, rows: 40))  // no change: nothing happens
+        XCTAssertTrue(session.resize(cols: 1, rows: 0))  // clamped to the minimum
+        XCTAssertEqual(session.cols, Session.minCols)
+        XCTAssertEqual(session.rows, 1)
+    }
+
+    func testHistoryDepthIsBounded() throws {
+        let session = makeSession(try makeStore())
+        _ = session.handleKey(.a)
+        for _ in 0..<50 { _ = session.handleKey(.plus) }
+        for _ in 0..<3 { session.tick(1.0) }  // well past the depth (2000 steps per tick cap)
+        XCTAssertEqual(session.history.count, Session.historyDepth)
+        XCTAssertEqual(session.rowBanks.count, Session.historyDepth)
+    }
 }

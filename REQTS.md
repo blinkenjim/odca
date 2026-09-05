@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.26.3 — 2026-09-04
+Version 2.28.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -27,7 +27,8 @@ R-W7. 2.24.1: every pair activation fills the screen at once — R-W8. 2.24.2:
 so does every color set review step — R-V7. 2.26.0: screensaver mode
 (sequential study) — section 4d, R-O13. 2.26.1: rows keep their colors
 across transitions — R-X5. 2.26.2: watchdog 300 s, restarted by `i` —
-R-X3. 2.26.3: `N`/`P` step between pairs — R-X6.)
+R-X3. 2.26.3: `N`/`P` step between pairs — R-X6. 2.28.0: resizable
+window and geometry — R-U2, R-U8, R-O14.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -143,9 +144,16 @@ program must:
    (R-B3).
 
 **R-U2 (display geometry).** The display is a grid of square cells,
-`cell_size` pixels on a side (default 4). Defaults: a 1200×800-pixel
-window, giving 300 columns × 200 rows. The row count of the automaton
-equals the column count of the display.
+`cell_size` points on a side (4; a single constant, not yet adjustable).
+The window is resizable, including full screen, and the grid holds as
+many whole cells as fit: `cols` = ⌊width / cell_size⌋, `rows` =
+⌊height / cell_size⌋. The default (and first-launch) window is 1200×800
+points, giving 300 × 200 cells; the minimum is 160×120 points (40 × 30
+cells). Interactive resizing should snap to whole cells (resize
+increments of `cell_size`); where a remainder is unavoidable (full screen)
+the grid is centered and the margins are painted in the state-0 color.
+The window may remember its last size and position through the
+platform's standard mechanism. The automaton's width equals `cols`.
 
 **R-U3 (scrolling).** The display shows the most recent generations as
 horizontal rows, newest at the bottom of the filled region. A history
@@ -206,6 +214,18 @@ nominal time between generations — independent of the display refresh:
   even when several occur per refresh.
 - A per-refresh catch-up cap (implementation-chosen, ≥ 500 generations)
   must prevent a stall from freezing the program.
+
+**R-U8 (resizing).** When the geometry changes: the state vector keeps
+its center — when narrower, cells are cropped equally from both edges;
+when wider, new cells are added equally at both edges, seeded at random
+in the live row and with state 0 in remembered rows — so the picture
+stays put while the frame changes around it (the wrap seam moves; that is
+accepted). The history remembers up to 2048 rows (never fewer than
+`rows` + 1), so a taller window uncovers older generations rather than
+showing blank rows; a shorter window hides them. Every boring detector
+(R-A) restarts, since a resized automaton is a new system, and the
+screenful-based windows take the new `rows`. A resize is not a rule
+change: undo and the interesting-rule cycle are untouched. Prints R-O14.
 
 **R-U6 (window title).** The window title must show the current rule ID
 (format: `ODCA — rule <id>`), kept current as the rule changes.
@@ -647,6 +667,7 @@ The program prints single-line, human-readable status to standard output:
   consistency check, `--- rule group <g>/<G> ---` before an activation
   that enters a different rule's group. Arrangement messages (R-O9) name
   the set.
+- **R-O14.** On a geometry change (R-U8): `resized <cols>x<rows>`.
 - **R-O13.** In screensaver mode (section 4d): on entry `screensaver
   <file>: <n> pairs`; on playing a pair `screensaver <i>/<n> <colorset>`,
   followed on advances by the reason in parentheses — the auto-init

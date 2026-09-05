@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.26.3 — 2026-09-04 (color set and screensaver review modes; ahead of Python)
+Version 2.28.0 — 2026-09-04 (color set and screensaver review modes; ahead of Python)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -86,6 +86,14 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   `palette8` holds the two banks; `pushRow` moves a changed active set to
   the idle bank in play mode, while other modes write both banks. The
   renderer indexes `palette8[bank * 4 + state]`.
+- **Resizing** (R-U2, R-U8): `AutomatonView.layout()` derives cols/rows
+  from its bounds and calls `Session.resize`; the grid lives in a
+  clipping `gridLayer` centered in the view, whose background is the
+  state-0 color for the margins. The app delegate sets
+  `contentResizeIncrements` to the cell size, enables full screen, and
+  sets a frame autosave name; SwiftUI supplies `defaultSize` 1200×800 and
+  a 160×120 minimum. `Session.history` is a ring of up to
+  `Session.historyDepth` rows; `visibleStart` marks the displayed tail.
 - **Engine**: plain loops over `[UInt8]` rows — native code needs no numpy
   equivalent; the 0/1/4/16 weighted-sum lookup and 49-slot dense table
   match the reference. Conformance vectors certify equality.

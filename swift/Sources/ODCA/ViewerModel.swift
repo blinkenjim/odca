@@ -10,9 +10,11 @@ import ODCAKit
 final class ViewerModel: ObservableObject {
     static let shared = ViewerModel()
 
-    static let cellSize = 4
-    static let cols = 1200 / cellSize
-    static let rows = 800 / cellSize
+    static let cellSize = 4  // points per cell (R-U2)
+    static let defaultCols = 1200 / cellSize
+    static let defaultRows = 800 / cellSize
+    var cols: Int { session.cols }
+    var rows: Int { session.rows }
 
     let session: Session
     private(set) var frame: CGImage?
@@ -60,7 +62,7 @@ final class ViewerModel: ObservableObject {
             play = url  // --sequential is the default and only order for now
             if review || screensaver != nil { print("note: --screensaver takes precedence over review flags") }
         }
-        session = Session(cols: Self.cols, rows: Self.rows, reviewMode: review,
+        session = Session(cols: Self.defaultCols, rows: Self.defaultRows, reviewMode: review,
                           screensaverFile: screensaver, groupByRule: groupByRule, playFile: play)
         session.startSearch()
 
@@ -73,6 +75,11 @@ final class ViewerModel: ObservableObject {
             }
             return nil  // consumed
         }
+    }
+
+    /// The window's content area changed (R-U8).
+    func resize(cols: Int, rows: Int) {
+        session.resize(cols: cols, rows: rows)
     }
 
     func shutDown() {
@@ -90,20 +97,23 @@ final class ViewerModel: ObservableObject {
         if newTitle != title { title = newTitle }
     }
 
-    /// R-U3: the image is one row taller than the window (rows + 1); the
-    /// view scrolls it up by scrollOffset cells. Filled rows from the top,
-    /// state-0 background below until the buffer fills.
+    /// R-U3/R-U8: the image is one row taller than the window (rows + 1) and
+    /// shows the last rows + 1 remembered rows; the view scrolls it up by
+    /// scrollOffset cells. Filled rows from the top, state-0 background
+    /// below until the buffer fills.
     private func renderImage() -> CGImage? {
-        let cols = Self.cols
-        let rows = Self.rows + 1
+        let cols = session.cols
+        let rows = session.rows + 1
         let palette = session.palette8  // two banks of four (R-U4, R-X5)
         let banks = session.rowBanks
         let background = session.palette[0]
         var pixels = [UInt8](repeating: 0, count: rows * cols * 4)
         let history = session.history
+        let start = session.visibleStart
         for row in 0..<rows {
-            let cells: [UInt8]? = row < history.count ? history[row] : nil
-            let base4 = row < banks.count ? Int(banks[row]) * 4 : 0
+            let index = start + row
+            let cells: [UInt8]? = index < history.count ? history[index] : nil
+            let base4 = index < banks.count ? Int(banks[index]) * 4 : 0
             for col in 0..<cols {
                 let color = cells.map { palette[base4 + Int($0[col])] } ?? background
                 let base = (row * cols + col) * 4
@@ -168,6 +178,7 @@ final class ViewerModel: ObservableObject {
 @MainActor
 final class AutomatonView: NSView {
     private let model: ViewerModel
+    private let gridLayer = CALayer()  // clips the grid; margins show the view's background
     private let imageLayer = CALayer()
     private var displayLink: CADisplayLink?
     private var lastTimestamp: CFTimeInterval?
@@ -181,7 +192,16 @@ final class AutomatonView: NSView {
         imageLayer.contentsGravity = .resize
         imageLayer.magnificationFilter = .nearest  // crisp cells, no smoothing
         imageLayer.minificationFilter = .nearest
-        layer?.addSublayer(imageLayer)
+        gridLayer.masksToBounds = true
+        gridLayer.addSublayer(imageLayer)
+        layer?.addSublayer(gridLayer)
+    }
+
+    /// R-U8: the grid follows the view — as many whole cells as fit.
+    override func layout() {
+        super.layout()
+        let cell = CGFloat(ViewerModel.cellSize)
+        model.resize(cols: Int(bounds.width / cell), rows: Int(bounds.height / cell))
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -204,12 +224,20 @@ final class AutomatonView: NSView {
         lastTimestamp = link.timestamp
         model.frameTick(dt: dt)
         let cell = CGFloat(ViewerModel.cellSize)
+        let gridW = CGFloat(model.cols) * cell, gridH = CGFloat(model.rows) * cell
+        let bg = model.session.palette[0]
         CATransaction.begin()
         CATransaction.setDisableActions(true)  // no implicit animation of the slide
+        layer?.backgroundColor = CGColor(
+            red: CGFloat(bg.r) / 255, green: CGFloat(bg.g) / 255, blue: CGFloat(bg.b) / 255, alpha: 1)
+        // Center the grid; leftover points become margins in the background color (R-U2).
+        gridLayer.frame = CGRect(
+            x: floor((bounds.width - gridW) / 2), y: floor((bounds.height - gridH) / 2),
+            width: gridW, height: gridH)
         imageLayer.contents = model.frame
         imageLayer.frame = CGRect(
             x: 0, y: -CGFloat(model.scrollOffset) * cell,
-            width: bounds.width, height: CGFloat(ViewerModel.rows + 1) * cell)
+            width: gridW, height: CGFloat(model.rows + 1) * cell)
         CATransaction.commit()
     }
 }

@@ -1,6 +1,6 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-04):** Swift 2.26.3, Python 2.15.1. The color set
+**YOU ARE HERE (2026-09-04):** Swift 2.28.0 (resizable, full-screen window), Python 2.15.1. The color set
 pool is reviewed (30 kept, 16 dropped). Swift has the two workshop modes
 (`--colorset-review`, `--screensaver-review <file>` with
 `--consistency-check <file>`) and the first study of the art itself:

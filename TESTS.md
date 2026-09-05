@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.26.3 — 2026-09-04
+Version 2.28.0 — 2026-09-04
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -97,6 +97,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-29 | R-P5 | The screensaver file round-trips, escapes quotes in names, writes `{"pairs": []}` for an empty list in the shared layout, skips pairs with invalid rule IDs, and loads an unparseable file as empty. |
 | PT-30 | R-W7 | With a file of pairs whose rules run A, B, A, C, B: the grouped view order is A A B B C; entry and each crossing into another rule's group print the group marker, steps within a group do not; `S` appends to the file's end but joins its group in the view without moving the position; `s` rewrites the pair at its file position; `X` removes the pair from its file position and activates the pair now at that view position; the file is written in file order throughout. |
 | PT-31 | R-X1–R-X4, R-O13 | With a two-pair file whose rules die at once: entry plays pair 1 (its rule and colors, generation 0, no reason printed); the 17th generation (a screenful of boring rows) advances to pair 2 with a fresh seed and the reason printed, and no `auto-init` line; a further screenful loops back to pair 1; after the transition the old rows still read pair 1's colors and the new seed row pair 2's (R-X5), while outside screensaver mode a color change recolors every row at once; `N`/`P` step between pairs with a fresh seed and reasons `next`/`previous`, wrapping, also while paused. With auto-init off, a pair advances with reason `timeout` after 300 unpaused seconds, paused time not counting, a manual `i` restarting the clock, and the clock restarting on each pair. |
+| PT-32 | R-U8 | After 40 generations at 32 × 16: narrowing to 20 keeps the middle 20 cells of the live row and of every remembered row, keeps the history, resets the boring count, and prints `resized 20x16`; widening to 30 keeps those 20 centered with state-0 padding in old rows and random cells in the live row; a taller window shows the last rows + 1 remembered rows; a no-op resize returns false; sizes clamp to the minimum. The history never exceeds 2048 rows. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
 
 ---
@@ -125,6 +126,11 @@ from `REQTS.md`.
 - **M-9** At speeds below 30 generations per second the picture slides
   continuously rather than stepping; pausing and resuming produce no
   visible jump (R-U3, R-K10).
+- **M-10** Dragging the window edge resizes in 4-point steps; the picture
+  stays centered while cells appear or vanish at the edges; growing
+  taller uncovers older rows; full screen centers the grid with thin
+  background margins; the size and position return on relaunch (R-U2,
+  R-U8).
 
 ---
 

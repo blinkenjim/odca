@@ -7,6 +7,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // regular, focusable app and take the foreground.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async {  // the window exists by now (R-U2, R-U8)
+            for window in NSApp.windows {
+                window.contentResizeIncrements = NSSize(width: ViewerModel.cellSize, height: ViewerModel.cellSize)
+                window.collectionBehavior.insert(.fullScreenPrimary)
+                window.setFrameAutosaveName("ODCA main window")
+            }
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(
@@ -33,9 +40,7 @@ struct ContentView: View {
 
     var body: some View {
         AutomatonViewRepresentable(model: model)
-            .frame(
-                width: CGFloat(ViewerModel.cols * ViewerModel.cellSize),
-                height: CGFloat(ViewerModel.rows * ViewerModel.cellSize))
+            .frame(minWidth: 160, minHeight: 120)  // 40 x 30 cells at least (R-U2)
             .navigationTitle(model.title)
     }
 }
@@ -48,6 +53,7 @@ struct ODCAApp: App {
         WindowGroup {
             ContentView(model: ViewerModel.shared)
         }
-        .windowResizability(.contentSize)
+        .defaultSize(width: CGFloat(ViewerModel.defaultCols * ViewerModel.cellSize),
+                     height: CGFloat(ViewerModel.defaultRows * ViewerModel.cellSize))
     }
 }
