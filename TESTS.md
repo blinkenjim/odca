@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.28.0 — 2026-09-04
+Version 2.28.1 — 2026-09-04
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -128,9 +128,10 @@ from `REQTS.md`.
   visible jump (R-U3, R-K10).
 - **M-10** Dragging the window edge resizes in 4-point steps; the picture
   stays centered while cells appear or vanish at the edges; growing
-  taller uncovers older rows; full screen centers the grid with thin
-  background margins; the size and position return on relaunch (R-U2,
-  R-U8).
+  taller uncovers older rows; the animation freezes during the drag and
+  resumes without a burst; full screen centers the grid with thin
+  background margins and hides the pointer; the size and position return
+  on relaunch (R-U2, R-U8).
 
 ---
 

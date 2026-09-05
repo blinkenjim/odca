@@ -2,7 +2,17 @@ import SwiftUI
 import ODCAKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var observers: [Any] = []
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Hide the pointer in full screen, show it again on exit (R-U2).
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(
+            forName: NSWindow.didEnterFullScreenNotification, object: nil, queue: .main
+        ) { _ in NSCursor.hide() })
+        observers.append(center.addObserver(
+            forName: NSWindow.willExitFullScreenNotification, object: nil, queue: .main
+        ) { _ in NSCursor.unhide() })
         // Needed when launched via `swift run` (no app bundle): become a
         // regular, focusable app and take the foreground.
         NSApp.setActivationPolicy(.regular)

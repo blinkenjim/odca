@@ -87,6 +87,13 @@ final class ViewerModel: ObservableObject {
         session.stopSearch()
     }
 
+    /// Re-render the current state without advancing (used during a live
+    /// resize, when the animation and its computation are frozen, R-U8).
+    func renderOnly() {
+        frame = renderImage()
+        scrollOffset = session.scrollOffset
+    }
+
     /// One display refresh: advance the session by the elapsed frame time,
     /// then render (R-U5).
     func frameTick(dt: Double) {
@@ -219,10 +226,19 @@ final class AutomatonView: NSView {
         displayLink = link
     }
 
+    override func viewDidEndLiveResize() {
+        super.viewDidEndLiveResize()
+        lastTimestamp = nil  // the frozen interval must not be caught up (R-U8)
+    }
+
     @objc private func refresh(_ link: CADisplayLink) {
-        let dt = lastTimestamp.map { link.timestamp - $0 } ?? 0
-        lastTimestamp = link.timestamp
-        model.frameTick(dt: dt)
+        if inLiveResize {
+            model.renderOnly()  // frozen while the window is being resized (R-U8)
+        } else {
+            let dt = lastTimestamp.map { link.timestamp - $0 } ?? 0
+            lastTimestamp = link.timestamp
+            model.frameTick(dt: dt)
+        }
         let cell = CGFloat(ViewerModel.cellSize)
         let gridW = CGFloat(model.cols) * cell, gridH = CGFloat(model.rows) * cell
         let bg = model.session.palette[0]

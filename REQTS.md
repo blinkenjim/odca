@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.28.0 — 2026-09-04
+Version 2.28.1 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -28,7 +28,8 @@ so does every color set review step — R-V7. 2.26.0: screensaver mode
 (sequential study) — section 4d, R-O13. 2.26.1: rows keep their colors
 across transitions — R-X5. 2.26.2: watchdog 300 s, restarted by `i` —
 R-X3. 2.26.3: `N`/`P` step between pairs — R-X6. 2.28.0: resizable
-window and geometry — R-U2, R-U8, R-O14.)
+window and geometry — R-U2, R-U8, R-O14. 2.28.1: pointer hidden in full
+screen; frozen during a live resize — R-U2, R-U8.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -153,7 +154,8 @@ cells). Interactive resizing should snap to whole cells (resize
 increments of `cell_size`); where a remainder is unavoidable (full screen)
 the grid is centered and the margins are painted in the state-0 color.
 The window may remember its last size and position through the
-platform's standard mechanism. The automaton's width equals `cols`.
+platform's standard mechanism. In full screen the mouse pointer is
+hidden, and shown again on leaving. The automaton's width equals `cols`.
 
 **R-U3 (scrolling).** The display shows the most recent generations as
 horizontal rows, newest at the bottom of the filled region. A history
@@ -226,6 +228,10 @@ showing blank rows; a shorter window hides them. Every boring detector
 (R-A) restarts, since a resized automaton is a new system, and the
 screenful-based windows take the new `rows`. A resize is not a rule
 change: undo and the interesting-rule cycle are untouched. Prints R-O14.
+While the window is being resized interactively, the animation and its
+computation are frozen (the current state is simply re-fitted as the
+frame changes); when the resize ends, time resumes from that moment with
+no catch-up.
 
 **R-U6 (window title).** The window title must show the current rule ID
 (format: `ODCA — rule <id>`), kept current as the rule changes.

@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.28.0 — 2026-09-04 (color set and screensaver review modes; ahead of Python)
+Version 2.28.1 — 2026-09-04 (color set and screensaver review modes; ahead of Python)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -94,6 +94,10 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   sets a frame autosave name; SwiftUI supplies `defaultSize` 1200×800 and
   a 160×120 minimum. `Session.history` is a ring of up to
   `Session.historyDepth` rows; `visibleStart` marks the displayed tail.
+  During `inLiveResize` the display link only re-renders (no tick) and
+  the link timestamp is cleared at `viewDidEndLiveResize` so no interval
+  is caught up; full-screen enter/exit notifications hide and unhide
+  `NSCursor`.
 - **Engine**: plain loops over `[UInt8]` rows — native code needs no numpy
   equivalent; the 0/1/4/16 weighted-sum lookup and 49-slot dense table
   match the reference. Conformance vectors certify equality.
