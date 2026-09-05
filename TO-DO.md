@@ -127,6 +127,14 @@ viewer sees. Roadmap, roughly in order:
       displays the same way, from the same script, with no need to
       install anything as a screensaver. Separate delivery target from
       the .saver bundle.
+- [ ] tvOS app: screensaver mode only, always full screen, one bundled
+      screensaver file (and the color set pool) as read-only resources; no
+      keyboard assumed — Siri Remote play/pause pauses, swipes step N/P —
+      but a paired keyboard works as in screensaver mode. ODCAKit needs no
+      changes; the UIKit view mirrors AutomatonView (CALayer +
+      CADisplayLink). Needs an Xcode project (XcodeGen), the Developer
+      Program, signing, TestFlight, then App Store review; the license must
+      be settled first (App Store terms).
 - [ ] Packaging for distribution: Linux, macOS, iPadOS (iOS not ruled out).
 - [ ] Open-source license (attribution + share-alike spirit; must be
       compatible with App Store distribution) and copyright notice.
