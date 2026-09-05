@@ -134,7 +134,14 @@ viewer sees. Roadmap, roughly in order:
       changes; the UIKit view mirrors AutomatonView (CALayer +
       CADisplayLink). Needs an Xcode project (XcodeGen), the Developer
       Program, signing, TestFlight, then App Store review; the license must
-      be settled first (App Store terms).
+      be settled first (App Store terms). Agreed order: (1) settle the
+      license — a decision, not code; (2) build the tvOS app and run it in
+      the simulator — no account needed, and it shows whether the art
+      holds up on a big screen; (3) Developer Program membership and the
+      one-time Xcode sign-in / device pairing on the user's side;
+      (4) TestFlight on the user's own Apple TV; (5) App Store submission,
+      artifacts and answers prepared in advance, the web forms walked
+      through together.
 - [ ] Packaging for distribution: Linux, macOS, iPadOS (iOS not ruled out).
 - [ ] Open-source license (attribution + share-alike spirit; must be
       compatible with App Store distribution) and copyright notice.
