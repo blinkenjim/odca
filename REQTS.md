@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.30.0 — 2026-09-04
+Version 2.30.1 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -30,7 +30,8 @@ across transitions — R-X5. 2.26.2: watchdog 300 s, restarted by `i` —
 R-X3. 2.26.3: `N`/`P` step between pairs — R-X6. 2.28.0: resizable
 window and geometry — R-U2, R-U8, R-O14. 2.28.1: pointer hidden in full
 screen; frozen during a live resize — R-U2, R-U8. 2.30.0: equal screen
-time per pair — watchdog 180 s with a 60 s grace period — R-X2, R-X3.)
+time per pair — watchdog 180 s with a 60 s grace period — R-X2, R-X3.
+2.30.1: watchdog 120 s.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -548,7 +549,7 @@ over the review flags. On entry the program prints `screensaver <file>:
 leaves the program running as usual.
 
 **R-X2 (equal screen time).** Every pair gets the same screen time: a
-*watchdog* of 180 unpaused seconds, counted from the moment the pair
+*watchdog* of 120 unpaused seconds, counted from the moment the pair
 starts and unaffected by re-initializations. Until it expires,
 auto-initialization behaves as everywhere else (R-A2): the pair is
 re-seeded in place, as often as it takes, and stays on screen.

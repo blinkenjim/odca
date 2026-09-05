@@ -4,7 +4,7 @@
 pool is reviewed (30 kept, 16 dropped). Swift has the two workshop modes
 (`--colorset-review`, `--screensaver-review <file>` with
 `--consistency-check <file>`) and the first study of the art itself:
-`--screensaver <file>` plays pairs sequentially, three minutes each
+`--screensaver <file>` plays pairs sequentially, two minutes each
 (re-seeding in place when boring, then handing over after a quiet minute
 or at the next re-seed), rows keeping their colors across transitions,
 N/P by hand. Python has none of the review or screensaver modes yet (port =

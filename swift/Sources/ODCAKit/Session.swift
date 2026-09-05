@@ -38,7 +38,7 @@ public final class Session {
     public static let minorityFraction = 0.10  // a producible state below this share is a minority (R-A1)
     public static let stagnationScreens = 4  // minority population steady this long -> stagnant (R-A1)
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
-    public static let playTimeout = 180.0  // screensaver: a pair's screen time before it may advance (R-X3)
+    public static let playTimeout = 120.0  // screensaver: a pair's screen time before it may advance (R-X3)
     public static let playGrace = 60.0  // screensaver: no transition within this long of an initialization (R-X3)
     public static let historyDepth = 2048  // rows remembered beyond the screen (R-U8)
     public static let minCols = 3  // R-M2

@@ -108,7 +108,7 @@ pairs viewed grouped by rule (file order is untouched), for judging
 whether a rule's color sets are too alike.
 
 **Screensaver mode** (`--screensaver <file>`, Swift for now) plays a
-screensaver file pair by pair in order, looping. Every pair gets three
+screensaver file pair by pair in order, looping. Every pair gets two
 minutes of screen time, re-seeding in place whenever it goes boring; then
 it hands over at the first quiet minute since its last re-seed (or at its
 next re-seed), and the next pair starts from a fresh field. `N`/`P` step

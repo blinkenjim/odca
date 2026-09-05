@@ -753,10 +753,10 @@ final class SessionTests: XCTestCase {
         // expiry so the grace period is unsatisfied at expiry, then re-arm: the next firing
         // transitions instead of re-seeding in place, carrying its reason.
         _ = session.handleKey(.a)
-        session.tick(170)
+        session.tick(110)
         XCTAssertEqual(session.pairIndex, 0)
         _ = session.handleKey(.i)  // grace restarts; the watchdog does not
-        XCTAssertEqual(session.playElapsed, 170, accuracy: 1)  // the 17 small ticks plus 170
+        XCTAssertEqual(session.playElapsed, 110, accuracy: 1)  // the 17 small ticks plus 110
         _ = session.handleKey(.a)
         _ = lines.take()
         session.tick(10)  // the watchdog expires during this tick; boredom fires within it
@@ -809,13 +809,12 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.space)
         session.tick(1000)  // paused time counts for nothing
         _ = session.handleKey(.space)
-        session.tick(50)
-        _ = session.handleKey(.i)  // at 150 s: restarts the grace period, not the watchdog
+        _ = session.handleKey(.i)  // at 100 s: restarts the grace period, not the watchdog
         XCTAssertEqual(session.sinceInit, 0, accuracy: 1e-9)
-        XCTAssertEqual(session.playElapsed, 150, accuracy: 1e-6)
-        session.tick(30)  // 180 s: watchdog expired, but only 30 s since the re-seed
+        XCTAssertEqual(session.playElapsed, 100, accuracy: 1e-6)
+        session.tick(20)  // 120 s: watchdog expired, but only 20 s since the re-seed
         XCTAssertEqual(session.pairIndex, 0)
-        session.tick(29.5)
+        session.tick(39.5)
         XCTAssertEqual(session.pairIndex, 0)
         session.tick(1.0)  // 60 s since the re-seed: transition
         XCTAssertEqual(session.pairIndex, 1)
@@ -823,7 +822,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.playElapsed, 0, accuracy: 1e-9)
 
         // A quiet pair transitions as soon as the watchdog expires (grace long satisfied).
-        session.tick(179.5)
+        session.tick(119.5)
         XCTAssertEqual(session.pairIndex, 1)
         session.tick(1.0)
         XCTAssertEqual(session.pairIndex, 0)
