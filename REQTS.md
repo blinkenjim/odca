@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.30.1 — 2026-09-04
+Version 2.32.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -31,7 +31,9 @@ R-X3. 2.26.3: `N`/`P` step between pairs — R-X6. 2.28.0: resizable
 window and geometry — R-U2, R-U8, R-O14. 2.28.1: pointer hidden in full
 screen; frozen during a live resize — R-U2, R-U8. 2.30.0: equal screen
 time per pair — watchdog 180 s with a 60 s grace period — R-X2, R-X3.
-2.30.1: watchdog 120 s.)
+2.30.1: watchdog 120 s. 2.32.0: `[`/`]` walk the whole pool in every
+mode; the active set model everywhere — R-K17, R-K15, R-K16, R-O9,
+R-O10, R-O15.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -278,8 +280,9 @@ random state. The rule, scroll buffer, and all other state are unchanged
 clamped to [1/16384 s, 8 s]. Implementations should also accept the
 unshifted equivalent of `+` (e.g. `=` on US layouts) and keypad `+`/`-`.
 
-**R-K9 (digits `0`–`9`).** Select the corresponding color set (R-U4); an
-undefined slot is a silent no-op.
+**R-K9 (digits `0`–`9`).** Select the corresponding digit-bound color set
+(R-U4) — the "hot ten" — as the active set; an undefined slot is a
+silent no-op.
 
 **R-K10 (spacebar — pause).** The spacebar freezes the display animation:
 no further generations are computed or shown until the spacebar is pressed
@@ -287,7 +290,8 @@ again, which resumes at the normal rate with no catch-up burst (elapsed
 pause time is discarded). Resuming computes exactly one generation on the
 first refresh so that the picture, which showed the newest row fully while
 paused, continues without a jump (R-U3). While paused, every key except the spacebar,
-Return (R-K11), `s` (R-K13), `c`/`C` (R-K15), `S` (R-K16), the digits
+Return (R-K11), `s` (R-K13), `c`/`C` (R-K15), `S` (R-K16), `[`/`]`
+(R-K17), the digits
 (R-K9), and `q` is ignored; `q` quits normally. The digits, `c`, and `S`
 touch only colors, never computation, so they remain live (as does `C`). Pausing does not
 stop the background search (R-S).
@@ -316,11 +320,20 @@ of its 24 arrangements — the assignments of its four colors to states 0–3
 in lexicographic order of state permutations, starting from the set as
 loaded — wrapping after the 24th, and print the position (R-O9). `C` (shift-c)
 steps to the previous arrangement, wrapping from the 1st to the 24th.
-Each slot keeps its own arrangement for the session.
+Each color set keeps its own arrangement (by name) for the session.
 
-**R-K16 (`S`, shift-s — save color set).** Replace the active slot's
-colors with its current arrangement (which becomes arrangement 1 of 24),
-write all color sets to the file (R-P4), and print confirmation (R-O10).
+**R-K16 (`S`, shift-s — save color set).** Replace the active color set's
+colors, in its pool entry (R-P4), with its current arrangement (which
+becomes arrangement 1 of 24) — slotted or pool-only alike; a set not yet in
+the file is added, keeping its slot if it has one — and print confirmation
+(R-O10).
+
+**R-K17 (`[` / `]` — the whole pool).** In every mode, step the active
+color set backward / forward through the whole pool in pool order (the
+digit-bound sets by key 1–9, 0, then the pool-only sets), wrapping, and
+print the name (R-O15). Stepping onto a digit-bound set also makes it the
+digit position. In color set review (section 4b) these keys are synonyms
+for `P` / `N`. Live while paused, like the other color keys (R-K10).
 
 **R-K12 (`a` — auto-initialization).** Toggles auto-initialization mode
 (section 4a) and prints its new state (R-O6). The mode is on at startup
@@ -663,8 +676,9 @@ The program prints single-line, human-readable status to standard output:
 - **R-O8.** When Brent's algorithm first detects a cycle since the last
   reset (R-A3), whether or not auto-initialization is on:
   `cycle period <n>`.
-- **R-O9.** On `c`: `color set <slot> arrangement <k>/24`, k from 1.
-- **R-O10.** On `S`: `saved color set <slot> <name>`.
+- **R-O9.** On `c`/`C`: `color set <name> arrangement <k>/24`, k from 1.
+- **R-O10.** On `S`: `saved color set <name>`.
+- **R-O15.** On `[`/`]` (R-K17): `color set <name>`.
 - **R-O11.** In review mode (section 4b): on entry and on every step,
   `review <i>/<n> <name>` (1-based position among the kept sets); `review
   wrapped` before a step that wraps; `dropped <name>` on `X`; `review

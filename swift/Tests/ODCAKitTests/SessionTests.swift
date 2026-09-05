@@ -426,7 +426,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(Session.arrangements[0], [0, 1, 2, 3])
         _ = session.handleKey(.c)
         XCTAssertEqual(session.palette.map(\.r), [0x00, 0x11, 0x33, 0x22])  // (0,1,3,2)
-        XCTAssertTrue(lines.take().contains("color set 3 arrangement 2/24"))
+        XCTAssertTrue(lines.take().contains("color set Three arrangement 2/24"))
         for _ in 0..<23 { _ = session.handleKey(.c) }
         XCTAssertEqual(session.palette.map(\.r), [0x00, 0x11, 0x22, 0x33])  // wrapped
         _ = session.handleKey(.c)
@@ -434,7 +434,7 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.digit(3))
         XCTAssertEqual(session.palette[2].r, 0x33)
         _ = session.handleKey(.S)
-        XCTAssertTrue(lines.take().contains("saved color set 3 Three"))
+        XCTAssertTrue(lines.take().contains("saved color set Three"))
         XCTAssertEqual(store.loadColorSets()[3]!.colors, ["#000000", "#111111", "#333333", "#222222"])
         _ = session.handleKey(.c)  // index restarted from the saved base
         XCTAssertTrue(lines.take().contains("arrangement 2/24"))
@@ -524,6 +524,10 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.reviewIndex, 0)
         _ = session.handleKey(.space)
         _ = session.handleKey(.N)  // live while paused
+        XCTAssertEqual(session.reviewIndex, 1)
+        _ = session.handleKey(.poolNext)  // '[' / ']' are synonyms for P / N here (R-K17)
+        XCTAssertEqual(session.reviewIndex, 2)
+        _ = session.handleKey(.poolPrev)
         XCTAssertEqual(session.reviewIndex, 1)
     }
 
@@ -663,10 +667,7 @@ final class SessionTests: XCTestCase {
     func testScreensaverKeysInertOutsideMode() throws {
         let session = makeSession(try reviewStore())
         XCTAssertFalse(session.screensaverMode)
-        let palette = session.palette
-        _ = session.handleKey(.poolNext)
-        XCTAssertEqual(session.palette, palette)
-        _ = session.handleKey(.N)
+        _ = session.handleKey(.N)  // pair keys do nothing here ('[' / ']' are live everywhere, R-K17)
         _ = session.handleKey(.X)
         XCTAssertEqual(session.pairs, [])
     }
@@ -875,5 +876,46 @@ final class SessionTests: XCTestCase {
         for _ in 0..<3 { session.tick(1.0) }  // well past the depth (2000 steps per tick cap)
         XCTAssertEqual(session.history.count, Session.historyDepth)
         XCTAssertEqual(session.rowBanks.count, Session.historyDepth)
+    }
+
+    // MARK: PT-33 the whole pool from every mode (R-K17)
+
+    func testBracketsWalkThePoolInBaseMode() throws {
+        let lines = Lines()
+        let store = try reviewStore()  // slots 0-9 as S0..S9 plus pool-only PoolA
+        let session = makeSession(store, lines: lines)
+        XCTAssertEqual(session.activeSet?.name, "S1")
+        XCTAssertEqual(session.palette[0], RGB(hex: "#0A0A0A"))
+        _ = session.handleKey(.poolNext)
+        XCTAssertEqual(session.activeSet?.name, "S2")
+        XCTAssertEqual(session.colorSet, 2)  // a slotted set also becomes the digit position
+        XCTAssertTrue(lines.take().contains("color set S2"))
+        for _ in 0..<8 { _ = session.handleKey(.poolNext) }  // S3 ... S9, S0
+        XCTAssertEqual(session.activeSet?.name, "S0")
+        _ = session.handleKey(.poolNext)  // beyond the hot ten: the pool
+        XCTAssertEqual(session.activeSet?.name, "PoolA")
+        XCTAssertNil(session.activeSet?.slot)
+        XCTAssertEqual(session.palette[0], RGB(hex: "#646464"))  // grey(100)
+        _ = session.handleKey(.poolNext)  // wraps
+        XCTAssertEqual(session.activeSet?.name, "S1")
+        _ = session.handleKey(.poolPrev)
+        _ = session.handleKey(.poolPrev)
+        XCTAssertEqual(session.activeSet?.name, "S0")
+        _ = session.handleKey(.digit(4))  // digits still pick the hot ten
+        XCTAssertEqual(session.activeSet?.name, "S4")
+
+        // 'S' bakes the arrangement into the active set's pool entry, slotted or not.
+        _ = session.handleKey(.poolNext)  // S5
+        for _ in 0..<6 { _ = session.handleKey(.poolNext) }  // S6..S9, S0, PoolA
+        XCTAssertEqual(session.activeSet?.name, "PoolA")
+        _ = session.handleKey(.c)
+        _ = session.handleKey(.S)
+        XCTAssertTrue(lines.take().contains("saved color set PoolA"))
+        let entry = store.loadColorSetFile().sets.first { $0.name == "PoolA" }!
+        XCTAssertNil(entry.slot)
+        XCTAssertEqual(entry.colors, [grey(100)[0], grey(100)[1], grey(100)[3], grey(100)[2]])
+        // Arrangements are remembered per set: S1 untouched, PoolA now at arrangement 1 of its baked colors.
+        _ = session.handleKey(.digit(1))
+        XCTAssertEqual(session.palette[0], RGB(hex: "#0A0A0A"))
     }
 }

@@ -108,7 +108,12 @@ public final class Session {
     public private(set) var playElapsed = 0.0  // unpaused seconds on the current pair
     public private(set) var sinceInit = 0.0  // unpaused seconds since the last (re)initialization
     public private(set) var activeSet: ColorSetEntry?  // the set in use (any pool member)
-    private var activeArrangement = 0
+    /// Arrangement index of the active set, remembered per set name (R-K15).
+    private var activeArrangement: Int {
+        get { arrangementByName[activeName] ?? 0 }
+        set { arrangementByName[activeName] = newValue }
+    }
+    private var activeName: String { activeSet?.name ?? colorSets[colorSet]!.name }
     private var pool: [ColorSetEntry] = []  // whole pool in review order for [ / ]
     public private(set) var undoStack: [Rule] = []
     public private(set) var interestingIndex: Int?
@@ -123,7 +128,7 @@ public final class Session {
     private var accumulated = 0.0
     private var zipAccumulated = 0.0
     private var counted = 0  // generations since the screen counter started
-    private var arrangement: [Int: Int] = [:]  // slot -> index into arrangements
+    private var arrangementByName: [String: Int] = [:]  // set name -> index into arrangements
 
     // Auto-init state (R-A); internal so tests can observe it.
     var boringStreak = 0
@@ -174,6 +179,11 @@ public final class Session {
         candidates = store.loadCandidates()
         colorSets = store.loadColorSets()  // R-P4
         self.rng = rng
+        // Every mode but color set review draws through the active set, which
+        // may be any pool member (R-K17); it starts as the default slot.
+        pool = poolOrder()
+        let d = colorSets[colorSet]!
+        activeSet = ColorSetEntry(slot: colorSet, name: d.name, colors: d.colors)
         pushRow(automaton.cells)
         output("rule \(rule.id)")
         if reviewMode { loadReview() }
@@ -183,8 +193,6 @@ public final class Session {
 
     public var screensaverMode: Bool { screensaverFile != nil }
     public var playMode: Bool { playFile != nil }
-    /// Modes whose palette is the active set (any pool member) rather than a digit slot.
-    private var activeSetMode: Bool { screensaverMode || playMode }
 
     public var ruleID: String { automaton.rule.id }
 
@@ -278,11 +286,6 @@ public final class Session {
 
     // MARK: - Colors (R-U4, R-K15, R-K16)
 
-    private func arrangedColors(_ slot: Int) -> [String] {
-        let base = colorSets[slot]!.colors
-        return Session.arrangements[arrangement[slot] ?? 0].map { base[$0] }
-    }
-
     /// The set under review, or nil when the review pool is empty.
     private var reviewEntry: ColorSetEntry? {
         reviewEntries.isEmpty ? nil : reviewEntries[reviewIndex]
@@ -300,19 +303,11 @@ public final class Session {
 
     /// The active color set as four RGB colors, states 0-3, after arrangement.
     public var palette: [RGB] {
-        let colors = reviewMode ? arrangedReviewColors()
-            : activeSetMode ? arrangedActiveColors() : arrangedColors(colorSet)
-        return colors.map { RGB(hex: $0) }
+        (reviewMode ? arrangedReviewColors() : arrangedActiveColors()).map { RGB(hex: $0) }
     }
 
     private func cycleColors(_ step: Int) {
         let n = Session.arrangements.count
-        if activeSetMode {
-            activeArrangement = ((activeArrangement + step) % n + n) % n
-            let name = activeSet?.name ?? colorSets[colorSet]!.name
-            output("color set \(name) arrangement \(activeArrangement + 1)/\(n)")  // R-O9
-            return
-        }
         if reviewMode {
             guard let e = reviewEntry else { return }
             let index = (((reviewArrangement[e.name] ?? 0) + step) % n + n) % n
@@ -320,9 +315,8 @@ public final class Session {
             output("color set \(e.name) arrangement \(index + 1)/\(n)")  // R-O9
             return
         }
-        let index = (((arrangement[colorSet] ?? 0) + step) % n + n) % n
-        arrangement[colorSet] = index
-        output("color set \(colorSet) arrangement \(index + 1)/\(n)")  // R-O9
+        activeArrangement = ((activeArrangement + step) % n + n) % n
+        output("color set \(activeName) arrangement \(activeArrangement + 1)/\(n)")  // R-O9
     }
 
     // MARK: - Color set review (R-V)
@@ -423,9 +417,6 @@ public final class Session {
     }
 
     private func loadScreensaver(_ url: URL) {  // R-W1, R-W2
-        pool = poolOrder()
-        let d = colorSets[colorSet]!
-        activeSet = ColorSetEntry(slot: colorSet, name: d.name, colors: d.colors)
         if let loaded = Store.loadScreensaver(url) {
             pairs = loaded
         } else {
@@ -535,22 +526,21 @@ public final class Session {
         }
     }
 
-    private func poolStep(_ step: Int) {  // R-W3: '[' / ']' walk the whole pool
-        guard screensaverMode, !pool.isEmpty else { return }
+    private func poolStep(_ step: Int) {  // R-K17: '[' / ']' walk the whole pool, wrapping
+        guard !pool.isEmpty else { return }
         let current = pool.firstIndex { $0.name == activeSet?.name } ?? -1
         let n = pool.count
         let index = ((current + step) % n + n) % n
-        activeSet = ColorSetEntry(slot: pool[index].slot, name: pool[index].name, colors: pool[index].colors)
-        activeArrangement = 0
-        output("color set \(pool[index].name)")  // R-O12
+        let e = pool[index]
+        activeSet = ColorSetEntry(slot: e.slot, name: e.name, colors: e.colors)
+        if let slot = e.slot { colorSet = slot }
+        output("color set \(e.name)")  // R-O15
     }
 
     // MARK: - Screensaver mode (R-X)
 
     private func loadPlay(_ url: URL) {  // R-X1
         pairs = Store.loadScreensaver(url) ?? []
-        let d = colorSets[colorSet]!
-        activeSet = ColorSetEntry(slot: colorSet, name: d.name, colors: d.colors)
         output("screensaver \(url.lastPathComponent): \(pairs.count) pairs")
         if !pairs.isEmpty { playPair(0, reason: nil) }
     }
@@ -583,21 +573,30 @@ public final class Session {
         if reviewMode { saveReview() }  // screensaver mode saves as it goes
     }
 
+    /// R-K16: bake the active set's arrangement into its pool entry (by name;
+    /// a set not yet in the file is added, keeping its slot if it has one).
     private func saveColorSet() {
-        colorSets[colorSet]!.colors = arrangedColors(colorSet)
-        arrangement[colorSet] = 0
-        store.saveColorSets(colorSets)
-        output("saved color set \(colorSet) \(colorSets[colorSet]!.name)")  // R-O10
+        let name = activeName
+        let arranged = arrangedActiveColors()
+        var file = store.loadColorSetFile()
+        if let i = file.sets.firstIndex(where: { $0.name == name }) {
+            file.sets[i].colors = arranged
+        } else {
+            file.sets.append(ColorSetEntry(slot: activeSet?.slot, name: name, colors: arranged))
+        }
+        store.saveColorSetFile(file)
+        arrangementByName[name] = 0
+        activeSet?.colors = arranged
+        colorSets = store.loadColorSets()
+        pool = poolOrder()
+        output("saved color set \(name)")  // R-O10
     }
 
     private func selectColorSet(_ slot: Int) {
         if reviewMode { return }  // R-V1: digit keys are disabled during review
         guard let set = colorSets[slot] else { return }  // R-K9: undefined slot is a no-op
         colorSet = slot
-        if activeSetMode {
-            activeSet = ColorSetEntry(slot: slot, name: set.name, colors: set.colors)
-            activeArrangement = 0
-        }
+        activeSet = ColorSetEntry(slot: slot, name: set.name, colors: set.colors)
     }
 
     /// Color keys shared by the paused and running states (R-K10).
@@ -612,8 +611,8 @@ public final class Session {
         case .P:
             if playMode { playStep(-1) } else if screensaverMode { screensaverStep(-1) } else if reviewMode { reviewStep(-1) }
         case .X: if screensaverMode { deletePair() } else if reviewMode { dropReview() }
-        case .poolPrev: poolStep(-1)
-        case .poolNext: poolStep(1)
+        case .poolPrev: if reviewMode { reviewStep(-1) } else { poolStep(-1) }  // R-K17
+        case .poolNext: if reviewMode { reviewStep(1) } else { poolStep(1) }
         case .digit(let d): selectColorSet(d)
         default: return false
         }
