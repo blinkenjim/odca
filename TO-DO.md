@@ -164,7 +164,10 @@ viewer sees. Roadmap, roughly in order:
       set up: e.g. a `run` script (or Makefile target) that creates the venv
       and installs requirements on first use, a `swift run` wrapper or
       documented one-liner, and a README quick start at the root that shows
-      both. Check the Python version floor (3.9 on a stock Mac) and pygame's
+      both. The Swift wrapper must build release: the debug build is choppy
+      on any Mac (confirmed on an M1 Ultra, 2026-09-05; the per-frame pixel
+      loop is unoptimized), so `swift run -c release odca` is the command.
+      Check the Python version floor (3.9 on a stock Mac) and pygame's
       wheel availability on Apple silicon. Precursor to packaging.
 - [ ] Packaging for distribution: Linux, macOS, iPadOS (iOS not ruled out).
 - [ ] Open-source license (attribution + share-alike spirit; must be

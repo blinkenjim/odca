@@ -27,7 +27,7 @@ its own directory.
 | `interesting-rules.json` | the shared collection of saved rules, each with its color set — a screensaver-format file |
 | `python/` | the reference implementation (Python + pygame); see `python/README.md` |
 | `REQ-python.md` | implementation notes for the Python version |
-| `swift/` | Swift/SwiftUI implementation (macOS); see `swift/README.md` |
+| `swift/` | Swift implementation (macOS, `swift run -c release odca`); see `swift/README.md` |
 | `REQ-swift.md` | implementation notes for the Swift version |
 
 Planned: `cpp/`.
