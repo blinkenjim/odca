@@ -1,16 +1,14 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-04):** the pool is reviewed: 30 color sets kept,
-16 dropped (colorsets/colorsets.json). Swift 2.26.0 has screensaver
-mode (`--screensaver <file>`, the first study: sequential, advancing on
-boredom or after 60 s) plus screensaver
-review mode (`--screensaver-review <file>`) for composing rule/color-set
-pairs and `--consistency-check <file>` for viewing them grouped by rule; Python 2.15.1 has neither review mode yet (port = Python 2.19.0).
-Next: compose the first screensaver file (the Swift catch-up ported auto-init with all detectors and
-Brent's, paused 's' and the screen counter, and file-backed color sets
-with c/C/S). Next: (a) audition all 45 palettes (colorsets/audition.png)
-and finalize the slots; (b) the vision items below, starting with the
-declarative screensaver script design.
+**YOU ARE HERE (2026-09-04):** Swift 2.26.3, Python 2.15.1. The color set
+pool is reviewed (30 kept, 16 dropped). Swift has the two workshop modes
+(`--colorset-review`, `--screensaver-review <file>` with
+`--consistency-check <file>`) and the first study of the art itself:
+`--screensaver <file>` plays pairs sequentially, advancing on boredom or
+after five minutes, rows keeping their colors across transitions, N/P by
+hand. Python has none of the review or screensaver modes yet (port =
+Python 2.19.0). Next: compose and watch screensaver files; then the
+vision items below, starting with the declarative script design.
 
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
