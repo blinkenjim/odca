@@ -52,6 +52,14 @@ with the declarative script design.
       keeping their colors, N/P); saved presentations applied by n/p.
       Pygame's window stays fixed-size (resizable optional, not done);
       smoothness is not a goal.
+- [ ] Seed a screensaver file from the keeper file (user question,
+      2026-09-05: "does --screensaver-review slurp the interesting rules?"
+      It does not). Today the route is `cp interesting-rules.json show.json`
+      or `n`/`S` one pair at a time inside the review. Candidates: an
+      import key in screensaver review that appends every keeper pair, a
+      flag or second argument naming a source file, or letting a missing
+      target start as a copy of the keeper file on request. Part of the
+      key-binding rethink below.
 - [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
       or expose a reduced, safe set of keys (no quitting, nothing that can
       leave the app in a messed-up state) for installations where the
