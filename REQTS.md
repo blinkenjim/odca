@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.24.2 — 2026-09-04
+Version 2.26.0 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -24,7 +24,8 @@ developer flags permitted — section 10. 2.22.0: screensaver review mode
 and file — section 4c, R-P5; color set review saves on every drop and
 no longer bakes arrangements — R-V5, R-V6. 2.24.0: consistency check —
 R-W7. 2.24.1: every pair activation fills the screen at once — R-W8. 2.24.2:
-so does every color set review step — R-V7.)
+so does every color set review step — R-V7. 2.26.0: screensaver mode
+(sequential study) — section 4d, R-O13.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -504,6 +505,39 @@ or a slowly arriving new one. Generations so computed count for auto-init
 
 ---
 
+## 4d. Screensaver mode (R-X)
+
+The first study of the art proper: play a screensaver file (R-P5), pair
+after pair.
+
+**R-X1 (entry).** Started by `--screensaver <file>`, where the file must
+exist (otherwise an error and exit). The optional `--sequential` names the
+default and, for now, only order: pairs are played in file order, looping
+from the last back to the first indefinitely. This mode takes precedence
+over the review flags. On entry the program prints `screensaver <file>:
+<n> pairs` and, if the list is non-empty, plays pair 1. An empty file
+leaves the program running as usual.
+
+**R-X2 (advance on boredom).** Whenever auto-initialization would fire
+(R-A2: the mode on, a screenful of boring generations), the screensaver
+advances to the next pair instead of re-seeding in place. Turning
+auto-initialization off with `a` (R-K12) therefore leaves only the
+timeout to advance the sequence.
+
+**R-X3 (advance on timeout).** If a pair has run for 60 unpaused seconds
+without the detector firing, the screensaver advances. The clock restarts
+with each pair and does not run while paused.
+
+**R-X4 (playing a pair).** Playing a pair sets its rule (a rule change,
+R-B1, printed and persisted, but not pushed on the undo stack), makes its
+stored colors the active color set at arrangement 1, and re-seeds the
+cells as `i` does (R-K6). There is no screen fill: the previous pair
+scrolls off the top as the new one grows in from its fresh field — the
+transition, until cross-fades exist. Every ordinary key keeps its meaning;
+there are no review keys, and the file is never written.
+
+---
+
 ## 5. Persistence (R-P)
 
 All per-user state lives in the directory `$HOME/.odca/`, created on
@@ -592,7 +626,11 @@ The program prints single-line, human-readable status to standard output:
   write, `saved <n> pairs to <file>`; `color set <name>` on `[`/`]`; in a
   consistency check, `--- rule group <g>/<G> ---` before an activation
   that enters a different rule's group. Arrangement messages (R-O9) name
-  the set. this precedes nothing else (cells change, the rule does not).
+  the set.
+- **R-O13.** In screensaver mode (section 4d): on entry `screensaver
+  <file>: <n> pairs`; on playing a pair `screensaver <i>/<n> <colorset>`,
+  followed on automatic advances by the reason in parentheses — the
+  auto-init reason (R-O6) or `timeout`. this precedes nothing else (cells change, the rule does not).
 
 ---
 
@@ -691,7 +729,8 @@ loses one update (loaders already tolerate malformed content, R-P).
 - No command-line arguments are required for ordinary use, and no
   configuration files or menus; hidden developer flags (such as
   `--colorset-review`, section 4b, `--screensaver-review <file>` and
-  `--consistency-check <file>`, section 4c) are permitted.
+  `--consistency-check <file>`, section 4c) are permitted, as is the
+  `--screensaver <file>` flag that starts the art (section 4d).
 - No vertical-sync guarantee; visible tearing is acceptable.
 - No reproducibility of random sequences across runs, languages, or
   machines.

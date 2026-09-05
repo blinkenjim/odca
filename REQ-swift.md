@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.24.2 — 2026-09-04 (color set and screensaver review modes; ahead of Python)
+Version 2.26.0 — 2026-09-04 (color set and screensaver review modes; ahead of Python)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -76,6 +76,12 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   holds file indices in presentation order and `viewPosition` the cursor;
   `pairs` and `pairIndex` always refer to file order. The view model
   checks the file exists and exits with an error otherwise.
+- **Screensaver mode** (R-X): `Session(playFile:)` from `--screensaver
+  <file>` (existence checked by the view model). `advance()` routes a
+  firing of the boring detector to `nextPlayPair` instead of the in-place
+  re-seed; `tick` accumulates `playElapsed` while unpaused and advances at
+  `Session.playTimeout`. Mode precedence in `Session.init`: play, then
+  screensaver review, then color set review.
 - **Engine**: plain loops over `[UInt8]` rows — native code needs no numpy
   equivalent; the 0/1/4/16 weighted-sum lookup and 49-slot dense table
   match the reference. Conformance vectors certify equality.

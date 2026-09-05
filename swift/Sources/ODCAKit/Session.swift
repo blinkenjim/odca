@@ -38,6 +38,7 @@ public final class Session {
     public static let minorityFraction = 0.10  // a producible state below this share is a minority (R-A1)
     public static let stagnationScreens = 4  // minority population steady this long -> stagnant (R-A1)
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
+    public static let playTimeout = 60.0  // screensaver: seconds on a pair before advancing (R-X3)
 
     /// Digit keys in review order (R-V): the first ten kept sets own these.
     public static let keyOrder = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]
@@ -93,6 +94,9 @@ public final class Session {
     public private(set) var pairIndex: Int?  // file index of the pair under review
     public private(set) var viewOrder: [Int] = []  // file indices in presentation order
     public private(set) var viewPosition: Int?  // position of pairIndex within viewOrder
+    // Screensaver mode (R-X): play the pairs of a file in order.
+    public let playFile: URL?
+    public private(set) var playElapsed = 0.0  // unpaused seconds on the current pair
     public private(set) var activeSet: ColorSetEntry?  // the set in use (any pool member)
     private var activeArrangement = 0
     private var pool: [ColorSetEntry] = []  // whole pool in review order for [ / ]
@@ -125,13 +129,16 @@ public final class Session {
         cols: Int, rows: Int, store: Store = Store(),
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
         reviewMode: Bool = false, screensaverFile: URL? = nil, groupByRule: Bool = false,
-        output: @escaping (String) -> Void = { print($0) }
+        playFile: URL? = nil, output: @escaping (String) -> Void = { print($0) }
     ) {
         self.cols = cols
         self.rows = rows
         self.store = store
         self.search = search
-        self.reviewMode = reviewMode && screensaverFile == nil  // R-W1: screensaver wins
+        // Mode precedence: screensaver play, then screensaver review, then color set review.
+        self.playFile = playFile
+        let screensaverFile = playFile == nil ? screensaverFile : nil
+        self.reviewMode = reviewMode && screensaverFile == nil && playFile == nil
         self.screensaverFile = screensaverFile
         self.groupByRule = groupByRule && screensaverFile != nil
         self.output = output
@@ -161,9 +168,13 @@ public final class Session {
         output("rule \(rule.id)")
         if reviewMode { loadReview() }
         if let url = screensaverFile { loadScreensaver(url) }
+        if let url = playFile { loadPlay(url) }
     }
 
     public var screensaverMode: Bool { screensaverFile != nil }
+    public var playMode: Bool { playFile != nil }
+    /// Modes whose palette is the active set (any pool member) rather than a digit slot.
+    private var activeSetMode: Bool { screensaverMode || playMode }
 
     public var ruleID: String { automaton.rule.id }
 
@@ -210,13 +221,13 @@ public final class Session {
     /// The active color set as four RGB colors, states 0-3, after arrangement.
     public var palette: [RGB] {
         let colors = reviewMode ? arrangedReviewColors()
-            : screensaverMode ? arrangedActiveColors() : arrangedColors(colorSet)
+            : activeSetMode ? arrangedActiveColors() : arrangedColors(colorSet)
         return colors.map { RGB(hex: $0) }
     }
 
     private func cycleColors(_ step: Int) {
         let n = Session.arrangements.count
-        if screensaverMode {
+        if activeSetMode {
             activeArrangement = ((activeArrangement + step) % n + n) % n
             let name = activeSet?.name ?? colorSets[colorSet]!.name
             output("color set \(name) arrangement \(activeArrangement + 1)/\(n)")  // R-O9
@@ -454,6 +465,33 @@ public final class Session {
         output("color set \(pool[index].name)")  // R-O12
     }
 
+    // MARK: - Screensaver mode (R-X)
+
+    private func loadPlay(_ url: URL) {  // R-X1
+        pairs = Store.loadScreensaver(url) ?? []
+        let d = colorSets[colorSet]!
+        activeSet = ColorSetEntry(slot: colorSet, name: d.name, colors: d.colors)
+        output("screensaver \(url.lastPathComponent): \(pairs.count) pairs")
+        if !pairs.isEmpty { playPair(0, reason: nil) }
+    }
+
+    /// Activate a pair for play: its rule and colors, then a fresh seed (R-X4).
+    private func playPair(_ index: Int, reason: String?) {
+        let pair = pairs[index]
+        pairIndex = index
+        if let rule = try? Rule(id: pair.rule), rule != automaton.rule { setRule(rule) }
+        activeSet = ColorSetEntry(slot: nil, name: pair.colorset, colors: pair.colors)
+        activeArrangement = 0
+        initCells()
+        playElapsed = 0
+        let why = reason.map { " (\($0))" } ?? ""
+        output("screensaver \(index + 1)/\(pairs.count) \(pair.colorset)\(why)")  // R-O13
+    }
+
+    private func nextPlayPair(reason: String) {  // R-X2, R-X3: sequential, looping
+        playPair(((pairIndex ?? -1) + 1) % pairs.count, reason: reason)
+    }
+
     /// Call at program exit; in review mode this saves the kept sets (R-V5).
     public func finish() {
         if reviewMode { saveReview() }  // screensaver mode saves as it goes
@@ -470,7 +508,7 @@ public final class Session {
         if reviewMode { return }  // R-V1: digit keys are disabled during review
         guard let set = colorSets[slot] else { return }  // R-K9: undefined slot is a no-op
         colorSet = slot
-        if screensaverMode {
+        if activeSetMode {
             activeSet = ColorSetEntry(slot: slot, name: set.name, colors: set.colors)
             activeArrangement = 0
         }
@@ -510,8 +548,12 @@ public final class Session {
         }
         if autoInit && boringStreak >= rows {
             let reason = boringReason ?? "boring"
-            initCells()
-            output("auto-init (\(reason))")  // R-O6
+            if playMode && !pairs.isEmpty {
+                nextPlayPair(reason: reason)  // R-X2: the boring detector sequences
+            } else {
+                initCells()
+                output("auto-init (\(reason))")  // R-O6
+            }
         }
     }
 
@@ -613,6 +655,10 @@ public final class Session {
         let steps = Int(accumulated / delay)
         accumulated -= Double(steps) * delay
         for _ in 0..<min(steps, Session.stepCap) { advance() }
+        if playMode && !pairs.isEmpty {  // R-X3: advance after playTimeout unpaused seconds
+            playElapsed += dt
+            if playElapsed >= Session.playTimeout { nextPlayPair(reason: "timeout") }
+        }
     }
 
     private func drainSearch() {

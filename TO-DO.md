@@ -1,7 +1,9 @@
 # ODCA to-do
 
 **YOU ARE HERE (2026-09-04):** the pool is reviewed: 30 color sets kept,
-16 dropped (colorsets/colorsets.json). Swift 2.24.0 has screensaver
+16 dropped (colorsets/colorsets.json). Swift 2.26.0 has screensaver
+mode (`--screensaver <file>`, the first study: sequential, advancing on
+boredom or after 60 s) plus screensaver
 review mode (`--screensaver-review <file>`) for composing rule/color-set
 pairs and `--consistency-check <file>` for viewing them grouped by rule; Python 2.15.1 has neither review mode yet (port = Python 2.19.0).
 Next: compose the first screensaver file (the Swift catch-up ported auto-init with all detectors and
@@ -12,6 +14,10 @@ declarative screensaver script design.
 
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
+- [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
+      or expose a reduced, safe set of keys (no quitting, nothing that can
+      leave the app in a messed-up state) for installations where the
+      keyboard is reachable by the public.
 - [ ] Key bindings are getting hard to remember and inconsistent across
       modes (normal, color-set review, screensaver review each overload
       s/S/X/N/P). Rethink them as a whole: a consistent scheme, maybe a

@@ -46,8 +46,22 @@ final class ViewerModel: ObservableObject {
             screensaver = url
             groupByRule = true
         }
+        var play: URL?
+        if let i = args.firstIndex(of: "--screensaver") {  // R-X1
+            guard i + 1 < args.count else {
+                print("usage: odca --screensaver <existing file.json> [--sequential]")
+                exit(2)
+            }
+            let url = URL(fileURLWithPath: args[i + 1])
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                print("error: \(args[i + 1]) does not exist")
+                exit(1)
+            }
+            play = url  // --sequential is the default and only order for now
+            if review || screensaver != nil { print("note: --screensaver takes precedence over review flags") }
+        }
         session = Session(cols: Self.cols, rows: Self.rows, reviewMode: review,
-                          screensaverFile: screensaver, groupByRule: groupByRule)
+                          screensaverFile: screensaver, groupByRule: groupByRule, playFile: play)
         session.startSearch()
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {

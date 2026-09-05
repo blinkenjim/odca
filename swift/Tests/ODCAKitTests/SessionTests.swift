@@ -22,12 +22,13 @@ final class SessionTests: XCTestCase {
 
     /// A session whose terminal output is captured into `lines`.
     func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil,
-                     review: Bool = false, screensaver: URL? = nil, grouped: Bool = false) -> Session {
+                     review: Bool = false, screensaver: URL? = nil, grouped: Bool = false,
+                     play: URL? = nil) -> Session {
         let sink: (String) -> Void = lines.map { l in { l.all.append($0) } } ?? { print($0) }
         return Session(cols: 32, rows: 16, store: store,
                        search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed),
                        reviewMode: review, screensaverFile: screensaver, groupByRule: grouped,
-                       output: sink)
+                       playFile: play, output: sink)
     }
 
     final class Lines { var all: [String] = []; func take() -> String { defer { all.removeAll() }; return all.joined(separator: "\n") } }
@@ -720,5 +721,62 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(saved.map(\.colorset), ["S1", "S2", "S3", "S7", "S5"])
         XCTAssertEqual(session.viewPosition, 4)  // the pair now at that view position: C
         XCTAssertEqual(session.pairIndex, 3)
+    }
+
+    // MARK: PT-31 screensaver mode (R-X)
+
+    func testScreensaverPlaysPairsInOrderAndLoops() throws {
+        let lines = Lines()
+        let store = try reviewStore()
+        let file = store.stateDir.deletingLastPathComponent().appendingPathComponent("saver.json")
+        let dies = allZero  // repeating (period 1) within a screenful
+        Store.saveScreensaver([ScreensaverPair(rule: dies.id, colorset: "A", colors: grey(10)),
+                               ScreensaverPair(rule: dies.id, colorset: "B", colors: grey(20))], to: file)
+        let session = makeSession(store, lines: lines, play: file)
+        XCTAssertTrue(session.playMode && !session.screensaverMode && !session.reviewMode)
+        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(session.automaton.rule, dies)
+        XCTAssertEqual(session.palette[0], RGB(hex: "#0A0A0A"))
+        XCTAssertEqual(session.automaton.generation, 0)  // freshly seeded
+        var out = lines.take()
+        XCTAssertTrue(out.contains("screensaver saver.json: 2 pairs") && out.contains("screensaver 1/2 A"))
+        XCTAssertFalse(out.contains("("))  // no reason on the first pair
+
+        // The boring detector fires on the 17th generation (16 boring rows) and sequences.
+        for _ in 0..<16 { session.tick(1.0 / 60.0) }
+        XCTAssertEqual(session.pairIndex, 0)
+        session.tick(1.0 / 60.0)
+        XCTAssertEqual(session.pairIndex, 1)
+        XCTAssertEqual(session.automaton.generation, 0)  // re-seeded on transition
+        XCTAssertEqual(session.palette[0], RGB(hex: "#141414"))
+        out = lines.take()
+        XCTAssertTrue(out.contains("screensaver 2/2 B (repeating (period 1))"))
+        XCTAssertFalse(out.contains("auto-init ("))  // sequencing replaces the in-place re-seed
+
+        for _ in 0..<17 { session.tick(1.0 / 60.0) }  // ... and loops back to the first pair
+        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertTrue(lines.take().contains("screensaver 1/2 A (repeating (period 1))"))
+    }
+
+    func testScreensaverTimesOutAfterSixtyUnpausedSeconds() throws {
+        let lines = Lines()
+        let store = try reviewStore()
+        let file = store.stateDir.deletingLastPathComponent().appendingPathComponent("saver.json")
+        Store.saveScreensaver([ScreensaverPair(rule: allProducible.id, colorset: "A", colors: grey(10)),
+                               ScreensaverPair(rule: allProducible.id, colorset: "B", colors: grey(20))], to: file)
+        let session = makeSession(store, lines: lines, play: file)
+        _ = session.handleKey(.a)  // auto-init off: only the timeout sequences now
+        for _ in 0..<50 { _ = session.handleKey(.plus) }  // fastest, so stepping is cheap
+        _ = lines.take()
+        session.tick(30)
+        _ = session.handleKey(.space)
+        session.tick(100)  // paused time does not count
+        _ = session.handleKey(.space)
+        session.tick(29.5)
+        XCTAssertEqual(session.pairIndex, 0)
+        session.tick(1.0)
+        XCTAssertEqual(session.pairIndex, 1)
+        XCTAssertTrue(lines.take().contains("screensaver 2/2 B (timeout)"))
+        XCTAssertEqual(session.playElapsed, 0, accuracy: 1e-9)
     }
 }

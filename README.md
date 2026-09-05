@@ -101,3 +101,8 @@ saves the pair under review, `S` appends a new one, `X` deletes.
 `--consistency-check <file>` is the same mode on an existing file with the
 pairs viewed grouped by rule (file order is untouched), for judging
 whether a rule's color sets are too alike.
+
+**Screensaver mode** (`--screensaver <file>`, Swift for now) plays a
+screensaver file pair by pair in order, looping: each pair runs until the
+boring detector would re-initialize, or for 60 seconds, then the next
+pair starts from a fresh field.
