@@ -117,7 +117,7 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   window appears and takes keyboard focus. Build release for viewing: the
   debug build leaves `renderImage()`'s per-pixel loop unoptimized (bounds
   checks, no inlining, per-access retain/release) and the animation is
-  choppy on any Mac (seen on an M1 Ultra, 2026-09-05).
+  choppy on any Mac (seen on an M1 Pro, 2026-09-05).
 
 ## Testing notes (see TESTS.md for the normative plan)
 

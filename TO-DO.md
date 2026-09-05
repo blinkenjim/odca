@@ -165,7 +165,7 @@ viewer sees. Roadmap, roughly in order:
       and installs requirements on first use, a `swift run` wrapper or
       documented one-liner, and a README quick start at the root that shows
       both. The Swift wrapper must build release: the debug build is choppy
-      on any Mac (confirmed on an M1 Ultra, 2026-09-05; the per-frame pixel
+      on any Mac (confirmed on an M1 Pro, 2026-09-05; the per-frame pixel
       loop is unoptimized), so `swift run -c release odca` is the command.
       Check the Python version floor (3.9 on a stock Mac) and pygame's
       wheel availability on Apple silicon. Precursor to packaging.
