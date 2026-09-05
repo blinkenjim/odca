@@ -120,6 +120,37 @@ viewer sees. Roadmap, roughly in order:
 - [ ] Layered ODCA: let some colors be transparent so another ODCA
       "beneath" shows through; possibly different color sets and even
       different execution rates per layer.
+- [ ] Data flow to match the workflow (user, 2026-09-05; the jq merge of
+      two pair files was the last straw). DECIDED in outline: one library
+      file for the *nouns*, plain text files for the *scripts*.
+      - `library.json` at the repo root, JSON not sqlite (git-diffable, no
+        dependency, the byte-identical two-writer discipline already
+        exists), replacing colorsets.json, interesting-rules.json, and
+        the candidates and dropped lists. Sections: `rules` (name + id),
+        `colorsets` (sets with optional slots, dropped names, unjudged
+        candidates), `looks` (rule name + color set name + arrangement
+        index; what interesting-rules.json is really a list of). Whether
+        looks get their own names or default to the rule's is open.
+      - Rules need human names; the 20-digit IDs all look alike. The
+        program has no text input, so generate whimsical names on save
+        (adjective + noun from word lists tuned to the art: growth,
+        weather, textile words; unique in the library; printed by `s`),
+        rename by editing the JSON; a rename key can join the key-binding
+        rethink.
+      - Screensavers stay out of the library: a script is a text file that
+        references rules, color sets, and looks by name. Interim script,
+        before the language exists: a list of look names, one per line,
+        played by `--screensaver <file>`.
+      - Consequences: `--colorset-review` and a rule review need no file
+        argument; `--screensaver-review`/`--consistency-check` become
+        look review over the library (or over a script's looks).
+      - Migration: every saved rule gets a generated name, every pair
+        becomes a look, inline arranged colors become an arrangement index
+        against the named set; both implementations read and write the
+        library byte for byte, tested as today.
+      - Order: library format + migration in both languages; flags drop
+        their file arguments; look-list interim script; then the script
+        language below, which inherits names that already exist.
 - [ ] Scriptable screensaver mode (the interactive mode absorbs the same
       ability): a declarative, not procedural, script language that can
       intermix ODCA rules (the interesting ones), specify how rules
