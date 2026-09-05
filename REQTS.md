@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.26.2 — 2026-09-04
+Version 2.26.3 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -27,7 +27,7 @@ R-W7. 2.24.1: every pair activation fills the screen at once — R-W8. 2.24.2:
 so does every color set review step — R-V7. 2.26.0: screensaver mode
 (sequential study) — section 4d, R-O13. 2.26.1: rows keep their colors
 across transitions — R-X5. 2.26.2: watchdog 300 s, restarted by `i` —
-R-X3.)
+R-X3. 2.26.3: `N`/`P` step between pairs — R-X6.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -551,6 +551,11 @@ color set is written into the idle bank, and the previous bank is reused
 only after its rows have scrolled off; two color changes within one
 screenful therefore recolor the older rows, an accepted limitation.
 
+**R-X6 (`N` / `P`).** Step to the next / previous pair by hand, exactly
+as an automatic advance would (R-X4: rule, colors, fresh seed, watchdog
+restarted), wrapping at both ends; the announcement's reason reads `next`
+or `previous`. Live while paused.
+
 ---
 
 ## 5. Persistence (R-P)
@@ -644,8 +649,8 @@ The program prints single-line, human-readable status to standard output:
   the set.
 - **R-O13.** In screensaver mode (section 4d): on entry `screensaver
   <file>: <n> pairs`; on playing a pair `screensaver <i>/<n> <colorset>`,
-  followed on automatic advances by the reason in parentheses — the
-  auto-init reason (R-O6) or `timeout`. this precedes nothing else (cells change, the rule does not).
+  followed on advances by the reason in parentheses — the auto-init
+  reason (R-O6), `timeout`, `next`, or `previous`. this precedes nothing else (cells change, the rule does not).
 
 ---
 

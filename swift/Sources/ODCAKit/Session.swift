@@ -525,6 +525,12 @@ public final class Session {
         playPair(((pairIndex ?? -1) + 1) % pairs.count, reason: reason)
     }
 
+    private func playStep(_ step: Int) {  // R-X6: N/P move through the pairs, wrapping
+        guard !pairs.isEmpty else { return }
+        let n = pairs.count
+        playPair((((pairIndex ?? 0) + step) % n + n) % n, reason: step > 0 ? "next" : "previous")
+    }
+
     /// Call at program exit; in review mode this saves the kept sets (R-V5).
     public func finish() {
         if reviewMode { saveReview() }  // screensaver mode saves as it goes
@@ -554,8 +560,10 @@ public final class Session {
         case .C: cycleColors(-1)
         case .S:
             if screensaverMode { appendPair() } else if !reviewMode { saveColorSet() }
-        case .N: if screensaverMode { screensaverStep(1) } else if reviewMode { reviewStep(1) }
-        case .P: if screensaverMode { screensaverStep(-1) } else if reviewMode { reviewStep(-1) }
+        case .N:
+            if playMode { playStep(1) } else if screensaverMode { screensaverStep(1) } else if reviewMode { reviewStep(1) }
+        case .P:
+            if playMode { playStep(-1) } else if screensaverMode { screensaverStep(-1) } else if reviewMode { reviewStep(-1) }
         case .X: if screensaverMode { deletePair() } else if reviewMode { dropReview() }
         case .poolPrev: poolStep(-1)
         case .poolNext: poolStep(1)

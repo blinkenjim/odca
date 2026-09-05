@@ -765,6 +765,19 @@ final class SessionTests: XCTestCase {
         for _ in 0..<17 { session.tick(1.0 / 60.0) }  // ... and loops back to the first pair
         XCTAssertEqual(session.pairIndex, 0)
         XCTAssertTrue(lines.take().contains("screensaver 1/2 A (repeating (period 1))"))
+
+        // R-X6: N/P move through the pairs by hand, wrapping, with a fresh seed each time.
+        session.tick(1.0 / 60.0)
+        _ = session.handleKey(.N)
+        XCTAssertEqual(session.pairIndex, 1)
+        XCTAssertEqual(session.automaton.generation, 0)
+        XCTAssertTrue(lines.take().contains("screensaver 2/2 B (next)"))
+        _ = session.handleKey(.N)  // wraps
+        XCTAssertEqual(session.pairIndex, 0)
+        _ = session.handleKey(.space)
+        _ = session.handleKey(.P)  // live while paused; wraps backward
+        XCTAssertEqual(session.pairIndex, 1)
+        XCTAssertTrue(lines.take().contains("screensaver 2/2 B (previous)"))
     }
 
     func testScreensaverTimesOutAfterFiveUnpausedMinutes() throws {

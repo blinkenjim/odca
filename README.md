@@ -105,4 +105,4 @@ whether a rule's color sets are too alike.
 **Screensaver mode** (`--screensaver <file>`, Swift for now) plays a
 screensaver file pair by pair in order, looping: each pair runs until the
 boring detector would re-initialize, or for five minutes, then the next
-pair starts from a fresh field.
+pair starts from a fresh field; `N`/`P` step between pairs by hand.

@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.26.2 — 2026-09-04 (color set and screensaver review modes; ahead of Python)
+Version 2.26.3 — 2026-09-04 (color set and screensaver review modes; ahead of Python)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
