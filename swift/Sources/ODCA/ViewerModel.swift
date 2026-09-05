@@ -96,14 +96,16 @@ final class ViewerModel: ObservableObject {
     private func renderImage() -> CGImage? {
         let cols = Self.cols
         let rows = Self.rows + 1
-        let palette = session.palette  // arranged colors of the active set (R-U4)
-        let background = palette[0]
+        let palette = session.palette8  // two banks of four (R-U4, R-X5)
+        let banks = session.rowBanks
+        let background = session.palette[0]
         var pixels = [UInt8](repeating: 0, count: rows * cols * 4)
         let history = session.history
         for row in 0..<rows {
             let cells: [UInt8]? = row < history.count ? history[row] : nil
+            let base4 = row < banks.count ? Int(banks[row]) * 4 : 0
             for col in 0..<cols {
-                let color = cells.map { palette[Int($0[col])] } ?? background
+                let color = cells.map { palette[base4 + Int($0[col])] } ?? background
                 let base = (row * cols + col) * 4
                 pixels[base] = color.r
                 pixels[base + 1] = color.g

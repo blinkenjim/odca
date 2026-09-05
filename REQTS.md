@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.26.0 — 2026-09-04
+Version 2.26.1 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -25,7 +25,8 @@ and file — section 4c, R-P5; color set review saves on every drop and
 no longer bakes arrangements — R-V5, R-V6. 2.24.0: consistency check —
 R-W7. 2.24.1: every pair activation fills the screen at once — R-W8. 2.24.2:
 so does every color set review step — R-V7. 2.26.0: screensaver mode
-(sequential study) — section 4d, R-O13.)
+(sequential study) — section 4d, R-O13. 2.26.1: rows keep their colors
+across transitions — R-X5.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -535,6 +536,18 @@ cells as `i` does (R-K6). There is no screen fill: the previous pair
 scrolls off the top as the new one grows in from its fresh field — the
 transition, until cross-fades exist. Every ordinary key keeps its meaning;
 there are no review keys, and the file is never written.
+
+**R-X5 (rows keep their colors).** In screensaver mode a change of color
+set — a transition, or a digit or arrangement key — applies only to rows
+generated from then on; rows already displayed keep the colors they were
+painted with until they scroll off, so the color set changes along a row
+boundary moving up the screen rather than everywhere at once. (Outside
+screensaver mode the whole screen recolors immediately, as the interactive
+workflows expect.) *Implementation note (informative):* an eight-entry
+palette in two banks of four suffices — each row records its bank, a new
+color set is written into the idle bank, and the previous bank is reused
+only after its rows have scrolled off; two color changes within one
+screenful therefore recolor the older rows, an accepted limitation.
 
 ---
 

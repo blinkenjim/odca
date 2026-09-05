@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.26.0 — 2026-09-04
+Version 2.26.1 — 2026-09-04
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -96,7 +96,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-28 | R-W1–R-W6, R-P5 | With a missing screensaver file: entry creates it empty and no pair is active; `N` does nothing and `s` reports no pair; `S` appends the composed pair (current rule, active set name, arranged colors) without changing the position; `N` activates pair 1 (rule and colors restored, and exactly `rows` generations computed at once), `P` at the start prints the end message; `s` overwrites the active pair; stepping past the last prints the end message; `X` deletes and activates the neighbor, emptying the list clears the position; startup with a non-empty file activates pair 1; `[`/`]` walk the pool. Outside the mode the keys are inert. |
 | PT-29 | R-P5 | The screensaver file round-trips, escapes quotes in names, writes `{"pairs": []}` for an empty list in the shared layout, skips pairs with invalid rule IDs, and loads an unparseable file as empty. |
 | PT-30 | R-W7 | With a file of pairs whose rules run A, B, A, C, B: the grouped view order is A A B B C; entry and each crossing into another rule's group print the group marker, steps within a group do not; `S` appends to the file's end but joins its group in the view without moving the position; `s` rewrites the pair at its file position; `X` removes the pair from its file position and activates the pair now at that view position; the file is written in file order throughout. |
-| PT-31 | R-X1–R-X4, R-O13 | With a two-pair file whose rules die at once: entry plays pair 1 (its rule and colors, generation 0, no reason printed); the 17th generation (a screenful of boring rows) advances to pair 2 with a fresh seed and the reason printed, and no `auto-init` line; a further screenful loops back to pair 1. With auto-init off, a pair advances with reason `timeout` after 60 unpaused seconds, paused time not counting, and the clock restarts. |
+| PT-31 | R-X1–R-X4, R-O13 | With a two-pair file whose rules die at once: entry plays pair 1 (its rule and colors, generation 0, no reason printed); the 17th generation (a screenful of boring rows) advances to pair 2 with a fresh seed and the reason printed, and no `auto-init` line; a further screenful loops back to pair 1; after the transition the old rows still read pair 1's colors and the new seed row pair 2's (R-X5), while outside screensaver mode a color change recolors every row at once. With auto-init off, a pair advances with reason `timeout` after 60 unpaused seconds, paused time not counting, and the clock restarts. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
 
 ---

@@ -749,6 +749,15 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.pairIndex, 1)
         XCTAssertEqual(session.automaton.generation, 0)  // re-seeded on transition
         XCTAssertEqual(session.palette[0], RGB(hex: "#141414"))
+        // R-X5: rows from pair A keep A's colors; the new seed row is painted with B's.
+        let last = session.history.count - 1
+        XCTAssertEqual(session.rowBanks[last], 1)
+        XCTAssertEqual(session.rowBanks[last - 1], 0)
+        XCTAssertEqual(session.color(row: last, col: 0), RGB(hex: String(format: "#%02X%02X%02X", 20 + Int(session.history[last][0]), 20 + Int(session.history[last][0]), 20 + Int(session.history[last][0]))))
+        XCTAssertEqual(session.color(row: last - 1, col: 0), RGB(hex: "#0A0A0A"))  // state 0 under A
+        XCTAssertEqual(session.palette8.count, 8)
+        XCTAssertEqual(session.palette8[0], RGB(hex: "#0A0A0A"))
+        XCTAssertEqual(session.palette8[4], RGB(hex: "#141414"))
         out = lines.take()
         XCTAssertTrue(out.contains("screensaver 2/2 B (repeating (period 1))"))
         XCTAssertFalse(out.contains("auto-init ("))  // sequencing replaces the in-place re-seed
@@ -778,5 +787,16 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.pairIndex, 1)
         XCTAssertTrue(lines.take().contains("screensaver 2/2 B (timeout)"))
         XCTAssertEqual(session.playElapsed, 0, accuracy: 1e-9)
+    }
+
+    // Outside screensaver mode both banks follow the active set: instant recolor.
+    func testPaletteBanksOutsidePlayModeRecolorAtOnce() throws {
+        let session = makeSession(try reviewStore())
+        _ = session.handleKey(.a)
+        session.tick(1.0)
+        XCTAssertTrue(session.rowBanks.allSatisfy { $0 == 0 })
+        _ = session.handleKey(.digit(3))
+        XCTAssertEqual(session.palette8, session.palette + session.palette)
+        XCTAssertEqual(session.color(row: 0, col: 0), session.palette[Int(session.history[0][0])])
     }
 }

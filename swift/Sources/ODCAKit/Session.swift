@@ -73,6 +73,10 @@ public final class Session {
     /// The most recent generations, oldest first, at most `rows + 1` entries:
     /// one more than the display, so continuous scrolling has a row to slide in.
     public private(set) var history: [[UInt8]] = []
+    /// Palette bank (0 or 1) each history row was painted from (R-X5).
+    public private(set) var rowBanks: [UInt8] = []
+    private var bank = 0
+    private var banks: [[RGB]] = [[], []]  // two banks of four colors
     public private(set) var delay = Session.initialDelay
     public private(set) var paused = false
     public private(set) var screenRemaining = 0  // generations still to zip (R-K13)
@@ -182,8 +186,37 @@ public final class Session {
     public func stopSearch() { search.stop() }
 
     private func pushRow(_ row: [UInt8]) {
+        if playMode {
+            // R-X5: a new color set takes the idle bank; rows already on
+            // screen keep theirs until they scroll off.
+            let current = palette
+            if banks[bank].isEmpty {
+                banks = [current, current]
+            } else if current != banks[bank] {
+                bank ^= 1
+                banks[bank] = current
+            }
+        }
         history.append(row)
-        if history.count > rows + 1 { history.removeFirst() }
+        rowBanks.append(UInt8(bank))
+        if history.count > rows + 1 {
+            history.removeFirst()
+            rowBanks.removeFirst()
+        }
+    }
+
+    /// The eight-entry display palette: two banks of four (R-X5). Outside
+    /// screensaver mode both banks are the active set, so the whole screen
+    /// recolors at once.
+    public var palette8: [RGB] {
+        if playMode && !banks[0].isEmpty { return banks[0] + banks[1] }
+        let p = palette
+        return p + p
+    }
+
+    /// Display color of a history cell: its state through its row's bank.
+    public func color(row: Int, col: Int) -> RGB {
+        palette8[Int(rowBanks[row]) * 4 + Int(history[row][col])]
     }
 
     /// How far the display is scrolled into the top history row, in cells
