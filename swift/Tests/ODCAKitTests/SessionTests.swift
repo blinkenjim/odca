@@ -767,7 +767,7 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(lines.take().contains("screensaver 1/2 A (repeating (period 1))"))
     }
 
-    func testScreensaverTimesOutAfterSixtyUnpausedSeconds() throws {
+    func testScreensaverTimesOutAfterFiveUnpausedMinutes() throws {
         let lines = Lines()
         let store = try reviewStore()
         let file = store.stateDir.deletingLastPathComponent().appendingPathComponent("saver.json")
@@ -777,11 +777,14 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.a)  // auto-init off: only the timeout sequences now
         for _ in 0..<50 { _ = session.handleKey(.plus) }  // fastest, so stepping is cheap
         _ = lines.take()
-        session.tick(30)
+        session.tick(150)
         _ = session.handleKey(.space)
-        session.tick(100)  // paused time does not count
+        session.tick(1000)  // paused time does not count
         _ = session.handleKey(.space)
-        session.tick(29.5)
+        session.tick(100)
+        _ = session.handleKey(.i)  // a manual re-seed restarts the watchdog (R-X3)
+        XCTAssertEqual(session.playElapsed, 0, accuracy: 1e-9)
+        session.tick(299.5)
         XCTAssertEqual(session.pairIndex, 0)
         session.tick(1.0)
         XCTAssertEqual(session.pairIndex, 1)

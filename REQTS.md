@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.26.1 — 2026-09-04
+Version 2.26.2 — 2026-09-04
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -26,7 +26,8 @@ no longer bakes arrangements — R-V5, R-V6. 2.24.0: consistency check —
 R-W7. 2.24.1: every pair activation fills the screen at once — R-W8. 2.24.2:
 so does every color set review step — R-V7. 2.26.0: screensaver mode
 (sequential study) — section 4d, R-O13. 2.26.1: rows keep their colors
-across transitions — R-X5.)
+across transitions — R-X5. 2.26.2: watchdog 300 s, restarted by `i` —
+R-X3.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -525,9 +526,10 @@ advances to the next pair instead of re-seeding in place. Turning
 auto-initialization off with `a` (R-K12) therefore leaves only the
 timeout to advance the sequence.
 
-**R-X3 (advance on timeout).** If a pair has run for 60 unpaused seconds
-without the detector firing, the screensaver advances. The clock restarts
-with each pair and does not run while paused.
+**R-X3 (advance on timeout).** If a pair has run for 300 unpaused seconds
+(five minutes) without the detector firing, the screensaver advances. The
+clock restarts with each pair and with every re-seed, including a manual
+`i` (R-K6), and does not run while paused.
 
 **R-X4 (playing a pair).** Playing a pair sets its rule (a rule change,
 R-B1, printed and persisted, but not pushed on the undo stack), makes its

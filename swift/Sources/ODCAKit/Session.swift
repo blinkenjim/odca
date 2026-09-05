@@ -38,7 +38,7 @@ public final class Session {
     public static let minorityFraction = 0.10  // a producible state below this share is a minority (R-A1)
     public static let stagnationScreens = 4  // minority population steady this long -> stagnant (R-A1)
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
-    public static let playTimeout = 60.0  // screensaver: seconds on a pair before advancing (R-X3)
+    public static let playTimeout = 300.0  // screensaver: seconds on a pair before advancing (R-X3)
 
     /// Digit keys in review order (R-V): the first ten kept sets own these.
     public static let keyOrder = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]
@@ -756,6 +756,7 @@ public final class Session {
         automaton.resetRandom(using: &rng)
         pushRow(automaton.cells)
         resetBoredom()
+        playElapsed = 0  // R-X3: a fresh seed restarts the watchdog
     }
 
     private func selectInteresting(step: Int) {  // R-B2, R-B3
