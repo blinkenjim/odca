@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.0.0 — 2026-09-05 (two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.1.0 — 2026-09-06 (resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -28,7 +28,7 @@ copy these choices, but they are known to work.
 | `odca/search.py` | background workers: `CandidateSearch` (R-S) |
 | `odca/store.py` | persistence: path functions and the injectable `Store` (R-P) |
 | `odca/session.py` | toolkit-free orchestration `Session`: keys, undo, the look cycle, odca-select and odca behavior, pause, stash, timing (R-U/K/B/W/X/O) |
-| `odca/viewer.py` | pygame display layer: window, key translation, pacing, blit, flash (R-U2/3/5/6/10) |
+| `odca/viewer.py` | pygame display layer: resizable window, key translation, pacing, blit, flash (R-U2/3/5/6/8/10) |
 | `odca/cli.py` | shared argument handling and the viewer launch (R-U9) |
 | `odca/play.py`, `odca/select.py` | the `odca` and `odca-select` entry points (sections 4d, 4c) |
 | `odca/help.py` | the two help texts (copies of `conformance/help-*.txt`) |
@@ -52,11 +52,38 @@ copy these choices, but they are known to work.
   `uint8` table built from the 20-entry rule. The whole row updates in a
   few vectorized operations; the same sums feed the classifier's
   input-entropy measurement (R-C3) via `np.bincount`.
-- **Rendering**: the scroll buffer is a `(rows + 1, cols)` uint8 array; a
-  palette lookup yields RGB, wrapped by `pygame.surfarray.make_surface`,
-  scaled with `pygame.transform.scale` to one row taller than the window,
-  and blitted at `-scroll_offset * cell_size` (R-U3). No per-cell draw
-  calls.
+- **Rendering**: `Session.history` is a `(filled, cols)` uint8 view,
+  oldest row first, of a buffer twice `HISTORY_DEPTH` (2048) rows deep
+  that is compacted once it runs out, so a push is one row write and the
+  view is never copied; `Session.visible_start` indexes the last
+  `rows + 1` rows (R-U8). `Viewer.frame` looks those up through the
+  two-bank palette (background below them until the buffer fills), wraps
+  them with `pygame.surfarray.make_surface`, scales with
+  `pygame.transform.scale` to one row taller than the grid, and blits at
+  `-scroll_offset * cell_size` inside a clip rectangle on the grid (R-U3).
+  No per-cell draw calls.
+- **Window** (R-U2, R-U8): `pygame.RESIZABLE`; on `VIDEORESIZE` /
+  `WINDOWSIZECHANGED` the viewer calls `Session.resize` with as many whole
+  cells as fit (never below 40 × 30: a smaller window crops the grid,
+  since pygame 2.6 has no minimum-size call) and passes `dt = 0` for that
+  frame, so the interval spent resizing is never caught up. On macOS SDL
+  blocks the loop for the whole drag, which freezes the animation as R-U8
+  asks (the window's contents are stretched by the OS meanwhile); on Linux
+  the events stream and each frame that sees one is frozen. SDL offers no
+  resize increments, so `grid_rect` centers the grid and the remainder
+  becomes margins in the background color. Full screen is the platform's
+  own control (macOS: the green button, which SDL gives every resizable
+  window); the pointer hides while `Viewer.is_full_screen` holds — pygame's
+  `is_fullscreen()` or a window as wide as a desktop and at least 0.9 of
+  its height, since SDL does not flag a full screen Space and a notched
+  display's Space is shorter than the desktop. The window size is not
+  remembered (R-U2 allows either).
+- **`Session.resize`** (R-U8): crops or zero-pads every history row about
+  its center with numpy slicing, pads the live row with `rng` cells,
+  rebuilds the history buffers at the new width, sets the automaton's
+  `width` and `cells` in place (the generation count survives), trims to
+  the depth, renews the stagnation window for the new `rows`, resets the
+  detectors, and prints R-O14.
 - **Timing** (R-U5): `pygame.time.Clock().tick(60)` paces refreshes; a
   float accumulator converts elapsed time to whole generations. Catch-up
   cap: 2000 steps/refresh.
@@ -105,8 +132,8 @@ copy these choices, but they are known to work.
   permutation under `--shuffle`, its first entry swapped away from the
   look just played). `flash_remaining` counts down in `tick` even while
   paused; `viewer.draw` inverts the frame while `inverted` (R-U10).
-  Pygame's window is fixed-size; display-link pacing, resizing, and
-  pointer hiding are Swift-only by decision (TO-DO, 2026-09-05).
+  Display-link pacing stays Swift-only; the window, resizing, and pointer
+  hiding reached parity in 3.1.0.
 - **File anchors** (R-P3, R-P4): `store.LIBRARY_PATH` resolves three
   levels up from `store.py` to the repository root, where `library.json`
   is shared by all implementations; odca files are whatever path the
@@ -120,13 +147,17 @@ copy these choices, but they are known to work.
 - Run everything: `.venv/bin/python -m pytest`. Layer 1 runner:
   `tests/test_conformance.py`; Layer 2 lives across
   `tests/test_automaton.py`, `test_classify.py`, `test_search.py`,
-  `test_store.py`, `test_main.py`, and `test_session.py` (PT-9/10/10a/13/14
-  and PT-26, PT-28, PT-30, PT-31, PT-33, PT-34, PT-36 against a headless
-  `Session` with a temp `Store` and `CandidateSearch(workers=0)`; PT-8,
-  PT-27, PT-29 in `test_store.py`; PT-35 in `test_main.py`), using pytest
-  `tmp_path` for all file paths. PT-32 (resizing) is Swift-only.
-- Headless UI checks: set `SDL_VIDEODRIVER=dummy` and drive
-  `Viewer.handle_key` directly.
+  `test_store.py`, `test_main.py`, `test_library.py`, and
+  `test_session.py` (PT-9/10/10a/13/14 and PT-26, PT-28, PT-30, PT-31,
+  PT-32, PT-33, PT-34, PT-36 against a headless `Session` with a temp
+  `Store` and `CandidateSearch(workers=0)`; PT-8, PT-27, PT-29 in
+  `test_store.py`; PT-35 in `test_main.py`; PT-37 in `test_library.py`),
+  using pytest `tmp_path` for all file paths.
+- `tests/test_viewer.py` checks the pygame layer's geometry (grid size,
+  centering, margins, the visible slice, the inversion) on plain
+  `pygame.Surface`s, which need no window; the window itself is M-10.
+  Ad-hoc window checks: set `SDL_VIDEODRIVER=dummy`, or drive a copy of
+  `Viewer.run`'s loop with `pygame._sdl2.video.Window.size` changes.
 - **Warning:** a default-constructed `Session` (or `Viewer`) touches real
   user state (`$HOME/.odca/`, and `library.json` if anything bakes). Any
   ad-hoc script must construct `Session(..., store=Store(state_dir=tmp,

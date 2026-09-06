@@ -1,20 +1,20 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-05):** 3.0.0, both implementations at once: one
-program became two. `odca <file.odca> [--shuffle]` plays the looks of an
-odca file (two minutes each, quiet-minute hand-over, rows keeping their
-colors, fresh random order per pass with `--shuffle`); `odca-select
-<file.odca>` composes them (n/p over the file's looks plus the unsaved
-rule, s/S/X, R for the grouped order with a screen flash, autosave). The
-keeper file is now `interesting.odca` (28 looks), the color set pool
-`library.json`; color set review is on hold until it becomes its own
-program. Python installs `odca` and `odca-select` as console scripts.
-Swift 3.0.1 fixes the missing window (the file argument was taken for a
-document). First night's test: the Python player "ran beautifully". Next
-(user, 2026-09-06): Python parity with Swift's window — resizing and full
-screen; then use odca-select to build a show and watch it, the shuffle
-constraints, the color set tool, and the vision items, starting with the
-declarative script design.
+**YOU ARE HERE (2026-09-06):** Python 3.1.0 brought the pygame window to
+parity with Swift's: resizable, full screen through the platform's own
+control, centered grid with margins for the remainder, a 2048-row history
+that a taller window uncovers, frozen during the drag, pointer hidden in
+full screen (a heuristic, since SDL does not flag a macOS full screen
+Space). It also fixed `R` in the Python odca-select, which had been read
+as `r`. 3.0.x before it: one program became two (`odca <file.odca>
+[--shuffle]` plays, `odca-select <file.odca>` composes; keeper file
+`interesting.odca`, color set pool `library.json`; color set review on
+hold until it becomes its own program); Swift 3.0.1 fixed the missing
+window. The user ran the Python player on a Raspberry Pi 5 (1 GB) with a
+few display glitches; the GPU / vsync experiment is an item below. Next:
+use odca-select to build a show and watch it, the shuffle constraints,
+the color set tool, and the vision items, starting with the declarative
+script design.
 
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
@@ -59,14 +59,30 @@ declarative script design.
 - [x] (3.0.0: the keeper file *is* an odca file, `interesting.odca`;
       `odca-select interesting.odca` or a copy of it is the seed) Seed a
       screensaver file from the keeper file (user question, 2026-09-05).
-- [ ] Python window parity (user, 2026-09-06, after the first odca test):
-      a resizable pygame window with full screen, following R-U2/R-U8 as
-      Swift does (grid of whole cells, picture kept centered while cells
-      appear or vanish at the edges, deep history so a taller window
-      uncovers older rows, frozen during a live resize, pointer hidden in
-      full screen if pygame allows). This reverses the 2026-09-05 decision
-      that the resizable window was Swift-only polish; display-link pacing
-      stays out of scope. PT-32 then applies to Python too. Python 3.1.0.
+- [x] (3.1.0, 2026-09-06) Python window parity (user, 2026-09-06, after
+      the first odca test): a resizable pygame window with full screen,
+      following R-U2/R-U8 as Swift does (grid of whole cells, picture kept
+      centered while cells appear or vanish at the edges, deep history so
+      a taller window uncovers older rows, frozen during a live resize,
+      pointer hidden in full screen). Reversed the 2026-09-05 decision that
+      the resizable window was Swift-only polish; display-link pacing
+      stays out of scope. PT-32 applies to Python too.
+- [ ] Keyboard full screen toggle (from 3.1.0): pygame has no green
+      button on Linux, so the Pi relies on the window manager. A key needs
+      a binding on both sides (spec R-K, the key-binding rethink) and, in
+      Swift, `window.toggleFullScreen(nil)`.
+- [ ] Pi display glitches (user, 2026-09-06: a Pi 5 with 1 GB "did well,
+      but I saw a few display glitches"). Untested hypotheses: tearing
+      from an unsynced blit, or dropped frames from the per-frame scale.
+      First experiment: `set_mode(..., vsync=1)` (accepted by SDL 2.28 on
+      macOS; unknown on the Pi, so guard with a fallback). Second: draw
+      through `pygame._sdl2.video` (`Renderer` + streaming `Texture`),
+      which is the GPU path with vsync and keeps the resizable window;
+      the frame then uploads once per refresh instead of being scaled on
+      the CPU. Needs the Pi to decide; ask what the glitches look like
+      (horizontal tears vs stutters).
+- [ ] Window size and position memory for pygame (R-U2 "may"): SDL has no
+      frame autosave; would be a file under `~/.odca/`.
 - [ ] Shuffle constraints for `odca --shuffle` (user, 2026-09-05: "subject
       to certain constraints which I'll describe later"). 3.0.0 ships the
       minimum: a fresh permutation per pass that never opens on the look

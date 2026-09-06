@@ -29,6 +29,11 @@ ships with a stock macOS Python is too old for the editable install of a
 player, `python -m odca.select` the workbench, for running without the
 install.
 
+The window is resizable; full screen is the platform's own control (the
+green button on macOS). The picture stays centered while cells appear or
+vanish at the edges, a taller window uncovers older rows, and the pointer
+hides in full screen.
+
 ## Tests
 
 ```sh

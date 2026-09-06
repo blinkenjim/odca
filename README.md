@@ -40,8 +40,7 @@ Semantic versioning across the whole code base, with one convention for
 the two implementations: Swift is the gallery and leads at **even** minor
 versions (2.30.0, 2.34.0, …); Python is the laboratory and catches up on
 every special mode at the following **odd** minor (2.17.0, …), skipping
-only gallery polish such as display-link pacing, the resizable window, and
-pointer hiding. (Before 2.16 the direction was the reverse: Python first at
+only gallery polish such as display-link pacing. (Before 2.16 the direction was the reverse: Python first at
 odd minors, Swift porting at even.) The specification (`REQTS.md`) carries
 the version at which its behavior last changed. MAJOR = incompatible
 change, MINOR = new or changed behavior, PATCH = fixes and
@@ -107,10 +106,12 @@ consume candidates.
 | a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; on at startup |
 | q   | quit                                         |
 
-The Swift window is resizable (Python's is fixed-size), snapping to whole
-4-point cells, with full screen available; the automaton's width follows
-the window, keeping the picture centered while cells appear or vanish at
-the edges, and a taller window uncovers remembered rows.
+The window is resizable, with full screen available through the platform's
+own control (the green button on macOS); the grid holds as many whole
+4-point cells as fit, centered, and the automaton's width follows the
+window, keeping the picture centered while cells appear or vanish at the
+edges. A taller window uncovers remembered rows. Swift snaps the window to
+whole cells; pygame paints the remainder as thin margins.
 
 The `n`/`p` cycle in `odca-select` includes one extra slot holding the
 unsaved rule that was running before browsing began: stepping past the last

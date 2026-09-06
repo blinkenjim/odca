@@ -10,7 +10,7 @@ import pytest
 
 from odca.automaton import Rule
 from odca.search import CandidateSearch
-from odca.session import INITIAL_DELAY, MAX_DELAY, MIN_DELAY, Session
+from odca.session import HISTORY_DEPTH, INITIAL_DELAY, MAX_DELAY, MIN_COLS, MIN_DELAY, Session
 from odca.store import DEFAULT_COLOR_SETS, Store, load_odca_file, save_odca_file
 
 FOUR = [Rule.from_id(d * 20) for d in "0123"]
@@ -490,10 +490,10 @@ def test_scroll_offset_semantics(make_store):  # PT-25, R-U3
     from odca.session import SMOOTH_SCROLL_DELAY
     s = make_session(make_store())
     s.handle_key("a")  # keep auto-init from re-seeding during the test
-    assert s.history.shape == (s.rows + 1, s.cols)
+    assert s.history.shape == (1, s.cols)  # the seed row only
     assert s.scroll_offset == 0.0  # filling: no scroll yet
     s.tick(s.delay * s.rows)  # buffer full (seed row + rows generations)
-    assert s.filled == s.rows + 1
+    assert s.filled == s.rows + 1 and s.history.shape == (s.rows + 1, s.cols)
     assert s.scroll_offset == 1.0  # default speed is faster than the threshold: discrete
     for _ in range(2):
         s.handle_key("-")  # 4x the delay: slower than half speed -> continuous
@@ -912,3 +912,57 @@ def test_look_carries_its_color_set_and_cycle_applies_it(make_store, odca_file, 
     s.handle_key("n")  # back to the unsaved slot: mutant with S3
     assert s.rule == mutant
     assert s.palette[0] == rgb("#1E1E1E")
+
+
+def test_resize_preserves_center_and_uncovers_history(make_store, capsys):  # PT-32, R-U8
+    s = make_session(make_store())
+    s.handle_key("a")  # keep auto-init out of the way
+    s.tick(s.delay * 40)  # 41 rows remembered, 16 + 1 shown
+    assert s.filled == 41 and s.history.shape == (41, 32)
+    assert s.visible_start == 41 - 17
+    before = s.automaton.cells.copy()
+    old_top = s.history[0].copy()
+    capsys.readouterr()
+
+    # Narrower: the middle 20 cells survive, in every remembered row.
+    assert s.resize(20, 16)
+    assert s.cols == 20
+    assert list(s.automaton.cells) == list(before[6:26])
+    assert list(s.history[0]) == list(old_top[6:26])
+    assert s.filled == 41  # history kept
+    assert s._boring_streak == 0  # detectors reset
+    assert "resized 20x16" in capsys.readouterr().out
+
+    # Wider: the 20 stay centered, older rows padded with 0, the live row with random cells.
+    mid = s.automaton.cells.copy()
+    assert s.resize(30, 16)
+    assert list(s.automaton.cells[5:25]) == list(mid)
+    assert list(s.history[0][:5]) == [0, 0, 0, 0, 0]
+    assert list(s.history[-1]) == list(s.automaton.cells)
+    for _ in range(5):
+        s.tick(s.delay)
+    assert len(s.automaton.cells) == 30 and s.history.shape[1] == 30
+
+    # Taller: the window uncovers remembered rows instead of showing blank.
+    assert s.resize(30, 40)
+    assert s.visible_start == max(0, s.filled - 41)
+    assert s.scroll_offset == 1.0  # 46 rows remembered > 40: still "full"
+    assert not s.resize(30, 40)  # no change: nothing happens
+    assert s.resize(1, 0)  # clamped to the minimum
+    assert s.cols == MIN_COLS and s.rows == 1
+
+
+def test_history_depth_is_bounded(make_store):  # PT-32, R-U8
+    s = make_session(make_store())
+    s.handle_key("a")
+    for _ in range(50):
+        s.handle_key("+")
+    for _ in range(3):
+        s.tick(1.0)  # well past the depth (2000 steps per tick cap)
+    assert s.history.shape == (HISTORY_DEPTH, 32)
+    assert len(s.row_banks) == HISTORY_DEPTH
+    newest = s.history[-1].copy()
+    s.tick(s.delay)  # one more: the oldest row leaves, the newest is the live row
+    assert s.history.shape == (HISTORY_DEPTH, 32)
+    assert list(s.history[-2]) == list(newest)
+    assert list(s.history[-1]) == list(s.automaton.cells)

@@ -77,6 +77,8 @@ SCREEN_SPEEDUP = 8  # paused 's' zips a screenful at delay / SCREEN_SPEEDUP (R-K
 PLAY_TIMEOUT = 120.0  # odca: a look's screen time before it may advance (R-X2)
 PLAY_GRACE = 60.0  # odca: no transition within this long of an initialization (R-X3)
 FLASH_SECONDS = 0.25  # the screen inverts this long as a mode cue (R-U10)
+HISTORY_DEPTH = 2048  # rows remembered beyond the screen (R-U8)
+MIN_COLS = 3  # R-M2
 
 KEY_SPACE = " "
 KEY_RETURN = "\n"
@@ -107,14 +109,19 @@ class Session:
         self.automaton = Automaton(cols, rule=rule, seed="random", rng=self.rng)
         self.store.save_rule(rule)
 
-        # history[i] is a row of cells; row 0 is the oldest. One row more than
-        # the display holds, so continuous scrolling has a row to slide in.
-        # row_banks[i] is the palette bank each row was painted from (R-X5).
-        self.history = np.zeros((rows + 1, cols), dtype=np.uint8)
-        self.row_banks = np.zeros(rows + 1, dtype=np.uint8)
+        # Remembered generations, oldest first, up to HISTORY_DEPTH (never
+        # fewer than rows + 1). The display shows the last rows + 1: one more
+        # than the window, so continuous scrolling has a row to slide in; a
+        # taller window uncovers older rows (R-U8). `history` and `row_banks`
+        # (the palette bank each row was painted from, R-X5) are views into
+        # a buffer twice the depth, compacted once it runs out, so a push is
+        # a single row write.
+        self._buf = np.zeros((2 * self._keep(), cols), dtype=np.uint8)
+        self._buf_banks = np.zeros(2 * self._keep(), dtype=np.uint8)
+        self._end = 0  # one past the newest row in the buffers
+        self._count = 0  # rows remembered
         self._bank = 0
         self._banks = None  # two banks of four hex colors, once play mode paints a row
-        self.filled = 0
         self.delay = INITIAL_DELAY
         self.paused = False
         self.screen_remaining = 0  # generations still to zip after a paused 's'
@@ -258,6 +265,92 @@ class Session:
         """Display color of a history cell: its state through its row's bank."""
         return self.palette8[int(self.row_banks[row]) * 4 + int(self.history[row][col])]
 
+    # ----------------------------------------------------------------- history
+
+    def _keep(self):
+        return max(HISTORY_DEPTH, self.rows + 1)
+
+    @property
+    def history(self):
+        """Remembered rows of cells, oldest first: a (filled, cols) view (R-U8)."""
+        return self._buf[self._end - self._count:self._end]
+
+    @property
+    def row_banks(self):
+        """Palette bank (0 or 1) each history row was painted from (R-X5)."""
+        return self._buf_banks[self._end - self._count:self._end]
+
+    @property
+    def filled(self):
+        """Rows remembered so far."""
+        return self._count
+
+    @property
+    def visible_start(self):
+        """Index of the first history row the display shows (R-U3, R-U8)."""
+        return max(0, self._count - (self.rows + 1))
+
+    def _trim_history(self):
+        keep = self._keep()
+        if self._count > keep:
+            self._count = keep
+
+    def resize(self, cols, rows):
+        """Change the geometry (R-U8). Returns whether anything changed.
+
+        The state vector keeps its center: cropped from both edges when
+        narrower, padded at both edges when wider, the new cells seeded at
+        random in the live row and with state 0 in remembered rows. The
+        boring detectors start afresh; undo and the look cycle are untouched.
+        """
+        cols, rows = max(MIN_COLS, cols), max(1, rows)
+        if cols == self.cols and rows == self.rows:
+            return False
+        if cols != self.cols:
+            old = self.history
+            if cols < self.cols:
+                left = (self.cols - cols) // 2
+                fitted = old[:, left:left + cols]
+                cells = self.automaton.cells[left:left + cols]
+            else:
+                add = cols - self.cols
+                pad = (add // 2, add - add // 2)
+                fitted = np.pad(old, ((0, 0), pad))
+                cells = np.concatenate((
+                    self.rng.integers(0, N_STATES, pad[0], dtype=np.uint8),
+                    self.automaton.cells,
+                    self.rng.integers(0, N_STATES, pad[1], dtype=np.uint8)))
+            banks = self.row_banks.copy()
+            self.cols = cols
+            self.rows = rows
+            self._buf = np.zeros((2 * self._keep(), cols), dtype=np.uint8)
+            self._buf_banks = np.zeros(2 * self._keep(), dtype=np.uint8)
+            self._end = self._count = 0
+            for row, bank in zip(fitted, banks):
+                self._append(row, bank)
+            self.automaton.width = cols
+            self.automaton.cells = np.ascontiguousarray(cells)
+            if self._count:
+                self._buf[self._end - 1] = cells
+        self.rows = rows
+        self._trim_history()
+        self._minority_counts = deque(maxlen=STAGNATION_SCREENS * rows)
+        self._reset_boredom()
+        print(f"resized {self.cols}x{self.rows}")  # R-O14
+        return True
+
+    def _append(self, row, bank):
+        if self._end == len(self._buf):  # out of room: slide the kept rows to the front
+            keep = min(self._count, self._keep())
+            self._buf[:keep] = self._buf[self._end - keep:self._end]
+            self._buf_banks[:keep] = self._buf_banks[self._end - keep:self._end]
+            self._end, self._count = keep, keep
+        self._buf[self._end] = row
+        self._buf_banks[self._end] = bank
+        self._end += 1
+        self._count += 1
+        self._trim_history()
+
     def cycle_colors(self, step=1):  # R-K15 ('c' forward, 'C' backward)
         n = len(ARRANGEMENTS)
         if self.review_mode:
@@ -338,7 +431,7 @@ class Session:
         elapsed when scrolling continuously, so the picture slides up at one
         cell per delay and the newest generation enters from the bottom.
         """
-        if self.filled <= self.rows:
+        if self._count <= self.rows:
             return 0.0
         if self.paused or self.delay <= SMOOTH_SCROLL_DELAY:
             return 1.0
@@ -354,15 +447,7 @@ class Session:
             elif current != self._banks[self._bank]:
                 self._bank ^= 1
                 self._banks[self._bank] = list(current)
-        if self.filled < self.rows + 1:
-            self.history[self.filled] = row
-            self.row_banks[self.filled] = self._bank
-            self.filled += 1
-        else:
-            self.history[:-1] = self.history[1:]
-            self.history[-1] = row
-            self.row_banks[:-1] = self.row_banks[1:]
-            self.row_banks[-1] = self._bank
+        self._append(row, self._bank)
 
     def _fill_screen(self):
         """Compute a screenful at once so a navigation shows only the new state (R-V7, R-W8)."""

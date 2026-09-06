@@ -5,6 +5,32 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.1.0 (Python) — 2026-09-06
+
+Window parity. The pygame window resizes, full screen works through the
+platform's own control (the green button on macOS; whatever the window
+manager offers on the Pi), and the pointer hides in full screen. As on the
+Swift side, the grid holds as many whole 4-point cells as fit, the
+picture stays centered while cells appear or vanish at the edges, a
+taller window uncovers up to 2048 remembered rows, and the animation
+freezes during the drag with no burst afterwards. Where the Swift window
+snaps to whole cells, pygame cannot, so a thin margin in the background
+color takes the remainder.
+
+Two things to know:
+
+- On macOS the OS stretches the picture while you hold the drag; it snaps
+  to the new grid the moment you let go. That is SDL, not us.
+- There is no keyboard full screen toggle. On the Pi that means the
+  window manager's maximize or full screen shortcut. A key for it is on
+  the list, since it needs a binding on both sides.
+
+Also fixed: `R` in the Python `odca-select` was read as `r`, so the
+grouped order was unreachable there. It works now.
+
+Spec unchanged at 3.0.0; PT-32 now runs on both sides. Python has 100
+tests.
+
 ## 3.0.1 (Swift) — 2026-09-06
 
 3.0.0's Swift programs printed their startup lines and opened no window.
