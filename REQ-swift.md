@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.0.1 — 2026-09-06 (window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.2.0 — 2026-09-06 (per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -87,11 +87,13 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   out. `playOrder` is the current pass — `Array.shuffle(using:)` on the
   session RNG under `--shuffle`, its first entry swapped away from the
   look just played. Program precedence in `Session.init`: play, then
-  select, then review. Colors per row (R-X5): `Session.rowBanks` tags each
-  history row with a bank (0/1) and `palette8` holds the two banks;
-  `pushRow` moves a changed active set to the idle bank in play mode,
-  while other modes write both banks. The renderer indexes
-  `palette8[bank * 4 + state]`.
+  select, then review. Colors per row (R-X5): `Session.rowPalettes` tags
+  each history row with an index into `paletteTable`, the color sets rows
+  have been painted with, four `RGB` per entry; in play mode `pushRow`
+  appends a changed active set (or reuses an identical entry) and prunes
+  entries no remembered row uses once the table passes `paletteLimit`
+  (64); other modes have one entry, the active set. The renderer indexes
+  `paletteTable[index * 4 + state]`.
 - **Resizing** (R-U2, R-U8): `AutomatonView.layout()` derives cols/rows
   from its bounds and calls `Session.resize`; the grid lives in a
   clipping `gridLayer` centered in the view, whose background is the

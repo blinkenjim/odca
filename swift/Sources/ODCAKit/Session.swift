@@ -23,7 +23,7 @@ public struct RGB: Equatable {
 /// The toolkit-free orchestration layer: everything the two programs do
 /// except rendering pixels and reading raw key events. The UI layer
 /// translates toolkit key events into `Session.Key`, calls `tick(_:)` at
-/// its refresh rate, and draws `history` through `palette8` and `rowBanks`
+/// its refresh rate, and draws `history` through `paletteTable` and `rowPalettes`
 /// (inverted while `inverted`). Programs: odca-select (`selectFile`, section
 /// 4c), odca (`playFile`, section 4d); color set review (`reviewMode`,
 /// section 4b) is on hold and bound by no program.
@@ -45,6 +45,7 @@ public final class Session {
     public static let playGrace = 60.0  // odca: no transition within this long of an initialization (R-X3)
     public static let flashSeconds = 0.25  // the screen inverts this long as a mode cue (R-U10)
     public static let historyDepth = 2048  // rows remembered beyond the screen (R-U8)
+    public static let paletteLimit = 64  // odca: prune the per-row palette table past this (R-X5)
     public static let minCols = 3  // R-M2
 
     /// Digit keys in review order (R-V): the first ten kept sets own these.
@@ -83,10 +84,11 @@ public final class Session {
     /// more than the window, so continuous scrolling has a row to slide in;
     /// a taller window uncovers older rows (R-U8).
     public private(set) var history: [[UInt8]] = []
-    /// Palette bank (0 or 1) each history row was painted from (R-X5).
-    public private(set) var rowBanks: [UInt8] = []
-    private var bank = 0
-    private var banks: [[RGB]] = [[], []]  // two banks of four colors
+    /// Index into `paletteTable` of the palette each history row was painted with (R-X5).
+    public private(set) var rowPalettes: [UInt16] = []
+    /// odca (R-X5): the color sets rows were painted with; other modes use one entry, index 0.
+    private var palettes: [[RGB]] = []
+    private var paletteIndex = 0
     public private(set) var delay = Session.initialDelay
     public private(set) var paused = false
     public private(set) var screenRemaining = 0  // generations still to zip (R-K13)
@@ -204,26 +206,41 @@ public final class Session {
 
     private func pushRow(_ row: [UInt8]) {
         if playMode {
-            // R-X5: a new color set takes the idle bank; rows already on
-            // screen keep theirs until they scroll off.
+            // R-X5: a row keeps the colors it was painted with. A changed
+            // active set becomes a new table entry for the rows from now on.
             let current = palette
-            if banks[bank].isEmpty {
-                banks = [current, current]
-            } else if current != banks[bank] {
-                bank ^= 1
-                banks[bank] = current
+            if palettes.isEmpty {
+                palettes = [current]
+            } else if current != palettes[paletteIndex] {
+                if let shared = palettes.firstIndex(of: current) {  // a set seen before: share its entry
+                    paletteIndex = shared
+                } else {
+                    if palettes.count >= Session.paletteLimit { prunePalettes() }
+                    palettes.append(current)
+                    paletteIndex = palettes.count - 1
+                }
             }
         }
         history.append(row)
-        rowBanks.append(UInt8(bank))
+        rowPalettes.append(UInt16(paletteIndex))
         trimHistory()
+    }
+
+    /// Drop table entries no remembered row uses any more, renumbering the rest.
+    private func prunePalettes() {
+        let keep = Set(rowPalettes.map { Int($0) }).union([paletteIndex]).sorted()
+        var remap = [Int: Int]()
+        for (new, old) in keep.enumerated() { remap[old] = new }
+        rowPalettes = rowPalettes.map { UInt16(remap[Int($0)]!) }
+        palettes = keep.map { palettes[$0] }
+        paletteIndex = remap[paletteIndex]!
     }
 
     private func trimHistory() {
         let keep = max(Session.historyDepth, rows + 1)
         if history.count > keep {
             history.removeFirst(history.count - keep)
-            rowBanks.removeFirst(rowBanks.count - keep)
+            rowPalettes.removeFirst(rowPalettes.count - keep)
         }
     }
 
@@ -263,17 +280,17 @@ public final class Session {
         return true
     }
 
-    /// The eight-entry display palette: two banks of four (R-X5). Outside
-    /// odca both banks are the active set, so the whole screen recolors at once.
-    public var palette8: [RGB] {
-        if playMode && !banks[0].isEmpty { return banks[0] + banks[1] }
-        let p = palette
-        return p + p
+    /// RGB for every (palette, state) as one array, entry palette * 4 + state
+    /// (R-X5). Outside odca there is one palette, the active set, so the
+    /// whole screen recolors at once.
+    public var paletteTable: [RGB] {
+        if playMode && !palettes.isEmpty { return palettes.flatMap { $0 } }
+        return palette
     }
 
-    /// Display color of a history cell: its state through its row's bank.
+    /// Display color of a history cell: its state through its row's palette.
     public func color(row: Int, col: Int) -> RGB {
-        palette8[Int(rowBanks[row]) * 4 + Int(history[row][col])]
+        paletteTable[Int(rowPalettes[row]) * 4 + Int(history[row][col])]
     }
 
     /// How far the display is scrolled into the top history row, in cells

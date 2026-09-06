@@ -82,21 +82,21 @@ public final class ViewerModel: ObservableObject {
     private func renderImage() -> CGImage? {
         let cols = session.cols
         let rows = session.rows + 1
-        var palette = session.palette8  // two banks of four (R-U4, R-X5)
+        var palette = session.paletteTable  // (palette, state) -> RGB (R-U4, R-X5)
         var background = session.palette[0]
         if session.inverted {  // R-U10: a brief inversion as a mode cue
             let invert = { (c: RGB) in RGB(r: 255 - c.r, g: 255 - c.g, b: 255 - c.b) }
             palette = palette.map(invert)
             background = invert(background)
         }
-        let banks = session.rowBanks
+        let palettes = session.rowPalettes
         var pixels = [UInt8](repeating: 0, count: rows * cols * 4)
         let history = session.history
         let start = session.visibleStart
         for row in 0..<rows {
             let index = start + row
             let cells: [UInt8]? = index < history.count ? history[index] : nil
-            let base4 = index < banks.count ? Int(banks[index]) * 4 : 0
+            let base4 = index < palettes.count ? Int(palettes[index]) * 4 : 0
             for col in 0..<cols {
                 let color = cells.map { palette[base4 + Int($0[col])] } ?? background
                 let base = (row * cols + col) * 4

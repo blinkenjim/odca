@@ -812,12 +812,12 @@ final class SessionTests: XCTestCase {
         XCTAssertLessThan(session.playElapsed, 1)  // the new look's clock started inside the tick
         XCTAssertEqual(session.palette[0], RGB(hex: "#141414"))
         // R-X5: rows from look A keep A's colors below the boundary; B's rows above it.
-        let firstB = session.rowBanks.firstIndex(of: 1)!
-        XCTAssertEqual(session.rowBanks[firstB - 1], 0)
-        XCTAssertEqual(session.rowBanks.last, 1)
+        let firstB = session.rowPalettes.firstIndex(of: 1)!
+        XCTAssertEqual(session.rowPalettes[firstB - 1], 0)
+        XCTAssertEqual(session.rowPalettes.last, 1)
         XCTAssertEqual(session.color(row: firstB - 1, col: 0), RGB(hex: "#0A0A0A"))  // state 0 under A
-        XCTAssertEqual(session.palette8[0], RGB(hex: "#0A0A0A"))
-        XCTAssertEqual(session.palette8[4], RGB(hex: "#141414"))
+        XCTAssertEqual(session.paletteTable[0], RGB(hex: "#0A0A0A"))
+        XCTAssertEqual(session.paletteTable[4], RGB(hex: "#141414"))
         out = lines.take()
         XCTAssertTrue(out.contains("look 2/2 B (repeating (period 1))"))
 
@@ -898,6 +898,47 @@ final class SessionTests: XCTestCase {
         XCTAssertFalse(plain.shuffle)
     }
 
+    func testRowsKeepTheirColorsThroughQuickTransitions() throws {  // PT-31, R-X5
+        let store = try reviewStore()
+        let file = odcaFile(store, name: "saver.odca")
+        Store.saveOdcaFile([Look(rule: allZero.id, colorset: "A", colors: grey(10)),
+                            Look(rule: allZero.id, colorset: "B", colors: grey(20)),
+                            Look(rule: allZero.id, colorset: "C", colors: grey(30))], to: file)
+        let session = makeSession(store, play: file)
+        _ = session.handleKey(.a)
+        func painted(_ range: Range<Int>, _ colors: [String], line: UInt = #line) {
+            for row in range {
+                XCTAssertEqual(session.color(row: row, col: 0),
+                               RGB(hex: colors[Int(session.history[row][0])]), "row \(row)", line: line)
+            }
+        }
+        for _ in 0..<3 { session.tick(session.delay) }
+        let rowsA = session.history.count
+        _ = session.handleKey(.N)  // look 2, well within the screenful
+        for _ in 0..<3 { session.tick(session.delay) }
+        let rowsAB = session.history.count
+        _ = session.handleKey(.N)  // look 3: a third color set on one screen
+        for _ in 0..<3 { session.tick(session.delay) }
+        painted(0..<rowsA, grey(10))
+        painted(rowsA..<rowsAB, grey(20))
+        painted(rowsAB..<session.history.count, grey(30))
+        XCTAssertEqual(session.paletteTable.count, 12)  // three palettes
+        _ = session.handleKey(.N)  // back to look 1: its palette is shared, not duplicated
+        session.tick(session.delay)
+        XCTAssertEqual(session.paletteTable.count, 12)
+        // Many distinct palettes (arrangements of each set) pass the table's limit:
+        // it is pruned to what remembered rows still use, and no row changes color.
+        for i in 0..<(Session.paletteLimit + 10) {
+            _ = session.handleKey(.N)  // the look shows its baked colors, arrangement 1
+            for _ in 0..<(i % 23 + 1) { _ = session.handleKey(.c) }  // then a different arrangement each time round
+            session.tick(session.delay)
+        }
+        painted(0..<rowsA, grey(10))
+        painted(rowsA..<rowsAB, grey(20))
+        XCTAssertGreaterThan(session.paletteTable.count, 4 * Session.paletteLimit)
+        XCTAssertLessThanOrEqual(session.paletteTable.count, 4 * session.history.count)
+    }
+
     // MARK: PT-32 resizing (R-U8)
 
     func testResizePreservesCenterAndUncoversHistory() throws {
@@ -944,7 +985,7 @@ final class SessionTests: XCTestCase {
         for _ in 0..<50 { _ = session.handleKey(.plus) }
         for _ in 0..<3 { session.tick(1.0) }  // well past the depth (2000 steps per tick cap)
         XCTAssertEqual(session.history.count, Session.historyDepth)
-        XCTAssertEqual(session.rowBanks.count, Session.historyDepth)
+        XCTAssertEqual(session.rowPalettes.count, Session.historyDepth)
     }
 
     // MARK: PT-33 the whole pool from every mode (R-K17)

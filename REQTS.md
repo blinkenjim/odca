@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.0.0 — 2026-09-05
+Version 3.2.0 — 2026-09-06
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -41,7 +41,9 @@ composes one (section 4c: n/p over the file's looks, s/S/X, R with a
 screen flash R-U10); the keeper file becomes `interesting.odca` and the
 color sets file `library.json` — R-U1, R-U9, R-K5, R-K16, section 4, R-P3,
 R-P4, R-P5 merged, R-O3–R-O5, R-O12, R-O13, section 10; color set review
-(section 4b) is bound by no program.)
+(section 4b) is bound by no program. 3.2.0: rows keep their colors for
+good, however many color changes share a screenful — R-X5, the two-bank
+limitation withdrawn.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -641,14 +643,15 @@ its meaning; `s`, `S`, `X`, and `R` do nothing.
 **R-X5 (rows keep their colors).** In `odca` a change of color set — a
 transition, or a digit or arrangement key — applies only to rows
 generated from then on; rows already displayed keep the colors they were
-painted with until they scroll off, so the color set changes along a row
-boundary moving up the screen rather than everywhere at once. (In
-`odca-select` the whole screen recolors immediately, as the workbench
-expects.) *Implementation note (informative):* an eight-entry palette in
-two banks of four suffices — each row records its bank, a new color set
-is written into the idle bank, and the previous bank is reused only after
-its rows have scrolled off; two color changes within one screenful
-therefore recolor the older rows, an accepted limitation.
+painted with for as long as they are remembered (R-U8), so the color set
+changes along a row boundary moving up the screen rather than everywhere
+at once — however many changes follow each other, even several within
+one screenful. (In `odca-select` the whole screen recolors immediately,
+as the workbench expects.) *Implementation note (informative):* each row
+records an index into a table of the color sets rows have been painted
+with; a changed active set adds an entry (or reuses an identical one),
+and entries no remembered row uses any more are dropped once the table
+grows past a limit.
 
 **R-X6 (`N` / `P`, `n` / `p`).** Step to the next / previous look of the
 pass by hand, exactly as an automatic advance would (R-X4: rule, colors,

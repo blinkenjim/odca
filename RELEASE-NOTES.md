@@ -5,6 +5,21 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.2.0 (Swift) and 3.3.0 (Python) — 2026-09-06
+
+Your complaint after the 3.1.1 test: pressing `N` in `odca` recolored
+the whole screen. The old design kept two palettes and swapped between
+them, so the second color change within one screenful reused the
+palette the oldest rows were still wearing; the spec even called that an
+accepted limitation. Withdrawn. Every row now remembers the color set it
+was painted with, for as long as it is remembered at all, so blue stays
+blue no matter how many looks you step through. `odca-select` still
+recolors the whole screen at once, as you want it to.
+
+Spec 3.2.0 (R-X5), both implementations, same session. The Swift
+version leads at 3.2.0 and Python follows at 3.3.0 as the convention
+says, in two commits.
+
 ## 3.1.1 (Python) — 2026-09-06
 
 The GPU display path, first of the three steps you agreed to for the

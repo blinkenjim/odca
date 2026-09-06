@@ -1,6 +1,11 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-06):** Python 3.1.1 moved drawing onto SDL's
+**YOU ARE HERE (2026-09-06):** Spec 3.2.0, Swift 3.2.0, Python 3.3.0:
+rows keep their colors for good in `odca` (per-row palette table; the
+two-bank limitation is gone), after the user saw `N` recolor the whole
+screen. The 3.1.1 test verdict on the Mac: "velvety smooth at slow
+speeds and blasts the frames out at high speed". Before that, Python
+3.1.1 moved drawing onto SDL's
 renderer: one texel per cell, GPU scaling, vsync pacing — the first of
 three agreed steps toward the portrait art installation (next: launching
 full screen unattended, then the boring detector windows on a 480-row
