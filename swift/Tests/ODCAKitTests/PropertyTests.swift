@@ -11,8 +11,7 @@ final class PropertyTests: XCTestCase {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return Store(
             stateDir: dir.appendingPathComponent("state"),
-            keeperFile: dir.appendingPathComponent("interesting-rules.txt"),
-            colorSetsFile: dir.appendingPathComponent("colorsets.json"),
+            libraryFile: dir.appendingPathComponent("library.json"),
             candidatePalettesFile: dir.appendingPathComponent("candidates.json"))
     }
 
@@ -97,25 +96,23 @@ final class PropertyTests: XCTestCase {
         XCTAssertEqual(store.loadCandidates(), [rules[0]])
     }
 
-    // PT-8: keeper file — screensaver-format pairs — append and tolerant loading.
-    func testKeeperAppendAndLoad() throws {
+    // PT-8: odca file — looks — round trip and tolerant loading.
+    func testOdcaFileRoundTripAndTolerance() throws {
         let store = try tempStore()
+        let url = store.stateDir.appendingPathComponent("looks.odca")
         var rng = Xoshiro256(seed: 8)
         let first = Rule.random(using: &rng)
         let second = Rule.random(using: &rng)
-        store.appendInteresting(first)  // default color set
-        store.appendInteresting(ScreensaverPair(rule: second.id, colorset: "Mine", colors: ["#000000", "#111111", "#222222", "#333333"]))
-        let pairs = store.loadInterestingPairs()
-        XCTAssertEqual(pairs.map(\.rule), [first.id, second.id])
-        XCTAssertEqual(pairs[0].colorset, "ODCA default")
-        XCTAssertEqual(pairs[1].colors[3], "#333333")
-        XCTAssertEqual(store.loadInteresting(), [first, second])
-        XCTAssertEqual(Store.loadScreensaver(store.keeperFile), pairs)  // same format as a screensaver file
-        try "{\"pairs\": [{\"rule\": \"notarule\", \"colorset\": \"x\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}, {\"rule\": \"\(first.id)\", \"colorset\": \"ok\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}]}"
-            .write(to: store.keeperFile, atomically: true, encoding: .utf8)
-        XCTAssertEqual(store.loadInteresting(), [first])
-        try "rule \(first.id)\n".write(to: store.keeperFile, atomically: true, encoding: .utf8)  // the old text format
-        XCTAssertEqual(store.loadInteresting(), [])
+        let looks = [Look(rule: first.id, colorset: "ODCA default", colors: Store.defaultColorSets[1]!.colors),
+                     Look(rule: second.id, colorset: "Mine", colors: ["#000000", "#111111", "#222222", "#333333"])]
+        Store.saveOdcaFile(looks, to: url)
+        XCTAssertEqual(Store.loadOdcaFile(url), looks)
+        try "{\"looks\": [{\"rule\": \"notarule\", \"colorset\": \"x\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}, {\"rule\": \"\(first.id)\", \"colorset\": \"ok\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}]}"
+            .write(to: url, atomically: true, encoding: .utf8)
+        XCTAssertEqual(Store.loadOdcaFile(url)!.map(\.rule), [first.id])
+        try "{\"pairs\": [{\"rule\": \"\(first.id)\", \"colorset\": \"old\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}]}"
+            .write(to: url, atomically: true, encoding: .utf8)  // the 2.x "pairs" key is no longer read
+        XCTAssertEqual(Store.loadOdcaFile(url), [])
     }
 
     // PT-11: stop() terminates workers; stopping an unstarted search is safe.
@@ -148,21 +145,21 @@ final class PropertyTests: XCTestCase {
             {"sets": [{"slot": 4, "name": "bad", "colors": ["#12"]},
                       {"slot": 12, "name": "x", "colors": ["#000000", "#000000", "#000000", "#000000"]},
                       {"slot": 7, "name": "ok", "colors": ["#abcdef", "#000000", "#111111", "#222222"]}]}
-            """.write(to: store.colorSetsFile, atomically: true, encoding: .utf8)
+            """.write(to: store.libraryFile, atomically: true, encoding: .utf8)
         let loaded = store.loadColorSets()
         XCTAssertEqual(Set(loaded.keys), [1, 7])
         XCTAssertEqual(loaded[7]!.colors[0], "#ABCDEF")
-        try "not json".write(to: store.colorSetsFile, atomically: true, encoding: .utf8)
+        try "not json".write(to: store.libraryFile, atomically: true, encoding: .utf8)
         XCTAssertEqual(Set(store.loadColorSets().keys), [1])
     }
 
     /// Saving the shipped file back out must be byte-identical (shared file).
     func testColorSetsFileLayoutMatchesReference() throws {
-        let reference = Store.repoRoot.appendingPathComponent("colorsets/colorsets.json")
+        let reference = Store.repoRoot.appendingPathComponent("library.json")
         let original = try String(contentsOf: reference, encoding: .utf8)
         let store = try tempStore()
-        store.saveColorSetFile(Store(colorSetsFile: reference).loadColorSetFile())
-        XCTAssertEqual(try String(contentsOf: store.colorSetsFile, encoding: .utf8), original)
+        store.saveColorSetFile(Store(libraryFile: reference).loadColorSetFile())
+        XCTAssertEqual(try String(contentsOf: store.libraryFile, encoding: .utf8), original)
     }
 
     // R-P4: pool entries and the dropped list round-trip; saveColorSets keeps them.
@@ -182,11 +179,11 @@ final class PropertyTests: XCTestCase {
         XCTAssertEqual(after.sets[0].colors[0], "#333333")
         XCTAssertNil(after.sets[2].slot)
         XCTAssertEqual(after.dropped, ["Gone"])
-        let text = try String(contentsOf: store.colorSetsFile, encoding: .utf8)
+        let text = try String(contentsOf: store.libraryFile, encoding: .utf8)
         XCTAssertTrue(text.hasSuffix(" \"dropped\": [\n  \"Gone\"\n ]\n}\n"))
         // A JSON null slot reads as pool-only.
         try "{\"sets\": [{\"slot\": null, \"name\": \"N\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}]}"
-            .write(to: store.colorSetsFile, atomically: true, encoding: .utf8)
+            .write(to: store.libraryFile, atomically: true, encoding: .utf8)
         XCTAssertNil(store.loadColorSetFile().sets.first!.slot)
     }
 
@@ -198,33 +195,34 @@ final class PropertyTests: XCTestCase {
         XCTAssertEqual(store.loadCandidatePalettes(), [ColorSetEntry(slot: nil, name: "A", colors: ["#0A0A0A", "#000000", "#000000", "#000000"])])
     }
 
-    // R-P5: screensaver file round trip, tolerance, and Python-compatible layout.
-    func testScreensaverFileRoundTrip() throws {
+    // R-P3, PT-29: odca file round trip, tolerance, and Python-compatible layout.
+    func testOdcaFileLayout() throws {
         let store = try tempStore()
-        let url = store.stateDir.appendingPathComponent("saver.json")
-        XCTAssertNil(Store.loadScreensaver(url))  // missing
-        let pairs = [ScreensaverPair(rule: String(repeating: "0123", count: 5), colorset: "A", colors: ["#000000", "#111111", "#222222", "#333333"]),
-                     ScreensaverPair(rule: String(repeating: "3", count: 20), colorset: "B \"quoted\"", colors: ["#AAAAAA", "#BBBBBB", "#CCCCCC", "#DDDDDD"])]
-        Store.saveScreensaver(pairs, to: url)
-        XCTAssertEqual(Store.loadScreensaver(url), pairs)
+        let url = store.stateDir.appendingPathComponent("saver.odca")
+        XCTAssertNil(Store.loadOdcaFile(url))  // missing
+        let looks = [Look(rule: String(repeating: "0123", count: 5), colorset: "A", colors: ["#000000", "#111111", "#222222", "#333333"]),
+                     Look(rule: String(repeating: "3", count: 20), colorset: "B \"quoted\"", colors: ["#AAAAAA", "#BBBBBB", "#CCCCCC", "#DDDDDD"])]
+        Store.saveOdcaFile(looks, to: url)
+        XCTAssertEqual(Store.loadOdcaFile(url), looks)
         let text = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertTrue(text.hasPrefix("{\n \"pairs\": [\n  {\n   \"rule\": \"01230123012301230123\",\n   \"colorset\": \"A\",\n   \"colors\": [\n    \"#000000\","))
-        Store.saveScreensaver([], to: url)
-        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "{\n \"pairs\": []\n}\n")
-        try "{\"pairs\": [{\"rule\": \"bad\", \"colorset\": \"x\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}, {\"rule\": \"00000000000000000000\", \"colorset\": \"ok\", \"colors\": [\"#0a0a0a\", \"#000000\", \"#000000\", \"#000000\"]}]}"
+        XCTAssertTrue(text.hasPrefix("{\n \"looks\": [\n  {\n   \"rule\": \"01230123012301230123\",\n   \"colorset\": \"A\",\n   \"colors\": [\n    \"#000000\","))
+        Store.saveOdcaFile([], to: url)
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "{\n \"looks\": []\n}\n")
+        try "{\"looks\": [{\"rule\": \"bad\", \"colorset\": \"x\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}, {\"rule\": \"00000000000000000000\", \"colorset\": \"ok\", \"colors\": [\"#0a0a0a\", \"#000000\", \"#000000\", \"#000000\"]}]}"
             .write(to: url, atomically: true, encoding: .utf8)
-        XCTAssertEqual(Store.loadScreensaver(url)!.map(\.colorset), ["ok"])
-        XCTAssertEqual(Store.loadScreensaver(url)!.first!.colors[0], "#0A0A0A")
+        XCTAssertEqual(Store.loadOdcaFile(url)!.map(\.colorset), ["ok"])
+        XCTAssertEqual(Store.loadOdcaFile(url)!.first!.colors[0], "#0A0A0A")
         try "not json".write(to: url, atomically: true, encoding: .utf8)
-        XCTAssertEqual(Store.loadScreensaver(url), [])
+        XCTAssertEqual(Store.loadOdcaFile(url), [])
     }
 
-    /// The keeper file (written by Python's json.dumps) round-trips byte-identically.
-    func testKeeperFileLayoutMatchesReference() throws {
-        let reference = Store.repoRoot.appendingPathComponent("interesting-rules.json")
+    /// The shipped odca file (written by Python's json.dumps) round-trips byte-identically.
+    func testOdcaFileLayoutMatchesReference() throws {
+        let reference = Store.repoRoot.appendingPathComponent("interesting.odca")
         let original = try String(contentsOf: reference, encoding: .utf8)
         let store = try tempStore()
-        Store.saveScreensaver(Store.loadScreensaver(reference)!, to: store.keeperFile)
-        XCTAssertEqual(try String(contentsOf: store.keeperFile, encoding: .utf8), original)
+        let url = store.stateDir.appendingPathComponent("copy.odca")
+        Store.saveOdcaFile(Store.loadOdcaFile(reference)!, to: url)
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original)
     }
 }

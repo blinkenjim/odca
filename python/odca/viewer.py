@@ -3,8 +3,8 @@
 All behavior lives in session.py (the toolkit-free orchestration layer);
 this module only opens the window, turns pygame key events into Session
 keys, calls Session.tick at the refresh rate, and blits Session.history
-through the two-bank palette (Session.palette8, Session.row_banks). See
-session.py for the controls and modes.
+through the two-bank palette (Session.palette8, Session.row_banks),
+inverted during a flash. See session.py for the controls and programs.
 """
 
 import numpy as np
@@ -57,6 +57,8 @@ class Viewer:
         palette8 = np.array(session.palette8, dtype=np.uint8)  # two banks of four (R-X5)
         index = session.row_banks[:, None].astype(np.int64) * 4 + session.history
         rgb = palette8[index]  # (rows + 1, cols, 3)
+        if session.inverted:  # R-U10: a brief inversion as a mode cue
+            rgb = 255 - rgb
         surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))
         cell = self.cell_size
         scaled = pygame.transform.scale(surf, (session.cols * cell, (session.rows + 1) * cell))

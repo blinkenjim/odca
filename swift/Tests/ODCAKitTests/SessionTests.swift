@@ -6,29 +6,35 @@ import XCTest
 /// Layer 2 of TESTS.md: session properties PT-9, PT-10, PT-10a, PT-13..PT-24.
 /// All file access goes to a temp Store; the search is never started.
 final class SessionTests: XCTestCase {
-    func makeStore(saved: [Rule] = [], currentRule: Rule? = nil) throws -> Store {
+    func makeStore(currentRule: Rule? = nil) throws -> Store {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("odca-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let store = Store(
             stateDir: dir.appendingPathComponent("state"),
-            keeperFile: dir.appendingPathComponent("interesting-rules.txt"),
-            colorSetsFile: dir.appendingPathComponent("colorsets.json"),
+            libraryFile: dir.appendingPathComponent("library.json"),
             candidatePalettesFile: dir.appendingPathComponent("candidates.json"))
-        for rule in saved { store.appendInteresting(rule) }
         if let rule = currentRule { store.saveRule(rule) }
         return store
     }
 
+    /// An odca file beside the store's state, holding the rules with default colors.
+    func odcaFile(_ store: Store, rules: [Rule] = [], name: String = "looks.odca") -> URL {
+        let url = store.stateDir.deletingLastPathComponent().appendingPathComponent(name)
+        if !rules.isEmpty {
+            let d = Store.defaultColorSets[1]!
+            Store.saveOdcaFile(rules.map { Look(rule: $0.id, colorset: d.name, colors: d.colors) }, to: url)
+        }
+        return url
+    }
+
     /// A session whose terminal output is captured into `lines`.
     func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil,
-                     review: Bool = false, screensaver: URL? = nil, grouped: Bool = false,
-                     play: URL? = nil) -> Session {
+                     review: Bool = false, select: URL? = nil, play: URL? = nil, shuffle: Bool = false) -> Session {
         let sink: (String) -> Void = lines.map { l in { l.all.append($0) } } ?? { print($0) }
         return Session(cols: 32, rows: 16, store: store,
                        search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed),
-                       reviewMode: review, screensaverFile: screensaver, groupByRule: grouped,
-                       playFile: play, output: sink)
+                       reviewMode: review, selectFile: select, playFile: play, shuffle: shuffle, output: sink)
     }
 
     final class Lines { var all: [String] = []; func take() -> String { defer { all.removeAll() }; return all.joined(separator: "\n") } }
@@ -70,23 +76,30 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.automaton.rule, r0)
     }
 
-    func testCycleWithUnsavedSlot() throws {
+    func testCycleWithUnsavedSlot() throws {  // PT-10
         let saved = fourSaved
         let outside = try Rule(id: "01230123012301230123")
-        let session = makeSession(try makeStore(saved: saved, currentRule: outside))
-        XCTAssertNil(session.interestingIndex)
-        XCTAssertEqual(session.unsavedRule, outside)
+        let store = try makeStore(currentRule: outside)
+        let session = makeSession(store, select: odcaFile(store, rules: saved))
+        // A non-empty file opens on look 1 with the unsaved slot empty (R-W1) ...
+        XCTAssertEqual(session.lookIndex, 0)
+        XCTAssertNil(session.unsavedRule)
+        XCTAssertEqual(session.automaton.rule, saved[0])
+        _ = session.handleKey(.m)  // ... until r or m fills it
+        let first = session.automaton.rule
+        XCTAssertNil(session.lookIndex)
+        XCTAssertEqual(session.unsavedRule, first)
         XCTAssertTrue(session.handleKey(.n))
         XCTAssertEqual(session.automaton.rule, saved[0])
         XCTAssertTrue(session.handleKey(.p))
-        XCTAssertEqual(session.automaton.rule, outside)
+        XCTAssertEqual(session.automaton.rule, first)
         XCTAssertTrue(session.handleKey(.p))
         XCTAssertEqual(session.automaton.rule, saved[3])
         XCTAssertTrue(session.handleKey(.n))
-        XCTAssertEqual(session.automaton.rule, outside)
+        XCTAssertEqual(session.automaton.rule, first)
         _ = session.handleKey(.m)
         let mutant = session.automaton.rule
-        XCTAssertNil(session.interestingIndex)
+        XCTAssertNil(session.lookIndex)
         XCTAssertEqual(session.unsavedRule, mutant)
         XCTAssertTrue(session.handleKey(.n))
         XCTAssertEqual(session.automaton.rule, saved[0])
@@ -94,16 +107,16 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.automaton.rule, mutant)
     }
 
-    func testCycleStartupMatch() throws {
+    func testCycleStartupOnFirstLook() throws {  // PT-10a
         let saved = fourSaved
-        let session = makeSession(try makeStore(saved: saved, currentRule: saved[2]))
-        XCTAssertEqual(session.interestingIndex, 2)
+        let store = try makeStore(currentRule: saved[2])
+        let session = makeSession(store, select: odcaFile(store, rules: saved))
+        XCTAssertEqual(session.lookIndex, 0)
         XCTAssertNil(session.unsavedRule)
         XCTAssertTrue(session.handleKey(.n))
-        XCTAssertEqual(session.automaton.rule, saved[3])
-        XCTAssertTrue(session.handleKey(.n))
-        XCTAssertEqual(session.automaton.rule, saved[0])
+        XCTAssertEqual(session.automaton.rule, saved[1])
         XCTAssertTrue(session.handleKey(.p))
+        XCTAssertTrue(session.handleKey(.p))  // wraps with no unsaved stop
         XCTAssertEqual(session.automaton.rule, saved[3])
         _ = session.handleKey(.m)
         let mutant = session.automaton.rule
@@ -114,32 +127,42 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.automaton.rule, mutant)
     }
 
-    func testCycleEmptyKeeper() throws {
-        let session = makeSession(try makeStore())
-        let rule = session.automaton.rule
+    func testCycleEmptyFileAndNoFile() throws {  // R-B4
+        let lines = Lines()
+        let outside = try Rule(id: "01230123012301230123")
+        let store = try makeStore(currentRule: outside)
+        let session = makeSession(store, lines: lines, select: odcaFile(store))
+        XCTAssertEqual(session.unsavedRule, outside)
+        XCTAssertEqual(session.looks, [])
+        _ = lines.take()
         XCTAssertTrue(session.handleKey(.n))
-        XCTAssertEqual(session.automaton.rule, rule)
-        XCTAssertNil(session.interestingIndex)
+        XCTAssertEqual(session.automaton.rule, outside)
+        XCTAssertTrue(lines.take().contains("no looks"))
+        let base = makeSession(try makeStore())  // no program: n/p have nothing to cycle
+        let rule = base.automaton.rule
+        XCTAssertTrue(base.handleKey(.n))
+        XCTAssertEqual(base.automaton.rule, rule)
+        XCTAssertNil(base.lookIndex)
     }
 
     // MARK: PT-13, PT-14
 
     func testPauseModality() throws {
-        let store = try makeStore(saved: fourSaved)
+        let store = try makeStore()
         let session = makeSession(store)
         XCTAssertTrue(session.handleKey(.space))
         XCTAssertTrue(session.paused)
         let rule = session.automaton.rule
         let cells = session.automaton.cells
         let delay = session.delay
-        let index = session.interestingIndex
+        let index = session.lookIndex
         for key: Session.Key in [.r, .m, .u, .i, .n, .p, .a, .plus, .minus] {
             XCTAssertTrue(session.handleKey(key))
         }
         XCTAssertEqual(session.automaton.rule, rule)
         XCTAssertEqual(session.automaton.cells, cells)
         XCTAssertEqual(session.delay, delay)
-        XCTAssertEqual(session.interestingIndex, index)
+        XCTAssertEqual(session.lookIndex, index)
         XCTAssertTrue(session.autoInit)  // 'a' is ignored while paused
         _ = session.handleKey(.digit(7))  // undefined slot: still a no-op while paused
         XCTAssertEqual(session.colorSet, 1)
@@ -361,7 +384,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.screenRemaining, 0)
         _ = session.handleKey(.s)  // unpaused: saves, does not queue
         XCTAssertEqual(session.screenRemaining, 0)
-        XCTAssertEqual(session.store.loadInteresting(), [session.automaton.rule])
+        // (unpaused 's' is the save key of odca-select; without a program it saves nothing)
     }
 
     func testScreenCounterRunsFromResume() throws {
@@ -582,189 +605,213 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(store.loadColorSetFile().sets.count, 11)
     }
 
-    // MARK: PT-28 screensaver review mode (R-W)
+    // MARK: PT-28 odca-select (R-W)
 
-    func testScreensaverReviewLifecycle() throws {
+    func testSelectLifecycle() throws {
         let lines = Lines()
         let store = try reviewStore()
-        let file = store.stateDir.deletingLastPathComponent().appendingPathComponent("saver.json")
+        let file = odcaFile(store, name: "saver.odca")
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
-        let session = makeSession(store, lines: lines, screensaver: file)
-        XCTAssertTrue(session.screensaverMode && !session.reviewMode)
-        XCTAssertEqual(Store.loadScreensaver(file), [])  // a new, empty file was created
-        XCTAssertNil(session.pairIndex)
-        XCTAssertTrue(lines.take().contains("screensaver saver.json: 0 pairs"))
+        let session = makeSession(store, lines: lines, select: file)
+        XCTAssertTrue(session.selectMode && !session.reviewMode && !session.playMode)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))  // created by the first save or at exit
+        XCTAssertNil(session.lookIndex)
+        XCTAssertEqual(session.unsavedRule, session.automaton.rule)
+        XCTAssertTrue(lines.take().contains("odca saver.odca: 0 looks"))
         let rule0 = session.automaton.rule
-
-        _ = session.handleKey(.N)  // nothing to step through
-        XCTAssertEqual(lines.take(), "")
-        _ = session.handleKey(.s)
-        XCTAssertTrue(lines.take().contains("no pair under review"))
+        _ = session.handleKey(.n)
+        XCTAssertTrue(lines.take().contains("no looks"))
 
         _ = session.handleKey(.digit(3))  // S3 = grey(30)
         _ = session.handleKey(.c)  // arranged (0,1,3,2)
-        _ = session.handleKey(.S)  // append pair 1; position unchanged
+        _ = session.handleKey(.s)  // on the unsaved slot: s appends, as S would (R-W4)
         var out = lines.take()
-        XCTAssertTrue(out.contains("added pair 1/1") && out.contains("saved 1 pair to saver.json"))
-        XCTAssertNil(session.pairIndex)
-        var saved = Store.loadScreensaver(file)!
-        XCTAssertEqual(saved.count, 1)
-        XCTAssertEqual(saved[0].rule, rule0.id)
-        XCTAssertEqual(saved[0].colorset, "S3")
-        XCTAssertEqual(saved[0].colors, ["#1E1E1E", "#1F1F1F", "#212121", "#202020"])
+        XCTAssertTrue(out.contains("added look 1/1") && out.contains("saved 1 look to saver.odca"))
+        XCTAssertNil(session.lookIndex)  // the position is unchanged
+        XCTAssertEqual(Store.loadOdcaFile(file),
+                       [Look(rule: rule0.id, colorset: "S3", colors: ["#1E1E1E", "#1F1F1F", "#212121", "#202020"])])
 
-        _ = session.handleKey(.m)  // a different rule, then append pair 2 with pool set via ']'
+        _ = session.handleKey(.m)
         let rule1 = session.automaton.rule
         _ = session.handleKey(.poolNext)  // from S3 to S4
         XCTAssertTrue(lines.take().contains("color set S4"))
-        _ = session.handleKey(.S)
-        XCTAssertEqual(Store.loadScreensaver(file)!.count, 2)
+        _ = session.handleKey(.S)  // append a copy of the screen
+        XCTAssertEqual(Store.loadOdcaFile(file)!.count, 2)
+        XCTAssertNil(session.lookIndex)
 
         let gBefore = session.automaton.generation
-        _ = session.handleKey(.N)  // activates pair 1: rule0, S3 arranged, and blasts a screenful
-        XCTAssertEqual(session.pairIndex, 0)
+        _ = session.handleKey(.n)  // look 1: rule0, S3 arranged, and a screenful at once
+        XCTAssertEqual(session.lookIndex, 0)
         XCTAssertEqual(session.automaton.rule, rule0)
         XCTAssertEqual(session.automaton.generation, gBefore + session.rows)  // R-W8
-        XCTAssertEqual(session.history.count, session.rows + 1)
         XCTAssertEqual(session.palette.map(\.r), [0x1E, 0x1F, 0x21, 0x20])
-        XCTAssertTrue(lines.take().contains("screensaver 1/2 S3"))
-        _ = session.handleKey(.P)  // no wrap at the start
-        XCTAssertTrue(lines.take().contains("screensaver end"))
-        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertTrue(lines.take().contains("look 1/2 S3"))
 
-        _ = session.handleKey(.digit(5))  // modify pair 1's color set and save in place
-        _ = session.handleKey(.s)
+        _ = session.handleKey(.digit(5))
+        _ = session.handleKey(.s)  // on a look: rewrite its color set in place, rule kept
         out = lines.take()
-        XCTAssertTrue(out.contains("saved pair 1/2") && out.contains("saved 2 pairs to saver.json"))
-        saved = Store.loadScreensaver(file)!
+        XCTAssertTrue(out.contains("saved look 1/2") && out.contains("saved 2 looks to saver.odca"))
+        var saved = Store.loadOdcaFile(file)!
+        XCTAssertEqual(saved[0].rule, rule0.id)
         XCTAssertEqual(saved[0].colorset, "S5")
         XCTAssertEqual(saved[0].colors, grey(50))
         XCTAssertEqual(saved[1].rule, rule1.id)
 
-        _ = session.handleKey(.N)  // pair 2
+        _ = session.handleKey(.n)  // look 2
         XCTAssertEqual(session.automaton.rule, rule1)
-        _ = session.handleKey(.N)
-        XCTAssertTrue(lines.take().contains("screensaver end"))
+        XCTAssertEqual(session.lookIndex, 1)
+        _ = session.handleKey(.n)  // the unsaved slot: the mutant with the set it arrived with
+        XCTAssertTrue(lines.take().contains("unsaved rule"))
+        XCTAssertNil(session.lookIndex)
+        XCTAssertEqual(session.automaton.rule, rule1)
+        _ = session.handleKey(.X)  // nothing under review: no-op
+        XCTAssertEqual(Store.loadOdcaFile(file)!.count, 2)
+        _ = session.handleKey(.p)  // back to look 2
         _ = session.handleKey(.X)  // delete the last: shows the previous
         out = lines.take()
-        XCTAssertTrue(out.contains("deleted pair 2/2") && out.contains("saved 1 pair to saver.json"))
-        XCTAssertEqual(session.pairIndex, 0)
-        XCTAssertEqual(Store.loadScreensaver(file)!.count, 1)
+        XCTAssertTrue(out.contains("deleted look 2/2") && out.contains("saved 1 look to saver.odca"))
+        XCTAssertEqual(session.lookIndex, 0)
+        XCTAssertEqual(Store.loadOdcaFile(file)!.count, 1)
         _ = session.handleKey(.X)
-        XCTAssertNil(session.pairIndex)
-        XCTAssertEqual(Store.loadScreensaver(file), [])
+        XCTAssertNil(session.lookIndex)
+        XCTAssertEqual(Store.loadOdcaFile(file), [])
+        XCTAssertEqual(session.unsavedRule, session.automaton.rule)  // keeps running as the unsaved rule
 
-        // Startup with a non-empty file activates pair 1.
-        Store.saveScreensaver([ScreensaverPair(rule: rule1.id, colorset: "S7", colors: grey(70))], to: file)
-        let again = makeSession(store, screensaver: file)
-        XCTAssertEqual(again.pairIndex, 0)
+        session.finish()  // exit writes the file
+        XCTAssertEqual(Store.loadOdcaFile(file), [])
+        Store.saveOdcaFile([Look(rule: rule1.id, colorset: "S7", colors: grey(70))], to: file)
+        let again = makeSession(store, select: file)
+        XCTAssertEqual(again.lookIndex, 0)
         XCTAssertEqual(again.automaton.rule, rule1)
         XCTAssertEqual(again.palette[0], RGB(hex: "#464646"))
         _ = again.handleKey(.poolPrev)  // '[' walks the pool backward from S7
         XCTAssertEqual(again.palette[0], RGB(hex: "#3C3C3C"))  // S6
+        again.finish()
+        XCTAssertEqual(Store.loadOdcaFile(file)!.first!.colorset, "S7")  // exit rewrites what it loaded
+        saved = Store.loadOdcaFile(file)!
+        XCTAssertEqual(saved.count, 1)
     }
 
-    func testScreensaverKeysInertOutsideMode() throws {
+    func testSelectKeysInertElsewhere() throws {
         let session = makeSession(try reviewStore())
-        XCTAssertFalse(session.screensaverMode)
-        _ = session.handleKey(.N)  // pair keys do nothing here ('[' / ']' are live everywhere, R-K17)
-        _ = session.handleKey(.X)
-        XCTAssertEqual(session.pairs, [])
+        XCTAssertFalse(session.selectMode)
+        for key: Session.Key in [.N, .P, .X, .R, .s, .S] { _ = session.handleKey(key) }
+        XCTAssertEqual(session.looks, [])
+        XCTAssertFalse(session.grouped)
     }
 
-    // MARK: PT-30 consistency check: grouped view, file order preserved (R-W7)
+    // MARK: PT-30 R toggles the grouped order; file order preserved (R-W7, R-U10)
 
-    func testConsistencyCheckGroupsByRuleForViewOnly() throws {
+    func testGroupedOrderToggle() throws {
         let lines = Lines()
         let store = try reviewStore()
-        let file = store.stateDir.deletingLastPathComponent().appendingPathComponent("saver.json")
+        let file = odcaFile(store, name: "saver.odca")
         let a = String(repeating: "0", count: 20), b = String(repeating: "1", count: 20), c = String(repeating: "2", count: 20)
         // File order: A, B, A, C, B  (color sets S1..S5 mark the positions)
         let original = [(a, "S1"), (b, "S2"), (a, "S3"), (c, "S4"), (b, "S5")].map { rule, set in
-            ScreensaverPair(rule: rule, colorset: set, colors: grey(Int(set.dropFirst())! * 10))
+            Look(rule: rule, colorset: set, colors: grey(Int(set.dropFirst())! * 10))
         }
-        Store.saveScreensaver(original, to: file)
+        Store.saveOdcaFile(original, to: file)
 
-        let session = makeSession(store, lines: lines, screensaver: file, grouped: true)
-        XCTAssertEqual(session.viewOrder, [0, 2, 1, 4, 3])  // A A B B C
+        let session = makeSession(store, lines: lines, select: file)
+        XCTAssertEqual(session.viewOrder, [0, 1, 2, 3, 4])
+        XCTAssertFalse(session.grouped)
+        _ = lines.take()
+        _ = session.handleKey(.R)  // grouped by rule: A A B B C
         var out = lines.take()
-        XCTAssertTrue(out.contains("--- rule group 1/3 ---") && out.contains("screensaver 1/5 S1"))
-        _ = session.handleKey(.N)
+        XCTAssertTrue(out.contains("look order grouped by rule"))
+        XCTAssertTrue(session.grouped)
+        XCTAssertEqual(session.viewOrder, [0, 2, 1, 4, 3])
+        XCTAssertEqual(session.lookIndex, 0)
+        XCTAssertEqual(session.viewPosition, 0)  // the look under review is kept
+        XCTAssertTrue(session.inverted)  // R-U10
+        XCTAssertEqual(session.flashRemaining, Session.flashSeconds)
+        session.tick(0.1)
+        XCTAssertTrue(session.inverted)
+        _ = session.handleKey(.space)
+        session.tick(0.2)  // the flash ends on the wall clock even while paused
+        XCTAssertFalse(session.inverted)
+        _ = session.handleKey(.space)
+        _ = session.handleKey(.n)
         out = lines.take()
-        XCTAssertTrue(out.contains("screensaver 2/5 S3") && !out.contains("rule group"))
-        _ = session.handleKey(.N)
+        XCTAssertTrue(out.contains("look 2/5 S3") && !out.contains("rule group"))
+        _ = session.handleKey(.n)
         out = lines.take()
-        XCTAssertTrue(out.contains("--- rule group 2/3 ---") && out.contains("screensaver 3/5 S2"))
-        XCTAssertEqual(session.pairIndex, 1)  // file position of S2
+        XCTAssertTrue(out.contains("--- rule group 2/3 ---") && out.contains("look 3/5 S2"))
+        XCTAssertEqual(session.lookIndex, 1)  // file position of S2
 
-        _ = session.handleKey(.S)  // append a B pair: end of file, but grouped with B in the view
-        XCTAssertEqual(session.pairs.count, 6)
+        _ = session.handleKey(.S)  // append a B look: end of file, but grouped with B in the view
+        XCTAssertEqual(session.looks.count, 6)
         XCTAssertEqual(session.viewOrder, [0, 2, 1, 4, 5, 3])
         XCTAssertEqual(session.viewPosition, 2)  // still on S2
-        _ = session.handleKey(.N)  // S5
-        _ = session.handleKey(.N)  // the appended pair, same group: no marker
+        _ = session.handleKey(.n)  // S5
+        _ = session.handleKey(.n)  // the appended look, same group: no marker
         out = lines.take()
-        XCTAssertTrue(out.contains("screensaver 5/6") && !out.contains("rule group"))
-        XCTAssertEqual(session.pairIndex, 5)
-        _ = session.handleKey(.N)  // C
+        XCTAssertTrue(out.contains("look 5/6") && !out.contains("rule group"))
+        XCTAssertEqual(session.lookIndex, 5)
+        _ = session.handleKey(.n)  // C
         XCTAssertTrue(lines.take().contains("--- rule group 3/3 ---"))
-        XCTAssertEqual(session.pairIndex, 3)
+        XCTAssertEqual(session.lookIndex, 3)
 
         _ = session.handleKey(.digit(7))  // modify C's color set in place
         _ = session.handleKey(.s)
-        var saved = Store.loadScreensaver(file)!
+        var saved = Store.loadOdcaFile(file)!
         XCTAssertEqual(saved.map(\.colorset), ["S1", "S2", "S3", "S7", "S5", "S2"])  // file order kept
         XCTAssertEqual(saved[5].rule, b)
 
-        _ = session.handleKey(.P)  // back to the appended pair (view 5/6)
+        _ = session.handleKey(.p)  // back to the appended look (view 5/6)
         _ = session.handleKey(.X)  // delete it: file loses its last entry
-        saved = Store.loadScreensaver(file)!
+        saved = Store.loadOdcaFile(file)!
         XCTAssertEqual(saved.map(\.colorset), ["S1", "S2", "S3", "S7", "S5"])
-        XCTAssertEqual(session.viewPosition, 4)  // the pair now at that view position: C
-        XCTAssertEqual(session.pairIndex, 3)
+        XCTAssertEqual(session.viewPosition, 4)  // the look now at that view position: C
+        XCTAssertEqual(session.lookIndex, 3)
+        _ = session.handleKey(.R)  // back to file order, still on S7
+        XCTAssertTrue(lines.take().contains("look order file order"))
+        XCTAssertEqual(session.viewOrder, [0, 1, 2, 3, 4])
+        XCTAssertEqual(session.viewPosition, 3)
     }
 
-    // MARK: PT-31 screensaver mode (R-X)
+    // MARK: PT-31 odca (R-X)
 
-    func testScreensaverPlaysPairsInOrderAndLoops() throws {
+    func testPlaysLooksInOrderAndLoops() throws {
         let lines = Lines()
         let store = try reviewStore()
-        let file = store.stateDir.deletingLastPathComponent().appendingPathComponent("saver.json")
+        let file = odcaFile(store, name: "saver.odca")
         let dies = allZero  // repeating (period 1) within a screenful
-        Store.saveScreensaver([ScreensaverPair(rule: dies.id, colorset: "A", colors: grey(10)),
-                               ScreensaverPair(rule: dies.id, colorset: "B", colors: grey(20))], to: file)
+        Store.saveOdcaFile([Look(rule: dies.id, colorset: "A", colors: grey(10)),
+                            Look(rule: dies.id, colorset: "B", colors: grey(20))], to: file)
         let session = makeSession(store, lines: lines, play: file)
-        XCTAssertTrue(session.playMode && !session.screensaverMode && !session.reviewMode)
-        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertTrue(session.playMode && !session.selectMode && !session.reviewMode)
+        XCTAssertEqual(session.lookIndex, 0)
         XCTAssertEqual(session.automaton.rule, dies)
         XCTAssertEqual(session.palette[0], RGB(hex: "#0A0A0A"))
         XCTAssertEqual(session.automaton.generation, 0)  // freshly seeded
         var out = lines.take()
-        XCTAssertTrue(out.contains("screensaver saver.json: 2 pairs") && out.contains("screensaver 1/2 A"))
-        XCTAssertFalse(out.contains("("))  // no reason on the first pair
+        XCTAssertTrue(out.contains("odca saver.odca: 2 looks") && out.contains("look 1/2 A"))
+        XCTAssertFalse(out.contains("("))  // no reason on the first look
 
-        // Before the watchdog expires, boredom re-seeds in place: the pair keeps its screen time.
+        // Before the watchdog expires, boredom re-seeds in place: the look keeps its screen time.
         for _ in 0..<17 { session.tick(1.0 / 60.0) }
-        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(session.lookIndex, 0)
         XCTAssertEqual(session.automaton.generation, 0)  // re-seeded
         out = lines.take()
-        XCTAssertTrue(out.contains("auto-init (repeating (period 1))") && !out.contains("screensaver 2/2"))
+        XCTAssertTrue(out.contains("auto-init (repeating (period 1))") && !out.contains("look 2/2"))
 
         // Run out the watchdog without firings (auto-init off), re-seed by hand just before
         // expiry so the grace period is unsatisfied at expiry, then re-arm: the next firing
         // transitions instead of re-seeding in place, carrying its reason.
         _ = session.handleKey(.a)
         session.tick(110)
-        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(session.lookIndex, 0)
         _ = session.handleKey(.i)  // grace restarts; the watchdog does not
-        XCTAssertEqual(session.playElapsed, 110, accuracy: 1)  // the 17 small ticks plus 110
+        XCTAssertEqual(session.playElapsed, 110, accuracy: 1)
         _ = session.handleKey(.a)
         _ = lines.take()
         session.tick(10)  // the watchdog expires during this tick; boredom fires within it
-        XCTAssertEqual(session.pairIndex, 1)
-        XCTAssertLessThan(session.playElapsed, 1)  // the new pair's clock started inside the tick
+        XCTAssertEqual(session.lookIndex, 1)
+        XCTAssertLessThan(session.playElapsed, 1)  // the new look's clock started inside the tick
         XCTAssertEqual(session.palette[0], RGB(hex: "#141414"))
-        // R-X5: rows from pair A keep A's colors below the boundary; B's rows above it.
+        // R-X5: rows from look A keep A's colors below the boundary; B's rows above it.
         let firstB = session.rowBanks.firstIndex(of: 1)!
         XCTAssertEqual(session.rowBanks[firstB - 1], 0)
         XCTAssertEqual(session.rowBanks.last, 1)
@@ -772,36 +819,38 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.palette8[0], RGB(hex: "#0A0A0A"))
         XCTAssertEqual(session.palette8[4], RGB(hex: "#141414"))
         out = lines.take()
-        XCTAssertTrue(out.contains("screensaver 2/2 B (repeating (period 1))"))
+        XCTAssertTrue(out.contains("look 2/2 B (repeating (period 1))"))
 
-        // Looping: one long tick expires the watchdog and the firings inside it wrap to pair 1
-        // (later firings in the same tick re-seed pair 1 in place: its own clock has restarted).
+        // Looping: one long tick expires the watchdog and the firings inside it wrap to look 1.
         session.tick(Session.playTimeout)
-        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(session.lookIndex, 0)
         out = lines.take()
-        XCTAssertTrue(out.contains("screensaver 1/2 A (repeating (period 1))"))
-        XCTAssertFalse(out.contains("screensaver 2/2"))
+        XCTAssertTrue(out.contains("look 1/2 A (repeating (period 1))"))
+        XCTAssertFalse(out.contains("look 2/2"))
 
-        // R-X6: N/P move through the pairs by hand, wrapping, with a fresh seed each time.
+        // R-X6: N/P (and n/p) move through the looks by hand, wrapping, with a fresh seed each time.
         session.tick(1.0 / 60.0)
         _ = session.handleKey(.N)
-        XCTAssertEqual(session.pairIndex, 1)
+        XCTAssertEqual(session.lookIndex, 1)
         XCTAssertEqual(session.automaton.generation, 0)
-        XCTAssertTrue(lines.take().contains("screensaver 2/2 B (next)"))
-        _ = session.handleKey(.N)  // wraps
-        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertTrue(lines.take().contains("look 2/2 B (next)"))
+        _ = session.handleKey(.n)  // wraps
+        XCTAssertEqual(session.lookIndex, 0)
         _ = session.handleKey(.space)
         _ = session.handleKey(.P)  // live while paused; wraps backward
-        XCTAssertEqual(session.pairIndex, 1)
-        XCTAssertTrue(lines.take().contains("screensaver 2/2 B (previous)"))
+        XCTAssertEqual(session.lookIndex, 1)
+        XCTAssertTrue(lines.take().contains("look 2/2 B (previous)"))
+        _ = session.handleKey(.space)
+        for key: Session.Key in [.s, .S, .X] { _ = session.handleKey(key) }  // odca never writes the file
+        XCTAssertEqual(Store.loadOdcaFile(file)!.count, 2)
     }
 
-    func testScreensaverWatchdogAndGracePeriod() throws {
+    func testPlayWatchdogAndGracePeriod() throws {
         let lines = Lines()
         let store = try reviewStore()
-        let file = store.stateDir.deletingLastPathComponent().appendingPathComponent("saver.json")
-        Store.saveScreensaver([ScreensaverPair(rule: allProducible.id, colorset: "A", colors: grey(10)),
-                               ScreensaverPair(rule: allProducible.id, colorset: "B", colors: grey(20))], to: file)
+        let file = odcaFile(store, name: "saver.odca")
+        Store.saveOdcaFile([Look(rule: allProducible.id, colorset: "A", colors: grey(10)),
+                            Look(rule: allProducible.id, colorset: "B", colors: grey(20))], to: file)
         let session = makeSession(store, lines: lines, play: file)
         _ = session.handleKey(.a)  // auto-init off: only time sequences now
         for _ in 0..<50 { _ = session.handleKey(.plus) }  // fastest, so stepping is cheap
@@ -814,19 +863,39 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.sinceInit, 0, accuracy: 1e-9)
         XCTAssertEqual(session.playElapsed, 100, accuracy: 1e-6)
         session.tick(20)  // 120 s: watchdog expired, but only 20 s since the re-seed
-        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(session.lookIndex, 0)
         session.tick(39.5)
-        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(session.lookIndex, 0)
         session.tick(1.0)  // 60 s since the re-seed: transition
-        XCTAssertEqual(session.pairIndex, 1)
-        XCTAssertTrue(lines.take().contains("screensaver 2/2 B (timeout)"))
+        XCTAssertEqual(session.lookIndex, 1)
+        XCTAssertTrue(lines.take().contains("look 2/2 B (timeout)"))
         XCTAssertEqual(session.playElapsed, 0, accuracy: 1e-9)
 
-        // A quiet pair transitions as soon as the watchdog expires (grace long satisfied).
+        // A quiet look transitions as soon as the watchdog expires (grace long satisfied).
         session.tick(119.5)
-        XCTAssertEqual(session.pairIndex, 1)
+        XCTAssertEqual(session.lookIndex, 1)
         session.tick(1.0)
-        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(session.lookIndex, 0)
+    }
+
+    func testShuffleIsAFreshPassWithoutRepeats() throws {  // PT-36
+        let store = try reviewStore()
+        let file = odcaFile(store, name: "saver.odca")
+        Store.saveOdcaFile((0..<6).map { Look(rule: allProducible.id, colorset: "S\($0)", colors: grey($0 * 10)) }, to: file)
+        let session = makeSession(store, play: file, shuffle: true)
+        XCTAssertTrue(session.shuffle)
+        var played = [session.lookIndex!]
+        for _ in 0..<5 { _ = session.handleKey(.N); played.append(session.lookIndex!) }
+        XCTAssertEqual(played.sorted(), Array(0..<6))  // one pass: every look once
+        let last = played.last!
+        for _ in 0..<6 { _ = session.handleKey(.N); played.append(session.lookIndex!) }  // a second, fresh pass
+        XCTAssertNotEqual(played[6], last)  // never opening on the look just played
+        XCTAssertEqual(Array(played[6...]).sorted(), Array(0..<6))
+        _ = session.handleKey(.P)  // back one within the pass
+        XCTAssertEqual(session.lookIndex, played[played.count - 2])
+        let plain = makeSession(store, play: file)
+        XCTAssertEqual(plain.playOrder, Array(0..<6))
+        XCTAssertFalse(plain.shuffle)
     }
 
     // MARK: PT-32 resizing (R-U8)
@@ -919,24 +988,24 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.palette[0], RGB(hex: "#0A0A0A"))
     }
 
-    // MARK: PT-34 saved rules carry their presentation (R-K5, R-B2)
+    // MARK: PT-34 a look carries its color set; n/p apply it (R-K5, R-B2)
 
-    func testSavedRuleCarriesItsColorSetAndCycleAppliesIt() throws {
+    func testLookCarriesItsColorSetAndCycleAppliesIt() throws {
         let lines = Lines()
         let store = try reviewStore()
-        let session = makeSession(store, lines: lines)
+        let session = makeSession(store, lines: lines, select: odcaFile(store, name: "saver.odca"))
         _ = session.handleKey(.digit(3))  // S3
         _ = session.handleKey(.c)  // arranged (0,1,3,2)
         let rule = session.automaton.rule
         _ = lines.take()
-        _ = session.handleKey(.s)
-        XCTAssertTrue(lines.take().contains("saved rule \(rule.id) S3"))
-        let pairs = store.loadInterestingPairs()
-        XCTAssertEqual(pairs.count, 1)
-        XCTAssertEqual(pairs[0].colorset, "S3")
-        XCTAssertEqual(pairs[0].colors, ["#1E1E1E", "#1F1F1F", "#212121", "#202020"])
+        _ = session.handleKey(.S)
+        XCTAssertTrue(lines.take().contains("added look 1/1"))
+        let looks = Store.loadOdcaFile(session.selectFile!)!
+        XCTAssertEqual(looks.count, 1)
+        XCTAssertEqual(looks[0].colorset, "S3")
+        XCTAssertEqual(looks[0].colors, ["#1E1E1E", "#1F1F1F", "#212121", "#202020"])
 
-        // Change rule and colors, then browse: the saved pair brings its colors back,
+        // Change rule and colors, then browse: the look brings its colors back,
         // and the unsaved slot brings back the set that was showing with the unsaved rule.
         _ = session.handleKey(.m)
         let mutant = session.automaton.rule
@@ -945,7 +1014,7 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.n)
         XCTAssertEqual(session.automaton.rule, rule)
         XCTAssertEqual(session.palette.map(\.r), [0x1E, 0x1F, 0x21, 0x20])
-        XCTAssertTrue(lines.take().contains("interesting 1/1 S3"))
+        XCTAssertTrue(lines.take().contains("look 1/1 S3"))
         _ = session.handleKey(.n)  // back to the unsaved slot: mutant with S3 (as captured)
         XCTAssertEqual(session.automaton.rule, mutant)
         XCTAssertEqual(session.palette[0], RGB(hex: "#1E1E1E"))

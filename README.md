@@ -24,10 +24,12 @@ its own directory.
 | `REQTS.md` | language-independent requirements — the program can be re-created from this document alone |
 | `TESTS.md` | normative test plan for all implementations |
 | `conformance/vectors.json` | golden engine vectors every implementation must pass |
-| `interesting-rules.json` | the shared collection of saved rules, each with its color set — a screensaver-format file |
+| `library.json` | the color set pool, shared by both implementations |
+| `interesting.odca` | the looks (rule + color set) kept so far — an odca file, playable with `odca interesting.odca` |
+| `conformance/` | golden engine vectors and the `--help` texts, byte-identical across implementations |
 | `python/` | the reference implementation (Python + pygame); see `python/README.md` |
 | `REQ-python.md` | implementation notes for the Python version |
-| `swift/` | Swift implementation (macOS, `swift run -c release odca`); see `swift/README.md` |
+| `swift/` | Swift implementation (macOS, `swift run -c release odca <file.odca>`); see `swift/README.md` |
 | `REQ-swift.md` | implementation notes for the Swift version |
 
 Planned: `cpp/`.
@@ -47,14 +49,34 @@ clarifications. Each implementation exposes its version (Python:
 `odca.__version__`; Swift: `ODCAKit.odcaVersion`). Releases are
 git-tagged (`v2.0.0`, `v2.1.0`, …).
 
-## Using the program
+## Using the programs
 
-`odca --help` prints a summary of the flags and keys below (the same text
-from both implementations). On startup the program loads its previous rule (from `~/.odca/rule`, random
-on first run) and initializes all cells to random contents. Rule IDs are
-printed to the terminal at startup and whenever the rule changes.
+There are two programs, sharing the engine and most of the keyboard:
 
-While the program runs, worker processes on all spare cores continuously
+- **`odca <file.odca> [--shuffle]`** plays the *looks* in an odca file,
+  one after another, looping. A look is a rule with a color set. Every look
+  gets two minutes of screen time, re-seeding in place whenever it goes
+  boring; then it hands over after a quiet minute or at the next re-seed,
+  and the next look grows in from a fresh field below the old rows, which
+  keep their colors. `--shuffle` plays each pass in a fresh random order.
+  `N`/`P` (or `n`/`p`) step by hand. The file is never written.
+- **`odca-select <file.odca>`** is the workbench that composes them: it
+  shows screened random rules, you dress each in a color set, and `s`/`S`
+  save the result as a look in the named file (created if missing). `n`/`p`
+  cycle through the file's looks and one extra slot holding the unsaved
+  rule you were exploring; every step fills the screen with the selected
+  look. `X` deletes the look under review; `R` toggles the `n`/`p` order
+  between file order and grouped by rule (the screen inverts briefly to
+  confirm). The file is written after every change and at exit.
+
+`odca --help` and `odca-select --help` print the flags and keys (the same
+text from both implementations). On startup the programs load the previous
+rule (from `~/.odca/rule`, random on first run) and initialize all cells to
+random contents; `odca-select` on a file with looks then opens on look 1,
+and `odca` plays look 1. Rule IDs are printed to the terminal at startup
+and whenever the rule changes.
+
+While a program runs, worker processes on all spare cores continuously
 generate and screen random rules for possible Wolfram Class IV behavior;
 finds are stashed (up to 64, persisted in `~/.odca/candidates`) so `r`
 answers instantly. Once the stash is full the workers idle until you
@@ -67,53 +89,45 @@ consume candidates.
 | r   | new random rule, screened for maybe-Class-IV behavior (ID printed) |
 | m   | mutate the rule: one entry changes to a new state |
 | u   | undo the last rule change (repeatable)       |
-| s   | save the current rule with its color set to interesting-rules.json; while paused: run one screenful at 8× speed, then stay paused (press again to queue more) |
-| n   | next saved interesting rule, with its saved colors (first press: rule 0) |
-| p   | previous saved interesting rule, with its saved colors (first press: last rule) |
 | i   | initialize all cells to random contents      |
+| n / p | odca-select: next / previous look, or the unsaved rule, with its colors (every step fills the screen); odca: as N / P |
+| s   | odca-select: rewrite the look under review with the color set on screen, or append the screen as a new look when on the unsaved rule; while paused (both programs): run one screenful at 8× speed, then stay paused (press again to queue more) |
+| S   | odca-select: append a copy of what is on screen as a new look |
+| X   | odca-select: delete the look under review |
+| R   | odca-select: toggle the n / p order between file order and grouped by rule (the screen inverts for a quarter second) |
+| N / P | odca: next / previous look by hand, with a fresh seed |
 | +   | speed up (halve the delay between generations); below 30 generations/s the scroll is continuous |
 | -   | slow down (double the delay between generations) |
 | 0-9 | select a color set                           |
 | [ / ] | step backward / forward through the whole color set pool (the digits reach only the "hot ten") |
 | c   | cycle the current color set through its 24 color-to-state arrangements |
 | C   | the same cycle in reverse |
-| S   | save the current color set's arrangement into its entry in colorsets/colorsets.json |
-| space | pause / resume (while paused, only space, return, `s`, the color keys `c`/`C`/`S`/`[`/`]`/digits, and `q` are live); resuming starts a screen counter that prints `screen N` after every screenful |
+| space | pause / resume (while paused, only space, return, `s`, the color keys `c`/`C`/`[`/`]`/digits, the look keys, and `q` are live); resuming starts a screen counter that prints `screen N` after every screenful |
 | return | while paused: single-step one generation, staying paused |
 | a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; on at startup |
 | q   | quit                                         |
 
-The Swift window is resizable (Python's is fixed-size), snapping to whole 4-point cells,
-with full screen available; the automaton's width follows the window,
-keeping the picture centered while cells appear or vanish at the edges,
-and a taller window uncovers remembered rows.
+The Swift window is resizable (Python's is fixed-size), snapping to whole
+4-point cells, with full screen available; the automaton's width follows
+the window, keeping the picture centered while cells appear or vanish at
+the edges, and a taller window uncovers remembered rows.
 
-The `n`/`p` cycle includes one extra slot holding the unsaved rule that was
-running before browsing began: stepping past the last saved rule (or back
-from rule 0) returns to it. Pressing `r` or `m` makes the new rule occupy
-that unsaved slot and repositions the cycle on it. If the rule loaded at
-startup is itself a saved rule, the cycle starts positioned on it (and the
-unsaved slot stays empty until `r`/`m`), so `n` and `p` step to its
-neighbors rather than appearing to do nothing.
+The `n`/`p` cycle in `odca-select` includes one extra slot holding the
+unsaved rule that was running before browsing began: stepping past the last
+look (or back from look 1) returns to it. Pressing `r` or `m` makes the new
+rule occupy that unsaved slot and repositions the cycle on it. A file that
+already has looks opens on look 1 with the unsaved slot empty until `r` or
+`m` fires.
 
-Color sets are loaded from `colorsets/colorsets.json` (shared by every
+Color sets come from `library.json` at the repository root (shared by every
 implementation). **1** is the default set (near-black, off-white, amber,
 blue), active at startup; the others are palettes from coolors.co: **0** Ocean Sunset Vibes; **2** Meadow Sunflower Glow; **3** Candy Floss Dreams; **4** Fiery Ice Cream Delight; **5** Golden Autumn Twilight; **6** Midnight Sun Dance; **7** Seaside Serenity; **8** Cherry Blossom Sky; **9** Cotton Candy Skies.
 `c` cycles the current set through the 24 ways of assigning its four
-colors to the four states; `S` saves the current arrangement to the file.
-The file is also the pool of every kept color set; a hidden review mode
-(`--colorset-review`, both implementations) steps through the whole pool with
-`N`/`P` and drops sets with `X`, saving as it goes. A second hidden mode,
-`--screensaver-review <file>`, composes a screensaver file of rule and
-color set pairs: `N`/`P` step through pairs, `[`/`]` walk the pool, `s`
-saves the pair under review, `S` appends a new one, `X` deletes.
-`--consistency-check <file>` is the same mode on an existing file with the
-pairs viewed grouped by rule (file order is untouched), for judging
-whether a rule's color sets are too alike.
+colors to the four states, and a look records the arranged colors. The
+library is also the pool of every kept color set, reached with `[` and
+`]`. Reviewing the pool itself (the 2.x `--colorset-review`) is on hold
+until it returns as its own program.
 
-**Screensaver mode** (`--screensaver <file>`, both implementations) plays a
-screensaver file pair by pair in order, looping. Every pair gets two
-minutes of screen time, re-seeding in place whenever it goes boring; then
-it hands over at the first quiet minute since its last re-seed (or at its
-next re-seed), and the next pair starts from a fresh field. `N`/`P` step
-between pairs by hand.
+An odca file is JSON: `{"looks": [{"rule": "<20 digits>", "colorset":
+"<name>", "colors": ["#RRGGBB", ...]}, ...]}`. `interesting.odca` at the
+root holds the looks kept so far; try `odca interesting.odca`.

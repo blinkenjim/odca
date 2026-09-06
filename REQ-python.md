@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 2.19.0 — 2026-09-05 (`--help` — R-U9; 2.17.0 catch-up: active-set pool model with `[`/`]`, color set review, screensaver review and consistency check, screensaver play, saved presentations by n/p; gallery polish stays Swift-only)
+Version 3.0.0 — 2026-09-05 (two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -9,11 +9,15 @@ copy these choices, but they are known to work.
 ## Environment
 
 - Python ≥ 3.9 on macOS or Linux; dependencies: `numpy`, `pygame`,
-  `pytest` (see `python/requirements.txt`).
+  `pytest` (`pyproject.toml`; `requirements.txt` lists the same).
 - The implementation lives in the `python/` directory of the monorepo;
   run all commands from there. Setup: `python3 -m venv .venv &&
-  .venv/bin/pip install -r requirements.txt`; run with
-  `.venv/bin/python -m odca`.
+  .venv/bin/pip install --upgrade pip setuptools && .venv/bin/pip install
+  -e '.[test]'`, which installs the console scripts `odca` and
+  `odca-select` into the venv (`[project.scripts]`; the stock macOS pip
+  21.2 cannot do a PEP 660 editable install, hence the upgrade). Run with
+  `.venv/bin/odca <file.odca>` / `.venv/bin/odca-select <file.odca>`, or
+  `python -m odca` / `python -m odca.select` without installing.
 
 ## Layout
 
@@ -23,9 +27,12 @@ copy these choices, but they are known to work.
 | `odca/classify.py` | screening: `evaluate`, `find_candidate` (R-C) |
 | `odca/search.py` | background workers: `CandidateSearch` (R-S) |
 | `odca/store.py` | persistence: path functions and the injectable `Store` (R-P) |
-| `odca/session.py` | toolkit-free orchestration `Session`: keys, undo, cycle, pause, stash, timing (R-U/K/B/O) |
-| `odca/viewer.py` | pygame display layer: window, key translation, pacing, blit (R-U2/3/5/6) |
-| `odca/__main__.py` | entry point (R-U1) |
+| `odca/session.py` | toolkit-free orchestration `Session`: keys, undo, the look cycle, odca-select and odca behavior, pause, stash, timing (R-U/K/B/W/X/O) |
+| `odca/viewer.py` | pygame display layer: window, key translation, pacing, blit, flash (R-U2/3/5/6/10) |
+| `odca/cli.py` | shared argument handling and the viewer launch (R-U9) |
+| `odca/play.py`, `odca/select.py` | the `odca` and `odca-select` entry points (sections 4d, 4c) |
+| `odca/help.py` | the two help texts (copies of `conformance/help-*.txt`) |
+| `odca/__main__.py` | `python -m odca` = the player |
 
 (Paths are relative to `python/`.)
 
@@ -81,46 +88,50 @@ copy these choices, but they are known to work.
   (outside screensaver mode both banks are the active set). `map_key` takes
   the pygame key code plus `event.unicode` so `S`, `C`, `N`, `P`, `X`, `[`,
   and `]` arrive as typed.
-- **`--help`** (R-U9): `odca/help.py` holds `HELP_TEXT`, a copy of
-  `conformance/help.txt` (`tests/test_main.py` checks byte equality).
-  `__main__.main` handles it before importing `viewer`, because pygame
-  prints its banner at import time and R-U9 allows no other output.
-- **Modes** (REQTS 4b–4d): `python -m odca --colorset-review`,
-  `--screensaver-review <file>`, `--consistency-check <file>` (must exist;
-  the grouped view of R-W7), `--screensaver <file>` (must exist; play, with
-  precedence over the review flags). `__main__.py` parses them by hand and
-  passes `review_mode`, `screensaver_file`, `group_by_rule`, `play_file` to
-  `Session`; `Viewer.run` calls `Session.finish()` at exit so color set
-  review saves (R-V5). Play mode clocks (`play_elapsed`, `since_init`)
-  advance in `tick` before the generations, so a re-seed inside a tick
-  restarts the grace period from that tick. Pygame's window is fixed-size;
-  display-link pacing, resizing, and pointer hiding are Swift-only by
-  decision (TO-DO, 2026-09-05).
-- **Keeper-file anchor** (R-P3): `store.INTERESTING_PATH` resolves three
-  levels up from `store.py` to the repository root, where
-  `interesting-rules.json` is shared by all implementations. Every port
-  must make an equivalent anchoring decision. Python writes pairs with the
-  active set's name and arranged colors (`json.dumps(indent=1)`, the
-  reference layout, shared with `store.save_screensaver`); `n`/`p` apply a
-  saved pair's colors as the active set, and the unsaved slot restores the
-  set that was showing when the unsaved rule arrived (`unsaved_set`).
+- **`--help` and arguments** (R-U9): `odca/help.py` holds `HELP_ODCA` and
+  `HELP_ODCA_SELECT`, copies of the conformance files (`tests/test_main.py`
+  checks byte equality). `cli.parse` handles `--help` and usage errors
+  before `cli.run` imports `viewer`, because pygame prints its banner at
+  import time and R-U9 allows no other output.
+- **Programs** (sections 4c, 4d): `Session(select_file=...)` is
+  odca-select, `Session(play_file=..., shuffle=...)` is odca; `review_mode`
+  (section 4b) survives for tests and the future color set tool. The look
+  cycle keeps `looks` in file order, `view_order` (file indices in n/p
+  order, regrouped by `R`) and `look_index`/`view_position`; `unsaved_rule`
+  and `unsaved_set` are the extra slot. `finish()` writes the odca file at
+  exit. Play mode clocks (`play_elapsed`, `since_init`) advance in `tick`
+  before the generations, so a re-seed inside a tick restarts the grace
+  period from that tick; `play_order` is the current pass (a numpy
+  permutation under `--shuffle`, its first entry swapped away from the
+  look just played). `flash_remaining` counts down in `tick` even while
+  paused; `viewer.draw` inverts the frame while `inverted` (R-U10).
+  Pygame's window is fixed-size; display-link pacing, resizing, and
+  pointer hiding are Swift-only by decision (TO-DO, 2026-09-05).
+- **File anchors** (R-P3, R-P4): `store.LIBRARY_PATH` resolves three
+  levels up from `store.py` to the repository root, where `library.json`
+  is shared by all implementations; odca files are whatever path the
+  command line names. `load_odca_file` returns None for a missing file
+  (odca-select must not create it at entry) and `[]` for an unparseable
+  one; `save_odca_file` writes `json.dumps(indent=1)`, the reference layout
+  Swift reproduces byte for byte.
 
 ## Testing notes (see TESTS.md for the normative plan)
 
 - Run everything: `.venv/bin/python -m pytest`. Layer 1 runner:
   `tests/test_conformance.py`; Layer 2 lives across
   `tests/test_automaton.py`, `test_classify.py`, `test_search.py`,
-  `test_store.py`, and `test_session.py` (PT-9/10/10a/13/14 and
-  PT-26–PT-31, PT-33, PT-34 against a headless `Session` with a temp
-  `Store` and `CandidateSearch(workers=0)`; PT-27 and PT-29 in
-  `test_store.py`), using pytest `tmp_path` for all file paths. PT-32
-  (resizing) is Swift-only.
+  `test_store.py`, `test_main.py`, and `test_session.py` (PT-9/10/10a/13/14
+  and PT-26, PT-28, PT-30, PT-31, PT-33, PT-34, PT-36 against a headless
+  `Session` with a temp `Store` and `CandidateSearch(workers=0)`; PT-8,
+  PT-27, PT-29 in `test_store.py`; PT-35 in `test_main.py`), using pytest
+  `tmp_path` for all file paths. PT-32 (resizing) is Swift-only.
 - Headless UI checks: set `SDL_VIDEODRIVER=dummy` and drive
   `Viewer.handle_key` directly.
 - **Warning:** a default-constructed `Session` (or `Viewer`) touches real
-  user state (`$HOME/.odca/`, `interesting-rules.json`). Any ad-hoc script
-  must construct `Session(..., store=Store(state_dir=tmp, keeper_file=tmp/...))`
-  and pass it to `Viewer(session=...)` — a smoke test once leaked a dummy
-  rule into the user's real state file.
+  user state (`$HOME/.odca/`, and `library.json` if anything bakes). Any
+  ad-hoc script must construct `Session(..., store=Store(state_dir=tmp,
+  library_file=tmp/...), select_file=tmp/...)` and pass it to
+  `Viewer(session=...)` — a smoke test once leaked a dummy rule into the
+  user's real state file.
 - CI on Linux needs no X server (dummy SDL driver); on macOS the same
   applies.

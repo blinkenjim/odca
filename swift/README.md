@@ -9,7 +9,8 @@ All commands below run from this `swift/` directory.
 ## Run
 
 ```sh
-swift run -c release odca
+swift run -c release odca ../interesting.odca          # play a file of looks (--shuffle optional)
+swift run -c release odca-select ../my-looks.odca      # compose looks into a file
 ```
 
 Use the release build for viewing. A debug build (`swift run odca`) keeps
@@ -17,9 +18,7 @@ every bounds check and skips inlining in the per-frame pixel loop, and the
 animation is visibly choppy even on a fast Mac; release is smooth. The
 first release build takes about a minute, then it launches at once.
 
-`--help` prints the flags and keys. Workbench modes (see the root README): `--colorset-review`,
-`--screensaver-review <file>`, `--consistency-check <file>`,
-`--screensaver <file>`.
+`--help` on either program prints its flags and keys.
 
 ## Tests
 

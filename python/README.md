@@ -10,18 +10,24 @@ All commands below run from this `python/` directory.
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install --upgrade pip setuptools
+.venv/bin/pip install -e '.[test]'
 ```
+
+The editable install puts both programs on the venv's path. (The pip that
+ships with a stock macOS Python is too old for the editable install of a
+`pyproject.toml` project, hence the upgrade first.)
 
 ## Run
 
 ```sh
-.venv/bin/python -m odca
+.venv/bin/odca ../interesting.odca            # play a file of looks (--shuffle optional)
+.venv/bin/odca-select ../my-looks.odca        # compose looks into a file
 ```
 
-`--help` prints the flags and keys. Workbench modes (see the root README): `--colorset-review`,
-`--screensaver-review <file>`, `--consistency-check <file>`,
-`--screensaver <file>`.
+`--help` on either prints its flags and keys. `python -m odca` is the
+player, `python -m odca.select` the workbench, for running without the
+install.
 
 ## Tests
 

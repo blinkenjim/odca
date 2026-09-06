@@ -11,7 +11,7 @@ import pytest
 from odca.automaton import Rule
 from odca.search import CandidateSearch
 from odca.session import INITIAL_DELAY, MAX_DELAY, MIN_DELAY, Session
-from odca.store import Store, load_screensaver, save_screensaver
+from odca.store import DEFAULT_COLOR_SETS, Store, load_odca_file, save_odca_file
 
 FOUR = [Rule.from_id(d * 20) for d in "0123"]
 OUTSIDE = Rule.from_id("01230123012301230123")
@@ -19,18 +19,32 @@ OUTSIDE = Rule.from_id("01230123012301230123")
 
 @pytest.fixture
 def make_store(tmp_path):
-    def _make(saved=(), current=None):
+    def _make(current=None):
         store = Store(
             state_dir=tmp_path / "state",
-            keeper_file=tmp_path / "interesting-rules.txt",
-            colorsets_file=tmp_path / "colorsets.json",
+            library_file=tmp_path / "library.json",
             candidates_file=tmp_path / "candidates.json",
         )
-        for rule in saved:
-            store.append_interesting(rule)
         if current is not None:
             store.save_rule(current)
         return store
+
+    return _make
+
+
+def default_look(rule):
+    d = DEFAULT_COLOR_SETS[1]
+    return {"rule": rule.id, "colorset": d["name"], "colors": list(d["colors"])}
+
+
+@pytest.fixture
+def odca_file(tmp_path):
+    """Write an odca file of the given rules (default colors) and return its path."""
+    def _make(rules=(), name="looks.odca"):
+        path = tmp_path / name
+        if rules:
+            save_odca_file([default_look(r) for r in rules], path)
+        return path
 
     return _make
 
@@ -64,26 +78,30 @@ def test_undo_lifo(make_store):  # PT-9
     assert s.rule == r0
 
 
-def test_cycle_with_unsaved_slot(make_store):  # PT-10
-    s = make_session(make_store(saved=FOUR, current=OUTSIDE))
-    assert s.interesting_index is None and s.unsaved_rule == OUTSIDE
-    s.handle_key("n"); assert s.rule == FOUR[0]  # first n -> 0
-    s.handle_key("p"); assert s.rule == OUTSIDE  # back to unsaved
-    s.handle_key("p"); assert s.rule == FOUR[3]  # wraps to n-1
-    s.handle_key("n"); assert s.rule == OUTSIDE  # past last -> unsaved
+def test_cycle_with_unsaved_slot(make_store, odca_file):  # PT-10
+    s = make_session(make_store(current=OUTSIDE), select_file=odca_file(FOUR))
+    # A non-empty file opens on look 1 with the unsaved slot empty (R-W1) ...
+    assert s.look_index == 0 and s.unsaved_rule is None and s.rule == FOUR[0]
+    s.handle_key("m")  # ... until r or m fills it
+    outside = s.rule
+    assert s.look_index is None and s.unsaved_rule == outside
+    s.handle_key("n"); assert s.rule == FOUR[0]  # first n -> look 1
+    s.handle_key("p"); assert s.rule == outside  # back to unsaved
+    s.handle_key("p"); assert s.rule == FOUR[3]  # wraps to look n
+    s.handle_key("n"); assert s.rule == outside  # past last -> unsaved
     s.handle_key("m")  # new rule occupies the unsaved slot
     mutant = s.rule
-    assert s.interesting_index is None and s.unsaved_rule == mutant
+    assert s.look_index is None and s.unsaved_rule == mutant
     s.handle_key("n"); assert s.rule == FOUR[0]
     s.handle_key("p"); assert s.rule == mutant
 
 
-def test_cycle_startup_match(make_store):  # PT-10a
-    s = make_session(make_store(saved=FOUR, current=FOUR[2]))
-    assert s.interesting_index == 2 and s.unsaved_rule is None
-    s.handle_key("n"); assert s.rule == FOUR[3]
-    s.handle_key("n"); assert s.rule == FOUR[0]  # wraps with no unsaved stop
-    s.handle_key("p"); assert s.rule == FOUR[3]
+def test_cycle_startup_on_first_look(make_store, odca_file):  # PT-10a
+    s = make_session(make_store(current=FOUR[2]), select_file=odca_file(FOUR))
+    assert s.look_index == 0 and s.unsaved_rule is None
+    s.handle_key("n"); assert s.rule == FOUR[1]
+    s.handle_key("p"); s.handle_key("p"); assert s.rule == FOUR[3]  # wraps with no unsaved stop
+    s.handle_key("n"); assert s.rule == FOUR[0]
     s.handle_key("m")
     mutant = s.rule
     assert s.unsaved_rule == mutant
@@ -91,21 +109,26 @@ def test_cycle_startup_match(make_store):  # PT-10a
     s.handle_key("p"); assert s.rule == mutant
 
 
-def test_cycle_empty_keeper(make_store):  # R-B4
-    s = make_session(make_store())
-    rule = s.rule
+def test_cycle_empty_file_and_no_file(make_store, odca_file, capsys):  # R-B4
+    s = make_session(make_store(current=OUTSIDE), select_file=odca_file())
+    assert s.unsaved_rule == OUTSIDE and s.looks == []
+    capsys.readouterr()
     s.handle_key("n")
-    assert s.rule == rule and s.interesting_index is None
+    assert s.rule == OUTSIDE and "no looks" in capsys.readouterr().out
+    base = make_session(make_store())  # no program: n/p have nothing to cycle
+    rule = base.rule
+    base.handle_key("n")
+    assert base.rule == rule and base.look_index is None
 
 
 def test_pause_modality(make_store):  # PT-13
-    s = make_session(make_store(saved=FOUR))
+    s = make_session(make_store())
     s.handle_key(" ")
     assert s.paused
-    state = (s.rule, s.delay, s.color_set, s.palette, s.interesting_index, list(s.automaton.cells))
+    state = (s.rule, s.delay, s.color_set, s.palette, s.look_index, list(s.automaton.cells))
     for key in "rmuinp+-":
         assert s.handle_key(key) is True
-    assert (s.rule, s.delay, s.color_set, s.palette, s.interesting_index, list(s.automaton.cells)) == state
+    assert (s.rule, s.delay, s.color_set, s.palette, s.look_index, list(s.automaton.cells)) == state
     s.handle_key("7")  # undefined slot: still a no-op while paused
     assert s.color_set == 1
     palette = s.palette
@@ -161,10 +184,11 @@ def test_speed_clamps_and_tick(make_store):  # R-K8, R-U5
     assert s2.automaton.generation == g0 + 61  # and no more without elapsed time
 
 
-def test_save_appends_keeper(make_store):  # R-K5
-    s = make_session(make_store(saved=FOUR[:1]))
+def test_s_saves_nothing_without_a_program(make_store, capsys):  # R-K5
+    s = make_session(make_store())
+    capsys.readouterr()
     s.handle_key("s")
-    assert s.store.load_interesting() == [FOUR[0], s.rule]
+    assert capsys.readouterr().out == ""
 
 
 def test_init_cells_pushes_row(make_store):  # R-K6
@@ -374,8 +398,8 @@ def test_paused_s_queues_and_space_cancels(make_store):  # PT-19
     assert s.screen_remaining == 2 * s.rows
     s.handle_key(" ")  # resume cancels the queued screenfuls
     assert not s.paused and s.screen_remaining == 0
-    s.handle_key("s")  # unpaused: 's' saves, does not queue
-    assert s.screen_remaining == 0 and s.store.load_interesting() == [s.rule]
+    s.handle_key("s")  # unpaused: 's' is the save key, it does not queue
+    assert s.screen_remaining == 0
 
 
 def test_screen_counter_runs_from_resume(make_store, capsys):  # PT-20
@@ -589,143 +613,159 @@ def test_review_keys_inert_outside_review_mode(make_store):  # PT-26
     assert store.load_color_set_file()["dropped"] == ["Rejected"]
     s.finish()
     assert len(store.load_color_set_file()["sets"]) == 11
-    assert s.pairs == []
+    assert s.looks == []
 
 
-def test_screensaver_review_lifecycle(make_store, tmp_path, capsys):  # PT-28
+def test_select_lifecycle(make_store, odca_file, capsys):  # PT-28
     store = review_store(make_store)
-    file = tmp_path / "saver.json"
-    s = make_session(store, screensaver_file=file)
-    assert s.screensaver_mode and not s.review_mode
-    assert load_screensaver(file) == []  # a new, empty file was created
-    assert s.pair_index is None
-    assert "screensaver saver.json: 0 pairs" in capsys.readouterr().out
-    rule0 = s.automaton.rule
-    s.handle_key("N")
-    assert capsys.readouterr().out == ""
-    s.handle_key("s")
-    assert "no pair under review" in capsys.readouterr().out
+    file = odca_file(name="saver.odca")
+    s = make_session(store, select_file=file)
+    assert s.select_mode and not s.review_mode and not s.play_mode
+    assert not file.exists()  # a missing file is created by the first save or at exit
+    assert s.look_index is None and s.unsaved_rule == s.rule
+    assert "odca saver.odca: 0 looks" in capsys.readouterr().out
+    rule0 = s.rule
+    s.handle_key("n")
+    assert "no looks" in capsys.readouterr().out
 
     s.handle_key("3")  # S3 = grey(30)
     s.handle_key("c")  # arranged (0,1,3,2)
-    s.handle_key("S")  # append pair 1; position unchanged
+    s.handle_key("s")  # on the unsaved slot: s appends, as S would (R-W4)
     out = capsys.readouterr().out
-    assert "added pair 1/1" in out and "saved 1 pair to saver.json" in out
-    assert s.pair_index is None
-    saved = load_screensaver(file)
-    assert saved == [{"rule": rule0.id, "colorset": "S3", "colors": ["#1E1E1E", "#1F1F1F", "#212121", "#202020"]}]
+    assert "added look 1/1" in out and "saved 1 look to saver.odca" in out
+    assert s.look_index is None  # the position is unchanged
+    assert load_odca_file(file) == [
+        {"rule": rule0.id, "colorset": "S3", "colors": ["#1E1E1E", "#1F1F1F", "#212121", "#202020"]}]
 
     s.handle_key("m")
-    rule1 = s.automaton.rule
+    rule1 = s.rule
     s.handle_key("]")  # from S3 to S4
     assert "color set S4" in capsys.readouterr().out
-    s.handle_key("S")
-    assert len(load_screensaver(file)) == 2
+    s.handle_key("S")  # append a copy of the screen
+    assert len(load_odca_file(file)) == 2 and s.look_index is None
 
     g_before = s.automaton.generation
-    s.handle_key("N")  # activates pair 1: rule0, S3 arranged, and a screenful at once
-    assert s.pair_index == 0
-    assert s.automaton.rule == rule0
+    s.handle_key("n")  # look 1: rule0, S3 arranged, and a screenful at once
+    assert s.look_index == 0 and s.rule == rule0
     assert s.automaton.generation == g_before + s.rows  # R-W8
     assert [c[0] for c in s.palette] == [0x1E, 0x1F, 0x21, 0x20]
-    assert "screensaver 1/2 S3" in capsys.readouterr().out
-    s.handle_key("P")  # no wrap at the start
-    assert "screensaver end" in capsys.readouterr().out
-    assert s.pair_index == 0
+    assert "look 1/2 S3" in capsys.readouterr().out
 
     s.handle_key("5")
-    s.handle_key("s")  # save in place
+    s.handle_key("s")  # on a look: rewrite its color set in place, rule kept
     out = capsys.readouterr().out
-    assert "saved pair 1/2" in out and "saved 2 pairs to saver.json" in out
-    saved = load_screensaver(file)
-    assert saved[0]["colorset"] == "S5" and saved[0]["colors"] == grey(50)
+    assert "saved look 1/2" in out and "saved 2 looks to saver.odca" in out
+    saved = load_odca_file(file)
+    assert saved[0]["rule"] == rule0.id and saved[0]["colorset"] == "S5" and saved[0]["colors"] == grey(50)
     assert saved[1]["rule"] == rule1.id
 
-    s.handle_key("N")
-    assert s.automaton.rule == rule1
-    s.handle_key("N")
-    assert "screensaver end" in capsys.readouterr().out
+    s.handle_key("n")  # look 2
+    assert s.rule == rule1 and s.look_index == 1
+    s.handle_key("n")  # the unsaved slot: the mutant with the set it arrived with
+    out = capsys.readouterr().out
+    assert "unsaved rule" in out and s.look_index is None and s.rule == rule1
+    s.handle_key("X")  # nothing under review: no-op
+    assert len(load_odca_file(file)) == 2
+    s.handle_key("p")  # back to look 2
     s.handle_key("X")  # delete the last: shows the previous
     out = capsys.readouterr().out
-    assert "deleted pair 2/2" in out and "saved 1 pair to saver.json" in out
-    assert s.pair_index == 0
-    assert len(load_screensaver(file)) == 1
+    assert "deleted look 2/2" in out and "saved 1 look to saver.odca" in out
+    assert s.look_index == 0 and len(load_odca_file(file)) == 1
     s.handle_key("X")
-    assert s.pair_index is None
-    assert load_screensaver(file) == []
+    assert s.look_index is None and load_odca_file(file) == []
+    assert s.unsaved_rule == s.rule  # the rule on screen keeps running as the unsaved rule
 
-    save_screensaver([{"rule": rule1.id, "colorset": "S7", "colors": grey(70)}], file)
-    again = make_session(store, screensaver_file=file)
-    assert again.pair_index == 0 and again.automaton.rule == rule1
+    s.finish()  # exit writes the file
+    assert load_odca_file(file) == []
+    save_odca_file([{"rule": rule1.id, "colorset": "S7", "colors": grey(70)}], file)
+    again = make_session(store, select_file=file)
+    assert again.look_index == 0 and again.rule == rule1
     assert again.palette[0] == rgb("#464646")
     again.handle_key("[")  # walks the pool backward from S7
     assert again.palette[0] == rgb("#3C3C3C")  # S6
+    again.finish()
+    assert load_odca_file(file)[0]["colorset"] == "S7"  # exit rewrites what it loaded
 
 
-def test_consistency_check_groups_by_rule_for_view_only(make_store, tmp_path, capsys):  # PT-30
+def test_select_keys_inert_elsewhere(make_store):  # PT-28
+    s = make_session(review_store(make_store))
+    for k in "NPXRsS":
+        s.handle_key(k)
+    assert s.looks == [] and not s.grouped
+
+
+def test_grouped_order_toggle(make_store, odca_file, capsys):  # PT-30
     store = review_store(make_store)
-    file = tmp_path / "saver.json"
+    file = odca_file(name="saver.odca")
     a, b, c = "0" * 20, "1" * 20, "2" * 20
     original = [{"rule": r, "colorset": n, "colors": grey(int(n[1:]) * 10)}
                 for r, n in [(a, "S1"), (b, "S2"), (a, "S3"), (c, "S4"), (b, "S5")]]
-    save_screensaver(original, file)
-    s = make_session(store, screensaver_file=file, group_by_rule=True)
-    assert s.view_order == [0, 2, 1, 4, 3]  # A A B B C
+    save_odca_file(original, file)
+    s = make_session(store, select_file=file)
+    assert s.view_order == [0, 1, 2, 3, 4] and not s.grouped
+    capsys.readouterr()
+    s.handle_key("R")  # grouped by rule: A A B B C
     out = capsys.readouterr().out
-    assert "--- rule group 1/3 ---" in out and "screensaver 1/5 S1" in out
-    s.handle_key("N")
+    assert "look order grouped by rule" in out and s.grouped
+    assert s.view_order == [0, 2, 1, 4, 3]
+    assert s.look_index == 0 and s.view_position == 0  # the look under review is kept
+    assert s.inverted and s.flash_remaining == 0.25  # R-U10
+    s.tick(0.1)
+    assert s.inverted
+    s.handle_key(" ")
+    s.tick(0.2)  # the flash ends on the wall clock even while paused
+    assert not s.inverted
+    s.handle_key(" ")
+    s.handle_key("n")
     out = capsys.readouterr().out
-    assert "screensaver 2/5 S3" in out and "rule group" not in out
-    s.handle_key("N")
+    assert "look 2/5 S3" in out and "rule group" not in out
+    s.handle_key("n")
     out = capsys.readouterr().out
-    assert "--- rule group 2/3 ---" in out and "screensaver 3/5 S2" in out
-    assert s.pair_index == 1
-    s.handle_key("S")  # append a B pair: end of file, grouped with B in the view
-    assert len(s.pairs) == 6
-    assert s.view_order == [0, 2, 1, 4, 5, 3]
-    assert s.view_position == 2
-    s.handle_key("N")
-    s.handle_key("N")  # the appended pair, same group: no marker
+    assert "--- rule group 2/3 ---" in out and "look 3/5 S2" in out
+    assert s.look_index == 1
+    s.handle_key("S")  # append a B look: end of file, grouped with B in the view
+    assert len(s.looks) == 6 and s.view_order == [0, 2, 1, 4, 5, 3] and s.view_position == 2
+    s.handle_key("n")
+    s.handle_key("n")  # the appended look, same group: no marker
     out = capsys.readouterr().out
-    assert "screensaver 5/6" in out and "rule group" not in out
-    assert s.pair_index == 5
-    s.handle_key("N")
-    assert "--- rule group 3/3 ---" in capsys.readouterr().out
-    assert s.pair_index == 3
+    assert "look 5/6" in out and "rule group" not in out and s.look_index == 5
+    s.handle_key("n")
+    assert "--- rule group 3/3 ---" in capsys.readouterr().out and s.look_index == 3
     s.handle_key("7")
     s.handle_key("s")
-    saved = load_screensaver(file)
-    assert [p["colorset"] for p in saved] == ["S1", "S2", "S3", "S7", "S5", "S2"]
-    assert saved[5]["rule"] == b
-    s.handle_key("P")
-    s.handle_key("X")  # delete the appended pair: file loses its last entry
-    saved = load_screensaver(file)
-    assert [p["colorset"] for p in saved] == ["S1", "S2", "S3", "S7", "S5"]
-    assert s.view_position == 4 and s.pair_index == 3
+    saved = load_odca_file(file)
+    assert [p["colorset"] for p in saved] == ["S1", "S2", "S3", "S7", "S5", "S2"]  # file order kept
+    s.handle_key("p")
+    s.handle_key("X")  # delete the appended look: file loses its last entry
+    assert [p["colorset"] for p in load_odca_file(file)] == ["S1", "S2", "S3", "S7", "S5"]
+    assert s.view_position == 4 and s.look_index == 3
+    s.handle_key("R")  # back to file order, still on S7
+    assert "look order file order" in capsys.readouterr().out
+    assert s.view_order == [0, 1, 2, 3, 4] and s.view_position == 3
 
 
-def test_screensaver_plays_pairs_in_order_and_loops(make_store, tmp_path, capsys):  # PT-31
+def test_play_in_order_and_loops(make_store, odca_file, capsys):  # PT-31
     from odca.session import PLAY_TIMEOUT
     store = review_store(make_store)
-    file = tmp_path / "saver.json"
-    save_screensaver([{"rule": ALL_ZERO.id, "colorset": "A", "colors": grey(10)},
-                      {"rule": ALL_ZERO.id, "colorset": "B", "colors": grey(20)}], file)
+    file = odca_file(name="saver.odca")
+    save_odca_file([{"rule": ALL_ZERO.id, "colorset": "A", "colors": grey(10)},
+                    {"rule": ALL_ZERO.id, "colorset": "B", "colors": grey(20)}], file)
     s = make_session(store, play_file=file)
-    assert s.play_mode and not s.screensaver_mode and not s.review_mode
-    assert s.pair_index == 0 and s.automaton.rule == ALL_ZERO
+    assert s.play_mode and not s.select_mode and not s.review_mode
+    assert s.look_index == 0 and s.rule == ALL_ZERO
     assert s.palette[0] == rgb("#0A0A0A")
     assert s.automaton.generation == 0
     out = capsys.readouterr().out
-    assert "screensaver saver.json: 2 pairs" in out and "screensaver 1/2 A" in out
-    assert "(" not in out.split("screensaver 1/2 A")[1]
+    assert "odca saver.odca: 2 looks" in out and "look 1/2 A" in out
+    assert "(" not in out.split("look 1/2 A")[1]
     for _ in range(17):
         s.tick(1 / 60)
-    assert s.pair_index == 0 and s.automaton.generation == 0  # re-seeded in place
+    assert s.look_index == 0 and s.automaton.generation == 0  # re-seeded in place
     out = capsys.readouterr().out
-    assert "auto-init (repeating (period 1))" in out and "screensaver 2/2" not in out
+    assert "auto-init (repeating (period 1))" in out and "look 2/2" not in out
     s.handle_key("a")
     s.tick(110)
-    assert s.pair_index == 0
+    assert s.look_index == 0
     s.handle_key("i")  # grace restarts; the watchdog does not
     assert abs(s.play_elapsed - 110) < 1
     s.handle_key("a")
@@ -733,7 +773,7 @@ def test_screensaver_plays_pairs_in_order_and_loops(make_store, tmp_path, capsys
         s.handle_key("-")  # ~18 generations in the next tick: the transition leaves old rows on screen
     capsys.readouterr()
     s.tick(10)  # the watchdog expires during this tick; boredom fires within it
-    assert s.pair_index == 1
+    assert s.look_index == 1
     assert s.play_elapsed < 1
     assert s.palette[0] == rgb("#141414")
     banks = list(s.row_banks)
@@ -741,28 +781,32 @@ def test_screensaver_plays_pairs_in_order_and_loops(make_store, tmp_path, capsys
     assert banks[first_b - 1] == 0 and banks[-1] == 1  # R-X5
     assert s.color(first_b - 1, 0) == rgb("#0A0A0A")
     assert s.palette8[0] == rgb("#0A0A0A") and s.palette8[4] == rgb("#141414")
-    assert "screensaver 2/2 B (repeating (period 1))" in capsys.readouterr().out
-    s.tick(PLAY_TIMEOUT)  # loops back to pair 1
-    assert s.pair_index == 0
+    assert "look 2/2 B (repeating (period 1))" in capsys.readouterr().out
+    s.tick(PLAY_TIMEOUT)  # loops back to look 1
+    assert s.look_index == 0
     out = capsys.readouterr().out
-    assert "screensaver 1/2 A (repeating (period 1))" in out and "screensaver 2/2" not in out
+    assert "look 1/2 A (repeating (period 1))" in out and "look 2/2" not in out
     s.tick(1 / 60)
     s.handle_key("N")
-    assert s.pair_index == 1 and s.automaton.generation == 0
-    assert "screensaver 2/2 B (next)" in capsys.readouterr().out
-    s.handle_key("N")  # wraps
-    assert s.pair_index == 0
+    assert s.look_index == 1 and s.automaton.generation == 0
+    assert "look 2/2 B (next)" in capsys.readouterr().out
+    s.handle_key("n")  # n/p are N/P here; wraps
+    assert s.look_index == 0
     s.handle_key(" ")
     s.handle_key("P")  # live while paused; wraps backward
-    assert s.pair_index == 1
-    assert "screensaver 2/2 B (previous)" in capsys.readouterr().out
+    assert s.look_index == 1
+    assert "look 2/2 B (previous)" in capsys.readouterr().out
+    s.handle_key("s")  # the file is never written by odca
+    s.handle_key("S")
+    s.handle_key("X")
+    assert len(load_odca_file(file)) == 2
 
 
-def test_screensaver_watchdog_and_grace_period(make_store, tmp_path, capsys):  # PT-31
+def test_play_watchdog_and_grace_period(make_store, odca_file, capsys):  # PT-31
     store = review_store(make_store)
-    file = tmp_path / "saver.json"
-    save_screensaver([{"rule": ALL_PRODUCIBLE.id, "colorset": "A", "colors": grey(10)},
-                      {"rule": ALL_PRODUCIBLE.id, "colorset": "B", "colors": grey(20)}], file)
+    file = odca_file(name="saver.odca")
+    save_odca_file([{"rule": ALL_PRODUCIBLE.id, "colorset": "A", "colors": grey(10)},
+                    {"rule": ALL_PRODUCIBLE.id, "colorset": "B", "colors": grey(20)}], file)
     s = make_session(store, play_file=file)
     s.handle_key("a")  # auto-init off: only time sequences now
     for _ in range(50):
@@ -775,17 +819,40 @@ def test_screensaver_watchdog_and_grace_period(make_store, tmp_path, capsys):  #
     s.handle_key("i")  # at 100 s: restarts the grace period, not the watchdog
     assert s.since_init == 0 and abs(s.play_elapsed - 100) < 1e-6
     s.tick(20)
-    assert s.pair_index == 0
+    assert s.look_index == 0
     s.tick(39.5)
-    assert s.pair_index == 0
+    assert s.look_index == 0
     s.tick(1.0)  # 60 s since the re-seed: transition
-    assert s.pair_index == 1
-    assert "screensaver 2/2 B (timeout)" in capsys.readouterr().out
+    assert s.look_index == 1
+    assert "look 2/2 B (timeout)" in capsys.readouterr().out
     assert s.play_elapsed == 0
     s.tick(119.5)
-    assert s.pair_index == 1
+    assert s.look_index == 1
     s.tick(1.0)
-    assert s.pair_index == 0
+    assert s.look_index == 0
+
+
+def test_play_shuffle_is_a_fresh_pass_without_repeats(make_store, odca_file):  # PT-36
+    store = review_store(make_store)
+    file = odca_file(name="saver.odca")
+    save_odca_file([{"rule": ALL_PRODUCIBLE.id, "colorset": f"S{i}", "colors": grey(i * 10)}
+                    for i in range(6)], file)
+    s = make_session(store, play_file=file, shuffle=True)
+    assert s.shuffle
+    played = [s.look_index]
+    for _ in range(5):
+        s.handle_key("N")
+        played.append(s.look_index)
+    assert sorted(played) == list(range(6))  # one pass: every look once
+    last = played[-1]
+    for _ in range(6):  # a second pass, freshly shuffled, never opening on the last look
+        s.handle_key("N")
+        played.append(s.look_index)
+    assert played[6] != last and sorted(played[6:]) == list(range(6))
+    s.handle_key("P")  # back one within the pass
+    assert s.look_index == played[-2]
+    plain = make_session(store, play_file=file)
+    assert plain.play_order == list(range(6)) and not plain.shuffle
 
 
 def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33
@@ -812,7 +879,7 @@ def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33
         s.handle_key("]")  # S5 .. S0, PoolA
     assert s.active_name == "PoolA"
     s.handle_key("c")
-    s.handle_key("S")
+    s.handle_key("S")  # R-K16 survives only without a program (for the color set tool)
     assert "saved color set PoolA" in capsys.readouterr().out
     entry = next(e for e in store.load_color_set_file()["sets"] if e["name"] == "PoolA")
     assert entry["slot"] is None
@@ -822,26 +889,26 @@ def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33
     assert s.palette[0] == rgb("#0A0A0A")
 
 
-def test_saved_rule_carries_its_color_set_and_cycle_applies_it(make_store, capsys):  # PT-34
+def test_look_carries_its_color_set_and_cycle_applies_it(make_store, odca_file, capsys):  # PT-34
     store = review_store(make_store)
-    s = make_session(store)
+    s = make_session(store, select_file=odca_file(name="saver.odca"))
     s.handle_key("3")
     s.handle_key("c")
-    rule = s.automaton.rule
+    rule = s.rule
     capsys.readouterr()
-    s.handle_key("s")
-    assert f"saved rule {rule.id} S3" in capsys.readouterr().out
-    pairs = store.load_interesting_pairs()
-    assert len(pairs) == 1 and pairs[0]["colorset"] == "S3"
-    assert pairs[0]["colors"] == ["#1E1E1E", "#1F1F1F", "#212121", "#202020"]
+    s.handle_key("S")
+    assert "added look 1/1" in capsys.readouterr().out
+    looks = load_odca_file(s.select_file)
+    assert len(looks) == 1 and looks[0]["colorset"] == "S3"
+    assert looks[0]["colors"] == ["#1E1E1E", "#1F1F1F", "#212121", "#202020"]
     s.handle_key("m")
-    mutant = s.automaton.rule
+    mutant = s.rule
     s.handle_key("7")  # S7 showing with the unsaved (mutant) rule
     assert s.unsaved_set["name"] == "S3"  # captured when the mutant arrived
     s.handle_key("n")
-    assert s.automaton.rule == rule
+    assert s.rule == rule
     assert [c[0] for c in s.palette] == [0x1E, 0x1F, 0x21, 0x20]
-    assert "interesting 1/1 S3" in capsys.readouterr().out
+    assert "look 1/1 S3" in capsys.readouterr().out
     s.handle_key("n")  # back to the unsaved slot: mutant with S3
-    assert s.automaton.rule == mutant
+    assert s.rule == mutant
     assert s.palette[0] == rgb("#1E1E1E")

@@ -1,16 +1,17 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-05):** Swift 2.36.0, Python 2.19.0: at par on
-every special mode, and `--help` prints the shared help text. The color set pool is reviewed (30 kept, 16 dropped).
-Both have the two workshop modes (`--colorset-review`,
-`--screensaver-review <file>` with `--consistency-check <file>`) and the
-first study of the art itself: `--screensaver <file>` plays pairs
-sequentially, two minutes each (re-seeding in place when boring, then
-handing over after a quiet minute or at the next re-seed), rows keeping
-their colors across transitions, N/P by hand. Python skips only the gallery
-polish (display-link pacing, resizable window, pointer hiding). Next:
-compose and watch screensaver files; then the vision items below, starting
-with the declarative script design.
+**YOU ARE HERE (2026-09-05):** 3.0.0, both implementations at once: one
+program became two. `odca <file.odca> [--shuffle]` plays the looks of an
+odca file (two minutes each, quiet-minute hand-over, rows keeping their
+colors, fresh random order per pass with `--shuffle`); `odca-select
+<file.odca>` composes them (n/p over the file's looks plus the unsaved
+rule, s/S/X, R for the grouped order with a screen flash, autosave). The
+keeper file is now `interesting.odca` (28 looks), the color set pool
+`library.json`; color set review is on hold until it becomes its own
+program. Python installs `odca` and `odca-select` as console scripts.
+Next: use odca-select to build a show from interesting.odca and watch it
+with odca; then the shuffle constraints, the color set tool, and the
+vision items, starting with the declarative script design.
 
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
@@ -52,14 +53,22 @@ with the declarative script design.
       keeping their colors, N/P); saved presentations applied by n/p.
       Pygame's window stays fixed-size (resizable optional, not done);
       smoothness is not a goal.
-- [ ] Seed a screensaver file from the keeper file (user question,
-      2026-09-05: "does --screensaver-review slurp the interesting rules?"
-      It does not). Today the route is `cp interesting-rules.json show.json`
-      or `n`/`S` one pair at a time inside the review. Candidates: an
-      import key in screensaver review that appends every keeper pair, a
-      flag or second argument naming a source file, or letting a missing
-      target start as a copy of the keeper file on request. Part of the
-      key-binding rethink below.
+- [x] (3.0.0: the keeper file *is* an odca file, `interesting.odca`;
+      `odca-select interesting.odca` or a copy of it is the seed) Seed a
+      screensaver file from the keeper file (user question, 2026-09-05).
+- [ ] Shuffle constraints for `odca --shuffle` (user, 2026-09-05: "subject
+      to certain constraints which I'll describe later"). 3.0.0 ships the
+      minimum: a fresh permutation per pass that never opens on the look
+      that closed the previous pass. Spec R-X1 marks the rest as pending.
+- [ ] Color set tool: color set review (REQTS 4b, on hold, no program binds
+      it in 3.0.0) returns as its own executable (`odca-colors`?) once the
+      color set workflow is taken up again; baking an arrangement into the
+      library (R-K16, `S` until 3.0.0) belongs to it too. The session code
+      and tests are kept alive meanwhile.
+- [ ] `u` restores the rule only: the color set on screen and the n/p
+      position stay where they were, so after an undo the screen can show a
+      look's rule while the cycle points elsewhere (noted 2026-09-05; the
+      user agreed to leave it). Revisit with the key-binding rethink.
 - [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
       or expose a reduced, safe set of keys (no quitting, nothing that can
       leave the app in a messed-up state) for installations where the
@@ -120,37 +129,25 @@ viewer sees. Roadmap, roughly in order:
 - [ ] Layered ODCA: let some colors be transparent so another ODCA
       "beneath" shows through; possibly different color sets and even
       different execution rates per layer.
-- [ ] Data flow to match the workflow (user, 2026-09-05; the jq merge of
-      two pair files was the last straw). DECIDED in outline: one library
-      file for the *nouns*, plain text files for the *scripts*.
-      - `library.json` at the repo root, JSON not sqlite (git-diffable, no
-        dependency, the byte-identical two-writer discipline already
-        exists), replacing colorsets.json, interesting-rules.json, and
-        the candidates and dropped lists. Sections: `rules` (name + id),
-        `colorsets` (sets with optional slots, dropped names, unjudged
-        candidates), `looks` (rule name + color set name + arrangement
-        index; what interesting-rules.json is really a list of). Whether
-        looks get their own names or default to the rule's is open.
-      - Rules need human names; the 20-digit IDs all look alike. The
-        program has no text input, so generate whimsical names on save
-        (adjective + noun from word lists tuned to the art: growth,
-        weather, textile words; unique in the library; printed by `s`),
-        rename by editing the JSON; a rename key can join the key-binding
-        rethink.
-      - Screensavers stay out of the library: a script is a text file that
-        references rules, color sets, and looks by name. Interim script,
-        before the language exists: a list of look names, one per line,
-        played by `--screensaver <file>`.
-      - Consequences: `--colorset-review` and a rule review need no file
-        argument; `--screensaver-review`/`--consistency-check` become
-        look review over the library (or over a script's looks).
-      - Migration: every saved rule gets a generated name, every pair
-        becomes a look, inline arranged colors become an arrangement index
-        against the named set; both implementations read and write the
-        library byte for byte, tested as today.
-      - Order: library format + migration in both languages; flags drop
-        their file arguments; look-list interim script; then the script
-        language below, which inherits names that already exist.
+- [x] Data flow to match the workflow (user, 2026-09-05; the jq merge of
+      two pair files was the last straw). DONE in 3.0.0, with the design
+      revised in discussion before building:
+      - `library.json` at the repo root holds the color sets only (the
+        former colorsets.json content: sets with optional slots, dropped
+        names). JSON, not sqlite: git-diffable, no dependency, the
+        byte-identical two-writer discipline already exists.
+      - Looks (rule + color set name + arranged colors) live in *odca
+        files* (`.odca`, JSON `{"looks": [...]}`), one per show, named on
+        the command line; `interesting.odca` replaces interesting-rules.json.
+        Looks are self-contained, so a file plays without the library.
+      - Rules are NOT named (user reversal, 2026-09-05): the 20-digit ID
+        stays; if names are ever needed they will be programmatic
+        (rule001, look001).
+      - Two programs instead of flags: `odca <file.odca> [--shuffle]` plays,
+        `odca-select <file.odca>` composes (n/p over the file's looks, s/S
+        save, X delete, R grouped order). Color set review is on hold.
+      - Scripts stay text files (below); until the language exists an odca
+        file is the show.
 - [ ] Scriptable screensaver mode (the interactive mode absorbs the same
       ability): a declarative, not procedural, script language that can
       intermix ODCA rules (the interesting ones), specify how rules
@@ -203,7 +200,9 @@ viewer sees. Roadmap, roughly in order:
       set up: e.g. a `run` script (or Makefile target) that creates the venv
       and installs requirements on first use, a `swift run` wrapper or
       documented one-liner, and a README quick start at the root that shows
-      both. The Swift wrapper must build release: the debug build is choppy
+      both. 3.0.0 did the Python half's packaging (`pyproject.toml` with
+      console scripts; the stock pip needs `pip install --upgrade pip
+      setuptools` first). The Swift wrapper must build release: the debug build is choppy
       on any Mac (confirmed on an M1 Pro, 2026-09-05; the per-frame pixel
       loop is unoptimized), so `swift run -c release odca` is the command.
       Check the Python version floor (3.9 on a stock Mac) and pygame's

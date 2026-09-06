@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.36.0 — 2026-09-05
+Version 3.0.0 — 2026-09-05
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -55,10 +55,10 @@ implementation's normal test suite. Reference:
 Coverage: R-M1–R-M9 (engine), including permutation invariance (paired
 reversed-row cases) and both edge modes.
 
-**File:** `conformance/help.txt` — the normative `--help` text (R-U9),
-printed byte for byte by every implementation. Editing it is a spec change
-(bump `REQTS.md`). Each implementation's suite compares its embedded copy
-to this file.
+**Files:** `conformance/help-odca.txt` and `conformance/help-odca-select.txt`
+— the normative `--help` texts (R-U9), printed byte for byte by every
+implementation. Editing one is a spec change (bump `REQTS.md`). Each
+implementation's suite compares its embedded copies to these files.
 
 ---
 
@@ -77,13 +77,13 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-5 | R-C6 | The synchronous search always returns a valid rule within its attempt bound, including when forced to its fallback (e.g. bound = 1). |
 | PT-6 | R-P1 | Current-rule save/load round-trips; a missing or corrupt file loads as absent (triggering the random-rule fallback), never an error. |
 | PT-7 | R-P2 | Candidate stash save/load round-trips in order; invalid lines are skipped. |
-| PT-8 | R-P3 | Keeper-file append writes a screensaver-format pair (rule, color set name, arranged colors; the default set when none is given) preserving prior pairs; the loader returns saved rules in order, skips malformed pairs, reads as a screensaver file, and no longer reads the old `rule <id>` text format. Re-saving the shipped keeper file is byte-identical. |
+| PT-8 | R-P3 | The odca file round-trips looks (rule, color set name, arranged colors) in order; the loader skips malformed looks, reads an unparseable file as empty and a missing one as absent, and no longer reads the 2.x `pairs` key. Re-saving the shipped `interesting.odca` is byte-identical. |
 | PT-9 | R-K4 | Undo restores rules in LIFO order; undo on an empty stack is a no-op. |
-| PT-10 | R-B2, R-B3 | With a stubbed keeper file of k rules and a startup rule not in it: first `n` selects rule 0; first `p` selects rule k−1; stepping past either end reaches the unsaved slot; after `m` (or `r`) the unsaved slot holds the new rule and the position is on it. |
-| PT-10a | R-U1, R-B3 | With a startup rule equal to saved rule j: the cycle position starts at j (`n` selects j+1, `p` selects j−1), the cycle wraps over the k saved rules with no unsaved slot, and the unsaved slot reappears holding the new rule after `m`/`r`. |
+| PT-10 | R-B2, R-B3, R-W1 | `odca-select` on a file of k looks opens on look 1 with the unsaved slot empty; after `m` the unsaved slot holds the mutant and the position is on it; `n` selects look 1; `p` returns to the unsaved slot; a further `p` wraps to look k; stepping past the last returns to the unsaved slot; a second `m` replaces the unsaved rule and repositions on it. |
+| PT-10a | R-U1, R-B3 | Opening on look 1 with the unsaved slot empty, `n` selects look 2 and `p` twice wraps to look k with no unsaved stop; the unsaved slot reappears holding the new rule after `m`/`r`. |
 | PT-11 | R-S5 | Stopping a background search that was started terminates all workers; stopping one never started is safe. |
 | PT-12 | R-S2, R-S3 | Candidates delivered by workers are valid rules; the stash never exceeds its cap. |
-| PT-13 | R-K10 | While paused, every command key except space, Return, `s`, `c`, `S`, the digits, and `q` is a no-op (rule, cells, speed, and cycle state unchanged), while the digits switch slots, `c` re-arranges colors, and `S` saves; space resumes; `q` still quits. |
+| PT-13 | R-K10 | While paused, every command key except space, Return, `s`, the color keys, the look keys, and `q` is a no-op (rule, cells, speed, and cycle position unchanged), while the digits switch slots and `c` re-arranges colors; space resumes; `q` still quits. |
 | PT-14 | R-K11 | While paused, Return advances the automaton exactly one generation per press and the program stays paused; when not paused, Return changes nothing. |
 | PT-15 | R-K12, R-A2 | With auto-init on (the startup default) and a rule whose rows repeat (e.g. the all-zero rule), the cells are re-initialized exactly when the `rows`-th consecutive boring generation is computed (generation counter returns to 0, reason `repeating (period 1)` printed); after `a` turns the mode off, nothing happens. |
 | PT-16 | R-A1, R-A2 | With a rule under which a producible state dies out, the re-initialization reason names that state as extinct. |
@@ -94,19 +94,20 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-21 | R-A1 | A row recurring exactly 10 × `rows` generations after its first appearance is boring (`repeating`); one recurring 10 × `rows` + 1 generations later is not. |
 | PT-22 | R-A1, R-O8 | Feeding a transient followed by a cycle of distinct rows whose period exceeds the repetition window, the detected period equals the true period exactly, `cycle period <n>` is printed once, subsequent reasons read `repeating (period <n>)`, and a rule change clears the detector; a short cycle (period 7) is likewise detected exactly. |
 | PT-23 | R-K15, R-K9 | With a stubbed color sets file: `c` yields the next lexicographic arrangement (first press swaps states 2 and 3), 24 presses return to the original, `C` steps back and wraps from 1 to 24, the arrangement is remembered per set across set switches, an undefined slot's digit is a no-op, and without a file only slot 1 exists. |
-| PT-24 | R-K16, R-P4 | `S` writes the active set's arranged colors into its pool entry (reloading shows them), resets its arrangement to 1, and the file loader tolerates malformed entries, out-of-range slots, and unparseable files, always supplying slot 1. |
-| PT-33 | R-K17 | In base mode `]` steps from slot 1 through the hot ten in key order into the pool-only sets and wraps, `[` steps back, a slotted set becomes the digit position, digits still select the hot ten, and `S` on a pool-only set bakes its arrangement into that entry without giving it a slot; in color set review `[`/`]` act as `P`/`N`. |
+| PT-24 | R-K16, R-P4 | Baking (reachable only without a program) writes the active set's arranged colors into its library entry (reloading shows them) and resets its arrangement to 1; the library loader tolerates malformed entries, out-of-range slots, and unparseable files, always supplying slot 1. |
+| PT-33 | R-K17 | Without a program `]` steps from slot 1 through the hot ten in key order into the pool-only sets and wraps, `[` steps back, a slotted set becomes the digit position, digits still select the hot ten, and baking (R-K16) on a pool-only set writes its arrangement into that entry without giving it a slot; in color set review `[`/`]` act as `P`/`N`. |
 | PT-25 | R-U3, R-K10 | The history holds `rows` + 1 rows; the scroll offset is 0 while filling, 1 at the default speed once full, the elapsed fraction of the delay (wrapping when a generation is computed) once the delay exceeds twice the initial delay, and 1 while paused; resuming computes exactly one generation on the first tick and returns the offset to 0. |
 | PT-26 | R-V1–R-V6, R-P4 | With a stubbed pool file (slots 0–9, one pool-only set, one dropped name) and a stubbed candidates file (one duplicate, one dropped, two new): the review order is slots 1–9, 0, the pool set, then the new candidates; `N`/`P` step and wrap with the wrap message, each step computing exactly `rows` generations at once; digits are inert; `X` drops, advances, and wraps when the last set is dropped; each drop writes the first ten kept sets to keys 1–9, 0 (rotating slots down over the drop), the rest pool-only, arrangements not baked in, and the dropped list including the new drops; `S` does nothing; a second review run reloads that order without resurrecting drops; exit saves; outside review mode `N`/`P`/`X` do nothing and exit writes nothing. |
 | PT-27 | R-P4 | The pool file round-trips sets with and without slots plus the dropped list; a JSON `null` slot reads as pool-only; the digit-bound save keeps the pool and the dropped list; the candidates file loads by name and colors and skips malformed palettes. |
-| PT-28 | R-W1–R-W6, R-P5 | With a missing screensaver file: entry creates it empty and no pair is active; `N` does nothing and `s` reports no pair; `S` appends the composed pair (current rule, active set name, arranged colors) without changing the position; `N` activates pair 1 (rule and colors restored, and exactly `rows` generations computed at once), `P` at the start prints the end message; `s` overwrites the active pair; stepping past the last prints the end message; `X` deletes and activates the neighbor, emptying the list clears the position; startup with a non-empty file activates pair 1; `[`/`]` walk the pool. Outside the mode the keys are inert. |
-| PT-29 | R-P5 | The screensaver file round-trips, escapes quotes in names, writes `{"pairs": []}` for an empty list in the shared layout, skips pairs with invalid rule IDs, and loads an unparseable file as empty. |
-| PT-30 | R-W7 | With a file of pairs whose rules run A, B, A, C, B: the grouped view order is A A B B C; entry and each crossing into another rule's group print the group marker, steps within a group do not; `S` appends to the file's end but joins its group in the view without moving the position; `s` rewrites the pair at its file position; `X` removes the pair from its file position and activates the pair now at that view position; the file is written in file order throughout. |
-| PT-31 | R-X1–R-X6, R-O13 | With a two-pair file whose rules die at once: entry plays pair 1 (its rule and colors, generation 0, no reason printed); before the watchdog expires, a screenful of boring rows re-seeds in place with an `auto-init` line and no transition; once 120 unpaused seconds have passed, the next firing transitions to pair 2 with a fresh seed and the reason printed; the old rows still read pair 1's colors and the new seed row pair 2's (R-X5); a further expiry and firing loops back to pair 1; `N`/`P` step between pairs with a fresh seed and reasons `next`/`previous`, wrapping, also while paused. With auto-init off: a manual `i` at 100 s resets the grace period but not the watchdog, no transition at 120 s or 159.5 s, transition at 160 s with reason `timeout`, paused time counting for nothing; a quiet pair transitions at 120 s exactly. |
+| PT-28 | R-W1–R-W6, R-P3, R-K5 | `odca-select` on a missing file: nothing is written at entry and no look is under review; `n` reports no looks; on the unsaved slot `s` appends (as `S`) the composed look (current rule, active set name, arranged colors) without changing the position; `S` appends another; `n` activates look 1 (rule and colors restored, exactly `rows` generations computed at once); `s` on a look rewrites only its color set, keeping its rule; `n` past the last look reaches the unsaved slot, where `X` does nothing; `X` on a look deletes it and activates the neighbor, emptying the list makes the rule on screen the unsaved rule; exit writes the file (empty if need be); startup on a non-empty file activates look 1 and exit rewrites it; `[`/`]` walk the pool. Outside `odca-select` the look keys are inert. |
+| PT-29 | R-P3 | The odca file round-trips, escapes quotes in names, writes `{"looks": []}` for an empty list in the shared layout, skips looks with invalid rule IDs, and loads an unparseable file as empty. |
+| PT-30 | R-W7, R-U10 | With a file of looks whose rules run A, B, A, C, B: `R` switches the view order to A A B B C, keeps the look under review, prints the order message, and starts a 0.25 s inversion that ends on the wall clock even while paused; crossings into another rule's group print the group marker, steps within a group do not; `S` appends to the file's end but joins its group in the view without moving the position; `s` rewrites the look at its file position; `X` removes the look from its file position and activates the look now at that view position; a second `R` returns to file order on the same look; the file is written in file order throughout. |
+| PT-31 | R-X1–R-X6, R-O13 | With a two-look file whose rules die at once: entry plays look 1 (its rule and colors, generation 0, no reason printed); before the watchdog expires, a screenful of boring rows re-seeds in place with an `auto-init` line and no transition; once 120 unpaused seconds have passed, the next firing transitions to look 2 with a fresh seed and the reason printed; the old rows still read look 1's colors and the new seed row look 2's (R-X5); a further expiry and firing loops back to look 1; `N`/`P` and `n`/`p` step between looks with a fresh seed and reasons `next`/`previous`, wrapping, also while paused; `s`, `S`, `X` never write the file. With auto-init off: a manual `i` at 100 s resets the grace period but not the watchdog, no transition at 120 s or 159.5 s, transition at 160 s with reason `timeout`, paused time counting for nothing; a quiet look transitions at 120 s exactly. |
 | PT-32 | R-U8 | After 40 generations at 32 × 16: narrowing to 20 keeps the middle 20 cells of the live row and of every remembered row, keeps the history, resets the boring count, and prints `resized 20x16`; widening to 30 keeps those 20 centered with state-0 padding in old rows and random cells in the live row; a taller window shows the last rows + 1 remembered rows; a no-op resize returns false; sizes clamp to the minimum. The history never exceeds 2048 rows. |
-| PT-34 | R-K5, R-B2, R-B3 | `s` appends the current rule with the active set's name and arranged colors and prints them; `n` onto that pair restores both the rule and the colors; stepping onto the unsaved slot restores the unsaved rule with the set that was active when it arrived. |
+| PT-34 | R-K5, R-B2, R-B3 | In `odca-select`, `S` appends the current rule with the active set's name and arranged colors and prints it; `n` onto that look restores both the rule and the colors; stepping onto the unsaved slot restores the unsaved rule with the set that was active when it arrived. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
-| PT-35 | R-U9 | The embedded help text equals `conformance/help.txt` byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched. |
+| PT-35 | R-U9 | Each program's embedded help text equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1. |
+| PT-36 | R-X1 | With six looks and `--shuffle`: six steps play every look exactly once; the next six form a fresh permutation whose first look differs from the previous pass's last; `P` steps back within the pass; without the flag the order is file order. |
 
 ---
 
@@ -124,18 +125,24 @@ from `REQTS.md`.
 - **M-4** `+`/`-` speed the scroll up and down across the full range; the
   UI stays responsive at maximum speed (R-K8, R-U5, R-N2).
 - **M-5** `0`–`9` each switch palettes instantly; `c` visibly re-colors
-  the screen; `S` then a restart shows the arranged colors (R-K9, R-K15,
-  R-K16, R-U4).
-- **M-6** `s` then `n`/`p`: the saved rule is reachable in the cycle; the
-  wrap-to-unsaved behavior matches R-B2/R-B3.
+  the screen; `[`/`]` reach the pool-only sets (R-K9, R-K15, R-K17, R-U4).
+- **M-6** In `odca-select`: `S` then `n`/`p`: the look is reachable in the
+  cycle with its colors; the wrap-to-unsaved behavior matches R-B2/R-B3;
+  every step fills the screen; `R` flashes the screen and regroups the
+  order; the file on disk changes after each `s`/`S`/`X` and at exit
+  (R-K5, R-W4, R-W7, R-W8, R-U10).
 - **M-7** With the stash full and the program idle, worker CPU usage falls
   to ~zero; on quit, no orphan processes remain (R-S2, R-S5).
 - **M-8** Window title tracks the current rule (R-U6).
 - **M-9** At speeds below 30 generations per second the picture slides
   continuously rather than stepping; pausing and resuming produce no
   visible jump (R-U3, R-K10).
-- **M-11** `--help` prints the help text and exits at once, with no
-  window, no toolkit banner, and no change to `~/.odca` (R-U9).
+- **M-11** `odca --help` and `odca-select --help` print their texts and
+  exit at once, with no window, no toolkit banner, and no change to
+  `~/.odca`; `odca` alone prints a usage line (R-U9).
+- **M-12** `odca interesting.odca` plays the shipped looks two minutes
+  each with the old rows keeping their colors; `--shuffle` plays them in a
+  different order each pass (R-X).
 - **M-10** Dragging the window edge resizes in 4-point steps; the picture
   stays centered while cells appear or vanish at the edges; growing
   taller uncovers older rows; the animation freezes during the drag and

@@ -1,46 +1,68 @@
-/// The --help text (R-U9): identical in every implementation, golden copy in
-/// conformance/help.txt.
-public let helpText = """
-ODCA: one-dimensional cellular automata as art
+/// The --help texts (R-U9): identical in every implementation; golden copies in
+/// conformance/help-odca.txt and conformance/help-odca-select.txt. Each literal
+/// carries one extra empty line because a multi-line literal drops the final break.
+public let helpOdca = """
+odca: one-dimensional cellular automata as art
 
-usage: odca [--help]
-       odca --colorset-review
-       odca --screensaver-review <file>
-       odca --consistency-check <file>
-       odca --screensaver <file> [--sequential]
+usage: odca <file.odca> [--shuffle]
+       odca --help
 
-With no flags, the interactive program: it loads the previous rule, seeds
-random cells, and evolves; the terminal reports rule IDs and events.
+Plays the looks in an odca file, one at a time, looping. A look is a rule
+with a color set; odca-select composes them. Each look gets two minutes of
+screen time, re-seeding in place whenever it goes boring; then it hands
+over after a quiet minute or at the next re-seed, and the next look grows
+in from a fresh field below the old rows, which keep their colors.
 
-Modes (one at a time; --screensaver takes precedence over the review flags):
-  --colorset-review            review the color set pool: N/P (or [/]) step
-                               with wrap, X drops a set and saves at once,
-                               digits are disabled, exit saves
-  --screensaver-review <file>  compose a screensaver file of rule/color set
-                               pairs: N/P step without wrap, s saves the
-                               pair under review, S appends the current
-                               rule and colors, X deletes; a missing file
-                               is created empty
-  --consistency-check <file>   screensaver review of an existing file with
-                               the pairs viewed grouped by rule
-  --screensaver <file>         play an existing screensaver file: pairs in
-                               order, looping, two minutes of screen time
-                               each, handing over after a quiet minute or
-                               at the next re-seed; N/P step by hand
+  --shuffle   play the looks in random order instead of file order (each
+              pass is a fresh shuffle that does not repeat the last look)
+
+Keys:
+  q     quit                            space   pause / resume
+  N / P next / previous look by hand    return  single step while paused
+  i     re-seed the cells               s       while paused: one screenful
+  a     toggle auto-init (on at start)  + / -   faster / slower
+  r     new screened random rule        m       mutate one rule entry
+  u     undo the last rule change       n / p   as N / P
+  0-9   color set (the hot ten)         [ / ]   walk the whole color set pool
+  c / C arrange colors forward / back
+
+Files: the odca file named on the command line is read only; color sets
+come from library.json at the repository root; ~/.odca/ holds the current
+rule and the candidate stash.
+
+"""
+
+public let helpOdcaSelect = """
+odca-select: compose looks for odca
+
+usage: odca-select <file.odca>
+       odca-select --help
+
+Shows random rules that passed the maybe-Class-IV screen, lets you dress
+each in a color set, and collects the results as looks in the named odca
+file, which is created if it does not exist. The file is written after
+every change and at exit. Looks already in the file are reached with n and
+p, which cycle through them and one extra slot holding the unsaved rule
+you were exploring; every step fills the screen with the selected look.
 
 Keys:
   q     quit                            space   pause / resume
   r     new screened random rule        return  single step while paused
   m     mutate one rule entry           s       while paused: one screenful
   u     undo the last rule change       a       toggle auto-init (on at start)
-  s     save the rule with its colors   + / -   faster / slower
-  n / p next / previous saved rule, with its colors
-  i     re-seed the cells
+  i     re-seed the cells               + / -   faster / slower
+  n / p next / previous look, or the unsaved rule
+  s     rewrite the look under review with the color set on screen;
+        on the unsaved rule, append the screen as a new look (as S)
+  S     append a copy of what is on screen as a new look
+  X     delete the look under review
+  R     toggle the order of n / p: file order, or grouped by rule
+        (the screen inverts briefly to confirm)
   0-9   color set (the hot ten)         [ / ]   walk the whole color set pool
-  c / C arrange colors forward / back   S       save the arrangement to the pool
+  c / C arrange colors forward / back
 
-Files, at the repository root: interesting-rules.json (saved rules with
-their colors; itself a screensaver file), colorsets/colorsets.json (the
-pool); per user: ~/.odca/ (current rule, candidate stash).
+Files: the odca file named on the command line; color sets come from
+library.json at the repository root; ~/.odca/ holds the current rule and
+the candidate stash.
 
 """

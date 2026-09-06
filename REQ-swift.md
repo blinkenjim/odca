@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.36.0 — 2026-09-05 (`--help`; color set and screensaver review modes, screensaver mode; Python 2.19.0 at par on the modes)
+Version 3.0.0 — 2026-09-05 (two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -11,8 +11,9 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
 
 | target | role (spec sections) |
 |--------|----------------------|
-| `ODCAKit` (library) | engine `Rule`/`Automaton` (R-M), `Classifier` (R-C), `CandidateSearch` (R-S), `Store` + `ColorSet` (R-P), `Session` (R-U/K/B/A/O orchestration), `Xoshiro256` (R-N1) |
-| `ODCA` (executable) | SwiftUI app shell: `ViewerModel` (rendering, key translation), `AutomatonView` (display-link pacing, layer presentation), `ODCAApp`/`ContentView` |
+| `ODCAKit` (library) | engine `Rule`/`Automaton` (R-M), `Classifier` (R-C), `CandidateSearch` (R-S), `Store` + `ColorSet` + `Look` (R-P), `Session` (R-U/K/B/A/W/X/O orchestration), `Xoshiro256` (R-N1), the help texts |
+| `ODCAUI` (library) | AppKit/SwiftUI shell shared by both programs: `ViewerModel` (rendering, key translation), `AutomatonView` (display-link pacing, layer presentation), `ODCAApp`/`ContentView`, `parseArguments`/`launch` (Launch.swift) |
+| `ODCAPlay` → product `odca`, `ODCASelect` → product `odca-select` | one `main.swift` each: parse arguments, build the `Session`, `launch` |
 | `ODCAKitTests` | conformance runner + property tests (TESTS.md layers 1–2) |
 
 ## Implementation choices
@@ -60,35 +61,37 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   arrangements are generated as lexicographic permutations.
 - **Output sink**: `Session.output` (default `print`) carries every R-O
   line; tests capture it instead of stdout.
-- **Review mode** (R-V): `Session(reviewMode:)` is set from
-  `CommandLine.arguments.contains("--colorset-review")`; the review list,
+- **Review mode** (R-V): `Session(reviewMode:)`, bound by no executable in
+  3.0.0 (kept for the color set tool and its tests); the review list,
   position, and drops live in `Session`, `Store.loadColorSetFile` /
-  `saveColorSetFile` handle the pool file (entries with optional slot plus
+  `saveColorSetFile` handle the library (entries with optional slot plus
   the dropped list), and `Store.loadCandidatePalettes` reads
-  `colorsets/candidates.json`. `ViewerModel.shutDown` calls
-  `Session.finish()` so exit saves.
-- **Screensaver review** (R-W): `Session(screensaverFile:)` from
-  `--screensaver-review <file>`; `Store.loadScreensaver`/`saveScreensaver`
-  handle the pairs file (R-P5) in the shared JSON layout via the static
-  `quoted`/`list` helpers. Since 2.32.0 every mode but color set review
-  draws through `Session.activeSet` (any pool member); arrangements are
-  remembered per set name; `[`/`]` walk `pool` (review order).
-  `--consistency-check <file>` sets `groupByRule`: `Session.viewOrder`
-  holds file indices in presentation order and `viewPosition` the cursor;
-  `pairs` and `pairIndex` always refer to file order. The view model
-  checks the file exists and exits with an error otherwise.
-- **Screensaver mode** (R-X): `Session(playFile:)` from `--screensaver
-  <file>` (existence checked by the view model). `advance()` routes a
-  firing of the boring detector to `nextPlayPair` once `playElapsed` has
-  reached `Session.playTimeout`, otherwise re-seeds in place; `tick`
-  accumulates `playElapsed` (the pair's screen time) and `sinceInit` (the
-  grace clock, zeroed by `initCells`) while unpaused and advances when
-  both have run out. Mode precedence in `Session.init`: play, then
-  screensaver review, then color set review. Colors per row (R-X5):
-  `Session.rowBanks` tags each history row with a bank (0/1) and
-  `palette8` holds the two banks; `pushRow` moves a changed active set to
-  the idle bank in play mode, while other modes write both banks. The
-  renderer indexes `palette8[bank * 4 + state]`.
+  `colorsets/candidates.json`.
+- **odca-select** (R-W): `Session(selectFile:)`. `Store.loadOdcaFile` /
+  `saveOdcaFile` handle the looks file (R-P3) in the shared JSON layout via
+  the static `quoted`/`list` helpers (`loadOdcaFile` returns nil for a
+  missing file, so entry writes nothing). The look cycle keeps `looks` in
+  file order, `viewOrder` (file indices in n/p order, rebuilt by `R`) and
+  `lookIndex`/`viewPosition`; `unsavedRule`/`unsavedSet` are the extra
+  slot. Every mode but color set review draws through `Session.activeSet`
+  (any pool member); arrangements are remembered per set name; `[`/`]`
+  walk `pool`. `ViewerModel.shutDown` calls `Session.finish()` so exit
+  writes the file. `R` sets `flashRemaining`, which `tick` counts down
+  even while paused; `renderImage` inverts palette and background while
+  `inverted` (R-U10).
+- **odca** (R-X): `Session(playFile:shuffle:)`. `advance()` routes a firing
+  of the boring detector to `nextPlayLook` once `playElapsed` has reached
+  `Session.playTimeout`, otherwise re-seeds in place; `tick` accumulates
+  `playElapsed` (the look's screen time) and `sinceInit` (the grace clock,
+  zeroed by `initCells`) while unpaused and advances when both have run
+  out. `playOrder` is the current pass — `Array.shuffle(using:)` on the
+  session RNG under `--shuffle`, its first entry swapped away from the
+  look just played. Program precedence in `Session.init`: play, then
+  select, then review. Colors per row (R-X5): `Session.rowBanks` tags each
+  history row with a bank (0/1) and `palette8` holds the two banks;
+  `pushRow` moves a changed active set to the idle bank in play mode,
+  while other modes write both banks. The renderer indexes
+  `palette8[bank * 4 + state]`.
 - **Resizing** (R-U2, R-U8): `AutomatonView.layout()` derives cols/rows
   from its bounds and calls `Session.resize`; the grid lives in a
   clipping `gridLayer` centered in the view, whose background is the
@@ -106,20 +109,21 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   match the reference. Conformance vectors certify equality.
 - **RNG** (R-N1): xoshiro256** seeded via SplitMix64; the no-argument
   initializer seeds from OS entropy (each search worker gets its own).
-- **Keeper-file anchor** (R-P3): `Store.repoRoot` resolves four levels up
-  from `Store.swift` via `#filePath` to the repository root. `Store` takes
-  injectable paths, which is also how tests isolate state. The keeper file
-  is read and written with the screensaver-file code
-  (`loadInterestingPairs`, `appendInteresting(_ pair:)`); `Session.unsavedSet`
-  remembers the set shown with the unsaved rule.
-- **`--help`** (R-U9): `ODCAKit.helpText` (`Help.swift`) is a multi-line
-  string literal of `conformance/help.txt`; the literal drops the file's
-  final line break, so the source carries one extra empty line before the
-  closing quotes. The process entry is `@main enum Main` in
-  `ODCAApp.swift`, which prints and exits before `ODCAApp.main()` starts
-  SwiftUI, so no window, `ViewerModel`, or `Session` is created.
-  `HelpTests` compares against the file.
-- **Launch via `swift run -c release odca`** (no app bundle): the app
+- **File anchors** (R-P3, R-P4): `Store.repoRoot` resolves four levels up
+  from `Store.swift` via `#filePath` to the repository root, where
+  `library.json` lives; odca files are whatever path the command line
+  names. `Store` takes injectable paths, which is also how tests isolate
+  state.
+- **`--help` and arguments** (R-U9): `ODCAKit.helpOdca` and
+  `helpOdcaSelect` (`Help.swift`) are multi-line string literals of the
+  conformance files; a literal drops the file's final line break, so each
+  carries one extra empty line before the closing quotes. Each executable
+  is a `main.swift` (top-level code, so no `@main`): `parseArguments`
+  prints help or a usage error and exits before any `Session`, then
+  `launch` bootstraps `ViewerModel.shared` and calls `ODCAApp.main()`
+  inside `MainActor.assumeIsolated`. `HelpTests` compares against the
+  files.
+- **Launch via `swift run -c release odca <file.odca>`** (no app bundle): the app
   delegate sets `NSApp.setActivationPolicy(.regular)` and activates, so the
   window appears and takes keyboard focus. Build release for viewing: the
   debug build leaves `renderImage()`'s per-pixel loop unoptimized (bounds
@@ -132,8 +136,8 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   (`Tests/ODCAKitTests/ConformanceTests.swift`) locates
   `../conformance/vectors.json` via `#filePath`.
 - Session/property tests construct `Store` instances pointed at temp
-  directories — never the user's real `~/.odca`, the repo keeper file, or
-  `colorsets/colorsets.json` — and use `CandidateSearch(workers: 0)` so
-  no search threads start. The suite covers PT-1..PT-24.
-- Tests run headless; no window is created (only the `ODCA` executable
-  target touches AppKit/SwiftUI).
+  directories — never the user's real `~/.odca` or `library.json` — write
+  odca files beside them, and use `CandidateSearch(workers: 0)` so no
+  search threads start. The suite covers PT-1..PT-36 (PT-32 Swift-only).
+- Tests run headless; no window is created (only `ODCAUI` and the two
+  executable targets touch AppKit/SwiftUI).

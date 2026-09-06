@@ -7,12 +7,17 @@ import ODCAKit
 /// display link in AutomatonView, which calls frameTick(dt:) once per
 /// screen refresh with the true frame interval.
 @MainActor
-final class ViewerModel: ObservableObject {
-    static let shared = ViewerModel()
+public final class ViewerModel: ObservableObject {
+    /// Set once by `launch` before the app starts (R-U1).
+    static var shared: ViewerModel!
 
-    static let cellSize = 4  // points per cell (R-U2)
-    static let defaultCols = 1200 / cellSize
-    static let defaultRows = 800 / cellSize
+    static func bootstrap(session: Session) {
+        shared = ViewerModel(session: session)
+    }
+
+    public static let cellSize = 4  // points per cell (R-U2)
+    public static let defaultCols = 1200 / cellSize
+    public static let defaultRows = 800 / cellSize
     var cols: Int { session.cols }
     var rows: Int { session.rows }
 
@@ -23,47 +28,8 @@ final class ViewerModel: ObservableObject {
 
     private var keyMonitor: Any?
 
-    private init() {
-        let args = CommandLine.arguments
-        let review = args.contains("--colorset-review")  // R-V1
-        var screensaver: URL?
-        var groupByRule = false
-        if let i = args.firstIndex(of: "--screensaver-review") {  // R-W1
-            if i + 1 < args.count {
-                screensaver = URL(fileURLWithPath: args[i + 1])
-            } else {
-                print("usage: odca --screensaver-review <file.json>")
-            }
-        }
-        if let i = args.firstIndex(of: "--consistency-check") {  // R-W7
-            guard i + 1 < args.count else {
-                print("usage: odca --consistency-check <existing file.json>")
-                exit(2)
-            }
-            let url = URL(fileURLWithPath: args[i + 1])
-            guard FileManager.default.fileExists(atPath: url.path) else {
-                print("error: \(args[i + 1]) does not exist")
-                exit(1)
-            }
-            screensaver = url
-            groupByRule = true
-        }
-        var play: URL?
-        if let i = args.firstIndex(of: "--screensaver") {  // R-X1
-            guard i + 1 < args.count else {
-                print("usage: odca --screensaver <existing file.json> [--sequential]")
-                exit(2)
-            }
-            let url = URL(fileURLWithPath: args[i + 1])
-            guard FileManager.default.fileExists(atPath: url.path) else {
-                print("error: \(args[i + 1]) does not exist")
-                exit(1)
-            }
-            play = url  // --sequential is the default and only order for now
-            if review || screensaver != nil { print("note: --screensaver takes precedence over review flags") }
-        }
-        session = Session(cols: Self.defaultCols, rows: Self.defaultRows, reviewMode: review,
-                          screensaverFile: screensaver, groupByRule: groupByRule, playFile: play)
+    private init(session: Session) {
+        self.session = session
         session.startSearch()
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
@@ -83,7 +49,7 @@ final class ViewerModel: ObservableObject {
     }
 
     func shutDown() {
-        session.finish()  // review mode saves the kept color sets (R-V5)
+        session.finish()  // odca-select writes its file; review saves (R-V5)
         session.stopSearch()
     }
 
@@ -111,9 +77,14 @@ final class ViewerModel: ObservableObject {
     private func renderImage() -> CGImage? {
         let cols = session.cols
         let rows = session.rows + 1
-        let palette = session.palette8  // two banks of four (R-U4, R-X5)
+        var palette = session.palette8  // two banks of four (R-U4, R-X5)
+        var background = session.palette[0]
+        if session.inverted {  // R-U10: a brief inversion as a mode cue
+            let invert = { (c: RGB) in RGB(r: 255 - c.r, g: 255 - c.g, b: 255 - c.b) }
+            palette = palette.map(invert)
+            background = invert(background)
+        }
         let banks = session.rowBanks
-        let background = session.palette[0]
         var pixels = [UInt8](repeating: 0, count: rows * cols * 4)
         let history = session.history
         let start = session.visibleStart
@@ -167,6 +138,7 @@ final class ViewerModel: ObservableObject {
         case "N": return .N  // review: next (R-V3)
         case "P": return .P  // review: previous
         case "X": return .X  // review: drop (R-V4, R-W5)
+        case "R": return .R  // odca-select: toggle the n/p order (R-W7)
         case "[": return .poolPrev  // screensaver review: previous pool set (R-W3)
         case "]": return .poolNext
         case "+", "=": return .plus  // '=' is unshifted '+' on US layouts (R-K8)

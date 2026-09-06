@@ -1,10 +1,11 @@
 import Foundation
 
-/// Persistence (R-P): per-user state in ~/.odca/, the keeper file at the
-/// repository root. Loaders treat missing or malformed files as absent.
+/// Persistence (R-P): per-user state in ~/.odca/, the library at the
+/// repository root, and odca files named on the command line. Loaders treat
+/// missing or malformed files as absent.
 public struct Store {
     /// Repository root, anchored from this source file's location:
-    /// swift/Sources/ODCAKit/Store.swift -> up four levels (R-P3).
+    /// swift/Sources/ODCAKit/Store.swift -> up four levels (R-P4).
     public static let repoRoot = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()  // ODCAKit
         .deletingLastPathComponent()  // Sources
@@ -12,8 +13,7 @@ public struct Store {
         .deletingLastPathComponent()  // repository root
 
     public let stateDir: URL
-    public let keeperFile: URL
-    public let colorSetsFile: URL
+    public let libraryFile: URL
     public let candidatePalettesFile: URL
 
     /// Built-in fallback so the default slot always exists (R-U4).
@@ -24,13 +24,11 @@ public struct Store {
     public init(
         stateDir: URL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".odca"),
-        keeperFile: URL = Store.repoRoot.appendingPathComponent("interesting-rules.json"),
-        colorSetsFile: URL = Store.repoRoot.appendingPathComponent("colorsets/colorsets.json"),
+        libraryFile: URL = Store.repoRoot.appendingPathComponent("library.json"),
         candidatePalettesFile: URL = Store.repoRoot.appendingPathComponent("colorsets/candidates.json")
     ) {
         self.stateDir = stateDir
-        self.keeperFile = keeperFile
-        self.colorSetsFile = colorSetsFile
+        self.libraryFile = libraryFile
         self.candidatePalettesFile = candidatePalettesFile
     }
 
@@ -71,27 +69,7 @@ public struct Store {
             .write(to: candidatesFile, atomically: true, encoding: .utf8)
     }
 
-    // R-P3: keeper file — a screensaver-format file of rule / color set pairs.
-    public func loadInterestingPairs() -> [ScreensaverPair] {
-        Store.loadScreensaver(keeperFile) ?? []
-    }
-
-    /// The saved rules in order (one per pair; a rule may recur with other colors).
-    public func loadInteresting() -> [Rule] {
-        loadInterestingPairs().compactMap { try? Rule(id: $0.rule) }
-    }
-
-    public func appendInteresting(_ pair: ScreensaverPair) {
-        Store.saveScreensaver(loadInterestingPairs() + [pair], to: keeperFile)
-    }
-
-    /// Convenience: save a rule with the built-in default color set.
-    public func appendInteresting(_ rule: Rule) {
-        let d = Store.defaultColorSets[1]!
-        appendInteresting(ScreensaverPair(rule: rule.id, colorset: d.name, colors: d.colors))
-    }
-
-    // R-P4: color sets file, shared by all implementations.
+    // R-P4: the library, shared by all implementations.
     private static func validColor(_ c: String) -> Bool {
         c.count == 7 && c.hasPrefix("#") && c.dropFirst().allSatisfy { $0.isHexDigit }
     }
@@ -112,7 +90,7 @@ public struct Store {
     /// dropped names. Malformed entries skipped; a missing file is empty.
     public func loadColorSetFile() -> ColorSetFile {
         var file = ColorSetFile(sets: [], dropped: [])
-        guard let data = try? Data(contentsOf: colorSetsFile),
+        guard let data = try? Data(contentsOf: libraryFile),
               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return file }
         for case let dict as [String: Any] in (root["sets"] as? [Any]) ?? [] {
@@ -147,7 +125,7 @@ public struct Store {
             : "[\n" + items.map { indent + " " + $0 }.joined(separator: ",\n") + "\n" + indent + "]"
     }
 
-    private func write(_ text: String, to url: URL) {
+    private static func write(_ text: String, to url: URL) {
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? text.write(to: url, atomically: true, encoding: .utf8)
@@ -164,34 +142,32 @@ public struct Store {
         }
         let text = "{\n \"sets\": " + Store.list(sets, indent: " ")
             + ",\n \"dropped\": " + Store.list(file.dropped.map(quoted), indent: " ") + "\n}\n"
-        write(text, to: colorSetsFile)
+        Store.write(text, to: libraryFile)
     }
 
-    // R-P5: screensaver file — an ordered list of rule / color set pairs.
-    public static func loadScreensaver(_ url: URL) -> [ScreensaverPair]? {
+    // R-P3: an odca file — an ordered list of looks (rule + color set).
+    /// nil when the file is missing, [] when unparseable; malformed looks skipped.
+    public static func loadOdcaFile(_ url: URL) -> [Look]? {
         guard let data = try? Data(contentsOf: url) else { return nil }  // missing
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return [] }
-        var pairs: [ScreensaverPair] = []
-        for case let dict as [String: Any] in (root["pairs"] as? [Any]) ?? [] {
+        var looks: [Look] = []
+        for case let dict as [String: Any] in (root["looks"] as? [Any]) ?? [] {
             guard let rule = dict["rule"] as? String, (try? Rule(id: rule)) != nil,
                   let name = dict["colorset"] as? String,
                   let colors = dict["colors"] as? [String], colors.count == 4,
                   colors.allSatisfy(validColor) else { continue }
-            pairs.append(ScreensaverPair(rule: rule, colorset: name, colors: colors.map { $0.uppercased() }))
+            looks.append(Look(rule: rule, colorset: name, colors: colors.map { $0.uppercased() }))
         }
-        return pairs
+        return looks
     }
 
-    public static func saveScreensaver(_ pairs: [ScreensaverPair], to url: URL) {
-        let entries = pairs.map { p -> String in
+    public static func saveOdcaFile(_ looks: [Look], to url: URL) {
+        let entries = looks.map { p -> String in
             "{\n   \"rule\": \(quoted(p.rule)),\n   \"colorset\": \(quoted(p.colorset)),\n"
             + "   \"colors\": " + list(p.colors.map(quoted), indent: "   ") + "\n  }"
         }
-        let text = "{\n \"pairs\": " + list(entries, indent: " ") + "\n}\n"
-        try? FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? text.write(to: url, atomically: true, encoding: .utf8)
+        write("{\n \"looks\": " + list(entries, indent: " ") + "\n}\n", to: url)
     }
 
     /// {slot: ColorSet} for the digit-bound sets; slot 1 always present (R-U4).
@@ -237,7 +213,7 @@ public struct ColorSet: Equatable {
     }
 }
 
-/// One entry of the color sets file: slot nil means pool-only (R-P4).
+/// One entry of the library: slot nil means pool-only (R-P4).
 public struct ColorSetEntry: Equatable {
     public var slot: Int?
     public var name: String
@@ -250,7 +226,7 @@ public struct ColorSetEntry: Equatable {
     }
 }
 
-/// The color sets file as a whole (R-P4).
+/// The library as a whole (R-P4).
 public struct ColorSetFile: Equatable {
     public var sets: [ColorSetEntry]
     public var dropped: [String]
@@ -261,8 +237,8 @@ public struct ColorSetFile: Equatable {
     }
 }
 
-/// One screensaver entry: a rule with a color set, colors already arranged (R-P5).
-public struct ScreensaverPair: Equatable {
+/// One look: a rule with a color set, colors already arranged (R-P3).
+public struct Look: Equatable {
     public var rule: String
     public var colorset: String
     public var colors: [String]

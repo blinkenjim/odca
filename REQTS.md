@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.36.0 — 2026-09-05
+Version 3.0.0 — 2026-09-05
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -35,7 +35,13 @@ time per pair — watchdog 180 s with a 60 s grace period — R-X2, R-X3.
 mode; the active set model everywhere — R-K17, R-K15, R-K16, R-O9,
 R-O10, R-O15. 2.34.0: saved rules carry their presentation; the keeper
 file is a screensaver-format file — R-K5, R-B2, R-B3, R-P3, R-O3, R-O4.
-2.36.0: `--help` — R-U9, section 10.)
+2.36.0: `--help` — R-U9, section 10. 3.0.0: one program becomes two —
+`odca` plays an odca file of looks (section 4d, `--shuffle`), `odca-select`
+composes one (section 4c: n/p over the file's looks, s/S/X, R with a
+screen flash R-U10); the keeper file becomes `interesting.odca` and the
+color sets file `library.json` — R-U1, R-U9, R-K5, R-K16, section 4, R-P3,
+R-P4, R-P5 merged, R-O3–R-O5, R-O12, R-O13, section 10; color set review
+(section 4b) is bound by no program.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -43,9 +49,13 @@ released together. MAJOR for incompatible changes (state formats, rule
 IDs, conformance vectors), MINOR for new or changed behavior, PATCH for
 fixes and clarifications.
 
-This document specifies ODCA, an interactive viewer for a four-state,
-count-based, one-dimensional cellular automaton, in sufficient detail to
-re-create the program from scratch in any language. It is
+This document specifies ODCA, a four-state, count-based, one-dimensional
+cellular automaton presented as art, in sufficient detail to re-create the
+programs from scratch in any language. There are two programs sharing one
+engine and one keyboard vocabulary: `odca <file.odca>` plays the *looks*
+(rule + color set) of an odca file (section 4d), and `odca-select
+<file.odca>` composes them (section 4c). "The program" below means either
+unless a section says which. It is
 language-independent; it assumes a unix-like environment (macOS, Ubuntu,
 or similar) with a per-user home directory and a graphical display.
 
@@ -136,8 +146,9 @@ mechanism satisfying R-M5–R-M8 is conforming.
 
 ## 2. Interactive program: startup and display (R-U)
 
-**R-U1 (startup).** On launch, with no command-line arguments required, the
-program must:
+**R-U1 (startup).** On launch, after reading its one required argument
+(the odca file, sections 4c and 4d; `--help` aside, R-U9), the program
+must:
 1. Load the previously saved current rule (see R-P1); if absent or
    invalid, generate a random rule (R-M11).
 2. Persist that rule as the current rule (R-P1) and print it (R-O1).
@@ -148,7 +159,10 @@ program must:
 6. Set the interesting-rule cycle position: if the loaded rule equals a
    saved rule, on that rule's first occurrence with the unsaved slot
    empty; otherwise on the unsaved slot, which holds the loaded rule
-   (R-B3).
+   (R-B3). In 3.0.0 this reads: `odca-select` on a file with looks opens
+   on look 1 with the unsaved slot empty (R-W1); on an empty or missing
+   file the loaded rule occupies the unsaved slot. `odca` plays look 1
+   at once (R-X1).
 
 **R-U2 (display geometry).** The display is a grid of square cells,
 `cell_size` points on a side (4; a single constant, not yet adjustable).
@@ -185,7 +199,7 @@ a *scroll offset* of 0 to 1 cell:
 **R-U4 (colors).** Each state maps to an RGB color through the active
 *color set*: four colors in state order, state 0 the background. Ten
 slots exist, bound to the digit keys `0`–`9`, loaded at startup from the
-shared color sets file (R-P4); a slot the file does not define is
+shared library (R-P4); a slot the file does not define is
 undefined, and selecting it is a silent no-op. Slot 1 is the built-in
 default, `ODCA default`, defined even without the file, and is active at
 startup. The file as shipped defines:
@@ -206,8 +220,8 @@ startup. The file as shipped defines:
 Slots 0 and 2–9 are palettes from coolors.co, recorded with their
 sources in `colorsets/`. The set active in a slot may be *arranged* — its
 four colors assigned to the states in any of the 4! = 24 orders — with
-`c` (R-K15); the arrangement is per slot, kept for the session, and
-written to the file by `S` (R-K16).
+`c` (R-K15); the arrangement is per set, kept for the session, and
+recorded in the looks that `s`/`S` save (R-K5).
 
 **R-U5 (timing).** Generation pacing is governed by a *delay* — the
 nominal time between generations — independent of the display refresh:
@@ -246,14 +260,24 @@ no catch-up.
 cleanly, stopping all background workers.
 
 **R-U9 (`--help`).** When `--help` appears anywhere on the command line the
-program prints the help text to standard output and exits with status 0,
+program prints its help text to standard output and exits with status 0,
 before reading or writing any persisted state (R-P), starting the
 background search (R-S), or opening a window; nothing else is printed and
-every other argument is ignored. The help text is the file
-`conformance/help.txt`, reproduced byte for byte (it ends with a single
-newline); it names every flag and key and is the one place the flags of
-sections 4b–4d are documented to the user. Changing the text is a spec
-change made in that file.
+every other argument is ignored. The texts are the files
+`conformance/help-odca.txt` and `conformance/help-odca-select.txt`,
+reproduced byte for byte (each ends with a single newline); they name
+every flag and key. Changing a text is a spec change made in that file.
+Other command-line errors: a missing or extra positional argument or an
+unknown option prints a one-line usage message and exits with status 2;
+`odca` on a file that does not exist prints `error: <file> does not exist`
+and exits with status 1.
+
+**R-U10 (flash).** A change that alters what the keys do without changing
+the picture is confirmed by *flashing* the display: every displayed color
+is inverted (each channel replaced by 255 minus itself, background
+included) for 0.25 s of wall-clock time, paused or not, after which the
+normal colors return. The flash is display-only: it neither paces nor
+pauses computation. In 3.0.0 only `R` (R-W7) flashes.
 
 ---
 
@@ -279,18 +303,24 @@ makes that rule current per R-B1. With an empty stack, `u` is a silent
 no-op. Undo does not alter the interesting-rule cycle position or the
 unsaved slot.
 
-**R-K5 (`s` — save).** Append the current *presentation* — the rule with
-the active color set's name and arranged colors, exactly as a screensaver
-pair (R-P5) — to the keeper file (R-P3) and print confirmation (R-O3). A
-rule isn't interesting until an interesting way of presenting it exists,
-so the two are saved together; the same rule may be saved again with other
-colors. No other state changes.
+**R-K5 (`s` / `S` — save a look).** In `odca-select` (section 4c) only.
+A *look* is a rule with the active color set's name and arranged colors
+(R-P3): a rule isn't interesting until an interesting way of presenting
+it exists, so the two are saved together, and the same rule may be saved
+again with other colors. `S` appends a copy of what is on screen — the
+current rule and the active set, arranged — as a new look at the end of
+the file. `s` on a look under review (R-B2) rewrites that look's color set
+to the active set, arranged, keeping the look's rule; `s` on the unsaved
+slot appends, exactly as `S`. Both write the file at once (R-W4) and print
+confirmation (R-O12). Neither moves the cycle position. In `odca` the
+file is read-only and both keys do nothing.
 
 **R-K6 (`i` — initialize).** Set every cell to an independent uniformly
 random state. The rule, scroll buffer, and all other state are unchanged
 (the new row simply enters the scroll).
 
-**R-K7 (`n` / `p` — cycle interesting rules).** See section 4.
+**R-K7 (`n` / `p` — cycle looks).** See section 4; in `odca` they act as
+`N`/`P` (R-X6).
 
 **R-K8 (`+` / `-` — speed).** `+` halves the delay; `-` doubles it,
 clamped to [1/16384 s, 8 s]. Implementations should also accept the
@@ -305,12 +335,14 @@ no further generations are computed or shown until the spacebar is pressed
 again, which resumes at the normal rate with no catch-up burst (elapsed
 pause time is discarded). Resuming computes exactly one generation on the
 first refresh so that the picture, which showed the newest row fully while
-paused, continues without a jump (R-U3). While paused, every key except the spacebar,
-Return (R-K11), `s` (R-K13), `c`/`C` (R-K15), `S` (R-K16), `[`/`]`
-(R-K17), the digits
-(R-K9), and `q` is ignored; `q` quits normally. The digits, `c`, and `S`
-touch only colors, never computation, so they remain live (as does `C`). Pausing does not
-stop the background search (R-S).
+paused, continues without a jump (R-U3). While paused, every key except
+the spacebar, Return (R-K11), `s` (R-K13), `c`/`C` (R-K15), `[`/`]`
+(R-K17), the digits (R-K9), the look keys `S`, `X`, `R` (section 4c) and
+`N`/`P` (section 4d), and `q` is ignored; `q` quits normally. Those keys
+touch colors and files, never the running computation (the screenfuls
+that navigation fills, R-W8, are the exception, being part of the
+navigation), so they remain live. Pausing does not stop the background
+search (R-S).
 
 **R-K11 (Return — single step).** While paused, Return computes and
 displays exactly one generation, and the program remains paused. When not
@@ -338,11 +370,13 @@ loaded — wrapping after the 24th, and print the position (R-O9). `C` (shift-c)
 steps to the previous arrangement, wrapping from the 1st to the 24th.
 Each color set keeps its own arrangement (by name) for the session.
 
-**R-K16 (`S`, shift-s — save color set).** Replace the active color set's
-colors, in its pool entry (R-P4), with its current arrangement (which
-becomes arrangement 1 of 24) — slotted or pool-only alike; a set not yet in
-the file is added, keeping its slot if it has one — and print confirmation
-(R-O10).
+**R-K16 (bake an arrangement — unbound).** Replacing the active color
+set's colors in its library entry (R-P4) with its current arrangement
+(which becomes arrangement 1 of 24; a set not yet in the file is added,
+keeping its slot if it has one; prints R-O10) was `S` until 3.0.0. No
+program binds it in 3.0.0 — `S` saves a look (R-K5) — and the behavior is
+reserved for the color set tool (section 4b). Implementations may keep
+it reachable only where no program is running (tests).
 
 **R-K17 (`[` / `]` — the whole pool).** In every mode, step the active
 color set backward / forward through the whole pool in pool order (the
@@ -358,34 +392,36 @@ persisted.
 
 ---
 
-## 4. The interesting-rule cycle (R-B)
+## 4. The look cycle (R-B)
 
 **R-B1 (rule change).** Whenever the current rule changes — via `r`, `m`,
 `u`, `n`, or `p` — the program must persist it as the current rule (R-P1)
 and print it (R-O1).
 
-**R-B2 (the cycle).** The saved pairs in the keeper file (R-P3), in file
-order, form a cycle of n+1 slots: slots 0…n−1 are the saved pairs and one
-extra slot holds the *unsaved rule*. The keeper file is re-read on every
-`n`/`p` press, so pairs saved during the session are immediately
-reachable. `n` steps forward one slot (mod n+1) and `p` steps backward
-one slot; the selected pair's rule becomes current per R-B1 (pushing undo
-per R-K4) and its colors become the active color set at arrangement 1 —
-a saved item is a presentation, not just a rule. Position output per R-O4.
+**R-B2 (the cycle).** In `odca-select`, the looks of the odca file (R-P3),
+in *view order* (file order, or grouped by rule after `R`, R-W7), form a
+cycle of n+1 slots: slots 0…n−1 are the looks and one extra slot holds the
+*unsaved rule*. `n` steps forward one slot (mod n+1) and `p` steps backward
+one slot; a look's rule becomes current per R-B1 (pushing undo per R-K4)
+and its colors become the active color set at arrangement 1 — a look is a
+presentation, not just a rule — and the position is printed (R-O4). Every
+step then fills the screen (R-W8). Looks appended during the session are
+reached in turn.
 
 **R-B3 (the unsaved slot).** The unsaved slot holds the most recent rule
-that arrived from outside the saved set: the startup rule (unless it
-matched a saved rule, see R-U1 step 6), or the last rule produced by `r`
-or `m` — together with the color set that was active when it arrived,
-which is restored with it. When `r` or `m` fires, its new rule occupies
-the unsaved slot and the cycle position moves to that slot. While the unsaved slot is empty —
-startup matched a saved rule and no `r`/`m` has fired yet — the cycle
-consists of the n saved rules only. When the cycle position starts on the
-unsaved slot, the first `n` selects saved rule 0 and the first `p`
-selects saved rule n−1.
+that arrived from outside the file: the startup rule (unless the file
+opened on look 1, R-W1), or the last rule produced by `r` or `m` —
+together with the color set that was active when it arrived, which is
+restored with it. When `r` or `m` fires, its new rule occupies the
+unsaved slot and the cycle position moves to that slot. While the unsaved
+slot is empty — the file opened on look 1 and no `r`/`m` has fired yet —
+the cycle consists of the n looks only. When the cycle position is on the
+unsaved slot, the first `n` selects the first look and the first `p` the
+last. Deleting the last remaining look (R-W5) puts the rule on screen into
+the unsaved slot so the cycle stays usable.
 
-**R-B4 (empty keeper file).** If no saved rules exist, `n` and `p` print a
-notice (R-O5) and change nothing.
+**R-B4 (no looks).** If the file has no looks — or in `odca`, which has no
+cycle — `n` and `p` print a notice (R-O5) and change nothing.
 
 ---
 
@@ -454,12 +490,15 @@ search (R-S) is unaffected.
 
 ## 4b. Color set review mode (R-V)
 
-A hidden mode for auditioning the whole color set pool and deciding, one
-set at a time, what to keep.
+A mode for auditioning the whole color set pool and deciding, one set at
+a time, what to keep. **On hold in 3.0.0:** no program binds it (it was
+`--colorset-review` until 2.36.0); it will return as its own program when
+the color set workflow is taken up again. The behavior stays specified
+and tested so the session layer keeps it.
 
-**R-V1 (entry).** Started by the command-line flag `--colorset-review`.
-Everything else behaves as usual, except that the digit keys (R-K9) are
-disabled and `S` takes the meaning in R-V5.
+**R-V1 (entry).** Entered by construction of the session in review mode
+(no command-line flag in 3.0.0). Everything else behaves as usual, except
+that the digit keys (R-K9) are disabled and `S` has no binding.
 
 **R-V2 (review order).** On entry the program builds the review list:
 the digit-bound sets in key order 1, 2, …, 9, 0; then the pool-only sets
@@ -489,7 +528,7 @@ color sets, <d> dropped`. `S` has no binding in this mode.
 
 **R-V6 (arrangement).** `c`/`C` arrange the set under review for preview
 only, remembered per set for the session and never written to the pool;
-arrangements are recorded in screensaver pairs instead (section 4c).
+arrangements are recorded in looks instead (R-P3).
 
 **R-V7 (steps fill the screen).** Every `N`/`P` step, and the display of
 the next set after `X`, immediately computes and displays a full
@@ -498,126 +537,122 @@ as in R-W8.
 
 ---
 
-## 4c. Screensaver review mode (R-W)
+## 4c. odca-select (R-W)
 
-A hidden mode for composing a screensaver file (R-P5): an ordered list of
-rule / color set pairs, each pair carrying its colors already arranged.
+The workbench: show screened random rules, dress each in a color set,
+and collect the results as looks in an odca file (R-P3).
 
-**R-W1 (entry).** Started by the command-line flag
-`--screensaver-review <file>`. If the file does not exist it is created
-empty; otherwise its pairs are loaded. If both review flags are given,
-this mode wins and color set review is not entered. On entry the program
-prints `screensaver <file>: <n> pairs` and, if the list is non-empty,
-activates pair 1. Every ordinary key keeps its meaning except as redefined
-below; the pool of color sets is the one loaded at startup (R-P4).
+**R-W1 (entry).** `odca-select <file.odca>` — the file is the one
+required argument (R-U9 for errors). If it exists its looks are loaded;
+if not, nothing is written until the first save or exit (R-W4). On entry
+the program prints `odca <file>: <n> looks` (R-O12) and, if the list is
+non-empty, activates look 1 (R-B2: its rule and colors, then a screenful,
+R-W8) with the unsaved slot empty; otherwise the startup rule occupies the
+unsaved slot (R-U1). Every ordinary key keeps its meaning except as
+redefined here; the pool of color sets is the library loaded at startup
+(R-P4).
 
-**R-W2 (`N` / `P` — step).** Activate the next / previous pair: set its
-rule (as a rule change, R-B1, so undo applies) and make its stored colors
-the active color set, at arrangement 1; the cells are not re-seeded. The
-list does not wrap: at either end print `screensaver end` and stay. Pairs
-appended during the session are reached in turn. With an empty list the
-keys do nothing.
+**R-W2 (`n` / `p`).** The look cycle of section 4.
 
 **R-W3 (choosing colors).** The digit keys select their bound sets as
-usual; `[` and `]` step backward and forward through the whole pool in
-review order (digit-bound sets by key, then pool-only sets), wrapping,
-and print `color set <name>`. Selecting a set resets its arrangement to
-1; `c`/`C` arrange the active set. Together with `r`, `m`, `n`, `p`, and
-`u`, this composes the pair that `s` or `S` records: the current rule,
-the active set's name, and its arranged colors.
+usual; `[` and `]` walk the whole pool (R-K17); `c`/`C` arrange the
+active set (R-K15). Selecting a set resets its arrangement to 1. Together
+with `r`, `m`, `n`, `p`, and `u`, this composes what `s` and `S` record
+(R-K5).
 
-**R-W4 (`s` / `S` — record).** `s` overwrites the pair under review with
-the composed pair (`no pair under review` if none is active); `S`
-appends the composed pair to the end of the list without changing the
-review position. Both write the file immediately. In this mode `s` does
-not append to the keeper file (R-K5) and `S` does not save a color set
-(R-K16).
+**R-W4 (`s` / `S` — record; autosave).** As R-K5: `S` appends a copy of the
+screen; `s` rewrites the look under review's color set, or appends when
+on the unsaved slot. Every `s`, `S`, and `X` writes the whole file at
+once, in file order, and prints `saved <n> looks to <file>`; program exit
+writes it again (creating a missing file, empty if need be).
 
-**R-W5 (`X` — delete).** Remove the pair under review, write the file, and
-activate the pair now at that position (the previous one if the last was
-removed); if the list becomes empty, no pair is under review and the
-current rule keeps running.
+**R-W5 (`X` — delete).** Remove the look under review, write the file, and
+activate the look now at that view position (the previous one if the last
+was removed); if the list becomes empty, the current rule keeps running
+and becomes the unsaved rule (R-B3). On the unsaved slot `X` does nothing.
 
-**R-W6 (pause).** `S`, `N`, `P`, `X`, `[`, `]`, and the digits remain live
-while paused, like the other color keys (R-K10); `s` while paused keeps
-its pause meaning (R-K13).
+**R-W6 (pause).** `S`, `X`, `R`, `[`, `]`, and the digits remain live
+while paused (R-K10); `s` while paused keeps its pause meaning (R-K13).
 
-**R-W7 (consistency check).** The flag `--consistency-check <file>`
-enters screensaver review on an *existing* file (a missing file is an
-error and the program exits) with one difference, for presentation only:
-pairs are viewed grouped by rule — all pairs sharing a rule together,
-groups in order of each rule's first appearance in the file, pairs within
-a group in file order — so that a rule's color sets can be compared for
-excessive similarity. `N`/`P` follow this view order and positions are
-announced in it; when a step crosses into a different rule's group,
-`--- rule group <g>/<G> ---` is printed first (R-O12). The file order is
-never changed by the view: `s` and `X` act on the pair at its existing
-file position, `S` appends to the end of the file (while the new pair
-joins its rule's group in the view, at the end of that group or as a new
-last group), and the file is always written in file order.
+**R-W7 (`R` — grouped order).** Toggles the view order of the cycle
+(R-B2) between file order and *grouped by rule*: all looks sharing a rule
+together, groups in order of each rule's first appearance in the file,
+looks within a group in file order — so that a rule's color sets can be
+compared for excessive similarity. Prints `look order grouped by rule` or
+`look order file order` (R-O12) and flashes the display (R-U10). The look
+under review stays under review across the toggle. In the grouped order,
+when an activation crosses into a different rule's group,
+`--- rule group <g>/<G> ---` is printed first. The file order is never
+changed by the view: `s` and `X` act on the look at its file position, `S`
+appends to the end of the file (the new look joins its rule's group in the
+view, at the end of that group or as a new last group).
 
-**R-W8 (activation fills the screen).** Every activation by `N`/`P`
-(sections 4c, R-W2 and R-W7) immediately computes and displays a full
-screenful (`rows` generations) under the activated pair, paused or not,
-so that navigation looks the same whether or not the rule changed: the
-whole screen is the new pair's output rather than a re-colored old one
-or a slowly arriving new one. Generations so computed count for auto-init
-(R-A) and the screen counter (R-K14) as usual.
+**R-W8 (navigation fills the screen).** Every activation by `n`/`p` — a
+look or the unsaved slot — and the activation after `X` immediately
+computes and displays a full screenful (`rows` generations) under the
+activated presentation, paused or not, so that navigation looks the same
+whether or not the rule changed: the whole screen is the new look's
+output rather than a re-colored old one or a slowly arriving new one.
+Generations so computed count for auto-init (R-A) and the screen counter
+(R-K14) as usual.
 
 ---
 
-## 4d. Screensaver mode (R-X)
+## 4d. odca (R-X)
 
-The first study of the art proper: play a screensaver file (R-P5), pair
-after pair.
+The art: play the looks of an odca file (R-P3), one after another.
 
-**R-X1 (entry).** Started by `--screensaver <file>`, where the file must
-exist (otherwise an error and exit). The optional `--sequential` names the
-default and, for now, only order: pairs are played in file order, looping
-from the last back to the first indefinitely. This mode takes precedence
-over the review flags. On entry the program prints `screensaver <file>:
-<n> pairs` and, if the list is non-empty, plays pair 1. An empty file
-leaves the program running as usual.
+**R-X1 (entry and order).** `odca <file.odca> [--shuffle]` — the file is
+the one required argument and must exist (R-U9 for errors). On entry the
+program prints `odca <file>: <n> looks` (R-O13) and, if the list is
+non-empty, plays look 1. Without `--shuffle` the looks are played in file
+order, looping from the last back to the first indefinitely. With
+`--shuffle` each *pass* through the looks is a fresh uniformly random
+permutation of all of them, and a pass never opens on the look that
+closed the previous pass (when there are at least two). *Further shuffle
+constraints are to be specified.* An empty file leaves the program
+running as usual; the file is never written.
 
-**R-X2 (equal screen time).** Every pair gets the same screen time: a
-*watchdog* of 120 unpaused seconds, counted from the moment the pair
+**R-X2 (equal screen time).** Every look gets the same screen time: a
+*watchdog* of 120 unpaused seconds, counted from the moment the look
 starts and unaffected by re-initializations. Until it expires,
-auto-initialization behaves as everywhere else (R-A2): the pair is
+auto-initialization behaves as everywhere else (R-A2): the look is
 re-seeded in place, as often as it takes, and stays on screen.
 
-**R-X3 (transition).** Once the watchdog has expired, the screensaver
-advances to the next pair at the first of: (a) the *grace period* being
-satisfied — 60 unpaused seconds since the pair's last initialization,
-automatic or manual — or (b) the boring detector firing, which then
-transitions (with its reason) instead of re-seeding in place. A manual
-`i` (R-K6) never transitions; it restarts the grace period only, before
-or after expiry. Neither clock runs while paused. With auto-initialization
-off (R-K12), only (a) applies.
+**R-X3 (transition).** Once the watchdog has expired, the program advances
+to the next look of the pass at the first of: (a) the *grace period*
+being satisfied — 60 unpaused seconds since the look's last
+initialization, automatic or manual — or (b) the boring detector firing,
+which then transitions (with its reason) instead of re-seeding in place.
+A manual `i` (R-K6) never transitions; it restarts the grace period only,
+before or after expiry. Neither clock runs while paused. With
+auto-initialization off (R-K12), only (a) applies.
 
-**R-X4 (playing a pair).** Playing a pair sets its rule (a rule change,
+**R-X4 (playing a look).** Playing a look sets its rule (a rule change,
 R-B1, printed and persisted, but not pushed on the undo stack), makes its
 stored colors the active color set at arrangement 1, re-seeds the cells
-as `i` does (R-K6), and starts both clocks. There is no screen fill: the previous pair
-scrolls off the top as the new one grows in from its fresh field — the
-transition, until cross-fades exist. Every ordinary key keeps its meaning;
-there are no review keys, and the file is never written.
+as `i` does (R-K6), and starts both clocks. There is no screen fill: the
+previous look scrolls off the top as the new one grows in from its fresh
+field — the transition, until cross-fades exist. Every ordinary key keeps
+its meaning; `s`, `S`, `X`, and `R` do nothing.
 
-**R-X5 (rows keep their colors).** In screensaver mode a change of color
-set — a transition, or a digit or arrangement key — applies only to rows
+**R-X5 (rows keep their colors).** In `odca` a change of color set — a
+transition, or a digit or arrangement key — applies only to rows
 generated from then on; rows already displayed keep the colors they were
 painted with until they scroll off, so the color set changes along a row
-boundary moving up the screen rather than everywhere at once. (Outside
-screensaver mode the whole screen recolors immediately, as the interactive
-workflows expect.) *Implementation note (informative):* an eight-entry
-palette in two banks of four suffices — each row records its bank, a new
-color set is written into the idle bank, and the previous bank is reused
-only after its rows have scrolled off; two color changes within one
-screenful therefore recolor the older rows, an accepted limitation.
+boundary moving up the screen rather than everywhere at once. (In
+`odca-select` the whole screen recolors immediately, as the workbench
+expects.) *Implementation note (informative):* an eight-entry palette in
+two banks of four suffices — each row records its bank, a new color set
+is written into the idle bank, and the previous bank is reused only after
+its rows have scrolled off; two color changes within one screenful
+therefore recolor the older rows, an accepted limitation.
 
-**R-X6 (`N` / `P`).** Step to the next / previous pair by hand, exactly
-as an automatic advance would (R-X4: rule, colors, fresh seed, watchdog
-restarted), wrapping at both ends; the announcement's reason reads `next`
-or `previous`. Live while paused.
+**R-X6 (`N` / `P`, `n` / `p`).** Step to the next / previous look of the
+pass by hand, exactly as an automatic advance would (R-X4: rule, colors,
+fresh seed, watchdog restarted), wrapping at both ends of the pass (a
+forward step past the end starts a new pass, R-X1); the announcement's
+reason reads `next` or `previous`. Live while paused.
 
 ---
 
@@ -636,41 +671,40 @@ line, oldest first — the persisted form of the candidate stash (R-S4).
 Rewritten whenever the stash changes; read at startup. Invalid lines are
 skipped.
 
-**R-P3 (keeper file).** File `interesting-rules.json` in the repository
-root, shared by all implementations (each must document how it anchors
-this path). It is a screensaver-format file (R-P5): each saved item is a
-pair of rule ID, color set name, and arranged colors, so the collection
-of interesting rules is directly playable (section 4d) and reviewable
-(section 4c). `s` appends a pair; the program never otherwise modifies
-the file, and users may hand-edit it. Readers skip malformed pairs. (Until
-2.34.0 this was `interesting-rules.txt` with one `rule <id>` line per
-saved rule; the migration gave every existing rule the default color set.)
+**R-P3 (odca file).** A JSON file, by convention with the extension
+`.odca`, named on the command line of both programs: an object with a
+`looks` array; each look has `rule` (a rule ID, R-M8), `colorset` (the
+color set's name, for reference), and `colors` (four `#RRGGBB` strings,
+states 0–3, already arranged), so a file plays even if the library is
+later edited. Looks are unnamed (a name may be introduced later, look001
+style). Malformed looks are skipped; an unparseable file loads as empty;
+a missing file is distinguishable from an empty one (R-W1). Written in the
+layout of R-P4. The repository ships `interesting.odca`, the collection of
+looks kept so far, as an example (until 3.0.0 `interesting-rules.json`
+with a `pairs` key, which is no longer read).
 
 ---
 
-**R-P4 (color sets file).** File `colorsets/colorsets.json` in the
-repository root, shared by all implementations: the *pool* of every kept
-color set. JSON: an object with a `sets` array and a `dropped` array.
-Each set has `name` (string), `colors` (four strings `#RRGGBB`, states
-0–3), and optionally `slot` (integer 0–9): sets with a slot are bound to
-that digit key (R-U4), sets without one are pool-only. `dropped` lists
-the names of sets rejected in review (section 4b), so that re-seeding
-from the candidates file never resurrects them; it may be edited by hand.
-Readers must ignore malformed sets and treat a missing or unparseable
-file as empty; the built-in default (R-U4) always fills slot 1 unless the
-file defines it. Writers preserve what they do not change: `S` (R-K16)
-rewrites the digit-bound sets and keeps the pool and the dropped list;
-the review save (R-V5) rewrites everything. Digit-bound sets are written
-first, sorted by slot number, then the pool in order. The raw source of
-candidate palettes is `colorsets/candidates.json` (an object with a
-`palettes` array of `name` + `colors`), which the program only reads.
+**R-P4 (library).** File `library.json` in the repository root, shared by
+all implementations (each must document how it anchors this path; until
+3.0.0 `colorsets/colorsets.json`): the *pool* of every kept color set.
+JSON: an object with a `sets` array and a `dropped` array. Each set has
+`name` (string), `colors` (four strings `#RRGGBB`, states 0–3), and
+optionally `slot` (integer 0–9): sets with a slot are bound to that digit
+key (R-U4), sets without one are pool-only. `dropped` lists the names of
+sets rejected in review (section 4b), so that re-seeding from the
+candidates file never resurrects them; it may be edited by hand. Readers
+must ignore malformed sets and treat a missing or unparseable file as
+empty; the built-in default (R-U4) always fills slot 1 unless the file
+defines it. Writers preserve what they do not change: the review save
+(R-V5) rewrites everything; digit-bound sets are written first, sorted by
+slot number, then the pool in order. Neither program writes the library
+in 3.0.0. The raw source of candidate palettes is
+`colorsets/candidates.json` (an object with a `palettes` array of `name`
++ `colors`), which the program only reads.
 
-**R-P5 (screensaver file).** A JSON file named on the command line
-(R-W1): an object with a `pairs` array; each pair has `rule` (a rule ID,
-R-M8), `colorset` (the color set's name, for reference), and `colors`
-(four `#RRGGBB` strings, states 0–3, already arranged), so a screensaver
-plays even if the pool is later edited. Malformed pairs are skipped; an
-unparseable file loads as empty. Written in the same layout as R-P4.
+**R-P5.** Merged into R-P3 in 3.0.0 (the screensaver file and the keeper
+file were the same format; the odca file is that format).
 
 ---
 
@@ -682,11 +716,12 @@ The program prints single-line, human-readable status to standard output:
 - **R-O2.** After a synchronous screening search that rejected k ≥ 1
   rules: `discarded <k> rule` (k = 1) or `discarded <k> rules` (k > 1),
   before the R-O1 line.
-- **R-O3.** On `s`: `saved rule <id> <colorset>`.
-- **R-O4.** On `n`/`p` selecting saved pair i (0-based) of n:
-  `interesting <i+1>/<n> <colorset>`; selecting the unsaved slot: `unsaved
-  rule`. Either precedes the R-O1 line.
-- **R-O5.** On `n`/`p` with no saved rules: `no saved interesting rules`.
+- **R-O3.** Retired in 3.0.0 (`s` reports through R-O12).
+- **R-O4.** On `n`/`p` selecting the look at view position i (0-based) of
+  n: `look <i+1>/<n> <colorset>` (rule IDs are opaque at a glance and are
+  not printed); selecting the unsaved slot: `unsaved rule`. Either
+  precedes the R-O1 line.
+- **R-O5.** On `n`/`p` with no looks to cycle: `no looks`.
 - **R-O6.** On `a`: `auto-init on` or `auto-init off`. On an automatic
   re-initialization: `auto-init (<reason>)`, where reason is
   `state <k> extinct` (or `states <k>, <l> extinct`, ascending),
@@ -697,28 +732,27 @@ The program prints single-line, human-readable status to standard output:
   reset (R-A3), whether or not auto-initialization is on:
   `cycle period <n>`.
 - **R-O9.** On `c`/`C`: `color set <name> arrangement <k>/24`, k from 1.
-- **R-O10.** On `S`: `saved color set <name>`.
+- **R-O10.** On baking an arrangement (R-K16, unbound): `saved color set <name>`.
 - **R-O15.** On `[`/`]` (R-K17): `color set <name>`.
 - **R-O11.** In review mode (section 4b): on entry and on every step,
   `review <i>/<n> <name>` (1-based position among the kept sets); `review
   wrapped` before a step that wraps; `dropped <name>` on `X`; `review
   empty` when nothing is left; `saved <k> color sets, <d> dropped` on
   save. Arrangement messages (R-O9) name the set instead of a slot.
-- **R-O12.** In screensaver review mode (section 4c): on entry
-  `screensaver <file>: <n> pairs`; on activation `screensaver <i>/<n>
-  <colorset>` (rule IDs are opaque at a glance and are not printed);
-  `screensaver end` at either end; `saved pair <i>/<n>`, `added pair
-  <n>/<n>`, `deleted pair <i>/<n>`, `no pair under review`; after every
-  write, `saved <n> pairs to <file>`; `color set <name>` on `[`/`]`; in a
-  consistency check, `--- rule group <g>/<G> ---` before an activation
-  that enters a different rule's group. Arrangement messages (R-O9) name
-  the set.
+- **R-O12.** In `odca-select` (section 4c): on entry `odca <file>: <n>
+  looks`; after every write `saved <n> looks to <file>` (`1 look`); `saved
+  look <i>/<n>` on `s` over a look, `added look <n>/<n>` on an append,
+  `deleted look <i>/<n>` on `X`; `look order grouped by rule` / `look
+  order file order` on `R`; in the grouped order, `--- rule group
+  <g>/<G> ---` before an activation that enters a different rule's group.
+  Arrangement messages (R-O9) name the set.
 - **R-O14.** On a geometry change (R-U8): `resized <cols>x<rows>`.
-- **R-O13.** In screensaver mode (section 4d): on entry `screensaver
-  <file>: <n> pairs`; on playing a pair `screensaver <i>/<n> <colorset>`,
-  followed on advances by the reason in parentheses — the auto-init
-  reason (R-O6) when a re-init transitions, `timeout` when the grace
-  period does, `next`, or `previous`. this precedes nothing else (cells change, the rule does not).
+- **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> looks`;
+  on playing look i (0-based, file position) of n `look <i+1>/<n>
+  <colorset>`, followed on advances by the reason in parentheses — the
+  auto-init reason (R-O6) when a re-init transitions, `timeout` when the
+  grace period does, `next`, or `previous`. It precedes the R-O1 line when
+  the rule changes.
 
 ---
 
@@ -814,12 +848,12 @@ loses one update (loaders already tolerate malformed content, R-P).
 
 ## 10. Explicit non-requirements
 
-- No command-line arguments are required for ordinary use, and no
-  configuration files or menus; `--help` (R-U9) describes the program and
-  its flags; hidden developer flags (such as
-  `--colorset-review`, section 4b, `--screensaver-review <file>` and
-  `--consistency-check <file>`, section 4c) are permitted, as is the
-  `--screensaver <file>` flag that starts the art (section 4d).
+- The command line is one positional argument, the odca file, plus
+  `--help` (R-U9) and, for `odca`, `--shuffle` (R-X1); no configuration
+  files or menus. No other flags exist in 3.0.0 (the 2.x developer flags
+  `--colorset-review`, `--screensaver-review`, `--consistency-check`, and
+  `--screensaver` are gone: the last two became `odca-select` and `odca`,
+  the consistency check became `R`, and color set review is on hold).
 - No vertical-sync guarantee; visible tearing is acceptable.
 - No reproducibility of random sequences across runs, languages, or
   machines.

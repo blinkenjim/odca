@@ -1,14 +1,19 @@
 import XCTest
 @testable import ODCAKit
 
-/// PT-35: the help text is the shared golden copy, byte for byte (R-U9).
+/// PT-35: the help texts are the shared golden copies, byte for byte (R-U9).
 final class HelpTests: XCTestCase {
-    func testHelpTextMatchesTheSharedCopy() throws {
+    func conformance(_ name: String) throws -> String {
         let file = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("conformance/help.txt")
-        XCTAssertEqual(helpText, try String(contentsOf: file, encoding: .utf8))
-        XCTAssertTrue(helpText.hasSuffix("\n"))
+            .appendingPathComponent("conformance/\(name)")
+        return try String(contentsOf: file, encoding: .utf8)
+    }
+
+    func testHelpTextsMatchTheSharedCopies() throws {
+        XCTAssertEqual(helpOdca, try conformance("help-odca.txt"))
+        XCTAssertEqual(helpOdcaSelect, try conformance("help-odca-select.txt"))
+        XCTAssertTrue(helpOdca.hasSuffix("\n") && helpOdcaSelect.hasSuffix("\n"))
     }
 }

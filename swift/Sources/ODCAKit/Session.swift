@@ -20,10 +20,13 @@ public struct RGB: Equatable {
     }
 }
 
-/// The toolkit-free orchestration layer: everything the interactive
-/// program does except rendering pixels and reading raw key events.
-/// The UI layer translates toolkit key events into `Session.Key`, calls
-/// `tick(_:)` at its refresh rate, and draws `history` with `palette`.
+/// The toolkit-free orchestration layer: everything the two programs do
+/// except rendering pixels and reading raw key events. The UI layer
+/// translates toolkit key events into `Session.Key`, calls `tick(_:)` at
+/// its refresh rate, and draws `history` through `palette8` and `rowBanks`
+/// (inverted while `inverted`). Programs: odca-select (`selectFile`, section
+/// 4c), odca (`playFile`, section 4d); color set review (`reviewMode`,
+/// section 4b) is on hold and bound by no program.
 /// See REQTS sections R-U, R-K, R-B, R-A, R-P, R-O.
 public final class Session {
     public static let defaultColorSet = 1  // slot active at startup (R-U4)
@@ -38,8 +41,9 @@ public final class Session {
     public static let minorityFraction = 0.10  // a producible state below this share is a minority (R-A1)
     public static let stagnationScreens = 4  // minority population steady this long -> stagnant (R-A1)
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
-    public static let playTimeout = 120.0  // screensaver: a pair's screen time before it may advance (R-X3)
-    public static let playGrace = 60.0  // screensaver: no transition within this long of an initialization (R-X3)
+    public static let playTimeout = 120.0  // odca: a look's screen time before it may advance (R-X3)
+    public static let playGrace = 60.0  // odca: no transition within this long of an initialization (R-X3)
+    public static let flashSeconds = 0.25  // the screen inverts this long as a mode cue (R-U10)
     public static let historyDepth = 2048  // rows remembered beyond the screen (R-U8)
     public static let minCols = 3  // R-M2
 
@@ -63,9 +67,10 @@ public final class Session {
 
     public enum Key: Equatable {
         case q, r, m, u, s, i, n, p, a
-        case c, C, S  // arrange colors forward / backward, save color set
-        case N, P, X  // review modes: next, previous, drop (R-V, R-W)
-        case poolPrev, poolNext  // '[' / ']': step through the color set pool (R-W3)
+        case c, C, S  // arrange colors forward / backward; S appends a look (R-W4)
+        case N, P, X  // odca: next / previous look; odca-select: X deletes; review: next / previous / drop
+        case R  // odca-select: toggle the n/p order, file order or grouped by rule (R-W7)
+        case poolPrev, poolNext  // '[' / ']': step through the color set pool (R-K17)
         case plus, minus, space, ret
         case digit(Int)
     }
@@ -88,6 +93,7 @@ public final class Session {
     public private(set) var screenCounter: Int?  // screenfuls since last resume (R-K14)
     public private(set) var autoInit = true  // R-K12: on at startup, not persisted
     public private(set) var cyclePeriod: Int?  // exact period once Brent's finds a cycle
+    public private(set) var flashRemaining = 0.0  // seconds of screen inversion left (R-U10)
     public private(set) var colorSets: [Int: ColorSet]
     public private(set) var colorSet = Session.defaultColorSet
     // Color set review mode (R-V): kept sets in review order, position, drops.
@@ -96,16 +102,21 @@ public final class Session {
     public private(set) var reviewIndex = 0
     public private(set) var droppedNames: [String] = []
     private var reviewArrangement: [String: Int] = [:]
-    // Screensaver review mode (R-W): the file, its pairs, and the active set.
-    public let screensaverFile: URL?
-    public let groupByRule: Bool  // consistency check: view grouped by rule (R-W7)
-    public private(set) var pairs: [ScreensaverPair] = []  // always in file order
-    public private(set) var pairIndex: Int?  // file index of the pair under review
-    public private(set) var viewOrder: [Int] = []  // file indices in presentation order
-    public private(set) var viewPosition: Int?  // position of pairIndex within viewOrder
-    // Screensaver mode (R-X): play the pairs of a file in order.
+    // The look cycle (R-B): the file's looks in view order plus the unsaved slot.
+    public let selectFile: URL?  // odca-select (R-W)
+    public private(set) var looks: [Look] = []  // always in file order
+    public private(set) var lookIndex: Int?  // file index of the look under review / playing
+    public private(set) var viewOrder: [Int] = []  // file indices in n/p order
+    public private(set) var viewPosition: Int?  // position of lookIndex within viewOrder
+    public private(set) var grouped = false  // R: n/p order grouped by rule (R-W7)
+    public private(set) var unsavedRule: Rule?
+    public private(set) var unsavedSet: ColorSetEntry?  // the set shown with the unsaved rule (R-B3)
+    // odca (R-X): play the looks of a file in order, or shuffled per pass.
     public let playFile: URL?
-    public private(set) var playElapsed = 0.0  // unpaused seconds on the current pair
+    public let shuffle: Bool
+    public private(set) var playOrder: [Int] = []  // file indices in the order of the current pass
+    public private(set) var playPosition: Int?
+    public private(set) var playElapsed = 0.0  // unpaused seconds on the current look
     public private(set) var sinceInit = 0.0  // unpaused seconds since the last (re)initialization
     public private(set) var activeSet: ColorSetEntry?  // the set in use (any pool member)
     /// Arrangement index of the active set, remembered per set name (R-K15).
@@ -116,9 +127,6 @@ public final class Session {
     private var activeName: String { activeSet?.name ?? colorSets[colorSet]!.name }
     private var pool: [ColorSetEntry] = []  // whole pool in review order for [ / ]
     public private(set) var undoStack: [Rule] = []
-    public private(set) var interestingIndex: Int?
-    public private(set) var unsavedRule: Rule?
-    public private(set) var unsavedSet: ColorSetEntry?  // the set shown with the unsaved rule (R-B3)
     public private(set) var candidates: [Rule]
     /// Terminal output sink (R-O); the UI leaves it as print, tests capture it.
     public var output: (String) -> Void = { print($0) }
@@ -144,19 +152,19 @@ public final class Session {
     public init(
         cols: Int, rows: Int, store: Store = Store(),
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
-        reviewMode: Bool = false, screensaverFile: URL? = nil, groupByRule: Bool = false,
-        playFile: URL? = nil, output: @escaping (String) -> Void = { print($0) }
+        reviewMode: Bool = false, selectFile: URL? = nil, playFile: URL? = nil, shuffle: Bool = false,
+        output: @escaping (String) -> Void = { print($0) }
     ) {
         self.cols = cols
         self.rows = rows
         self.store = store
         self.search = search
-        // Mode precedence: screensaver play, then screensaver review, then color set review.
+        // Program precedence: odca (play), then odca-select, then color set review.
         self.playFile = playFile
-        let screensaverFile = playFile == nil ? screensaverFile : nil
-        self.reviewMode = reviewMode && screensaverFile == nil && playFile == nil
-        self.screensaverFile = screensaverFile
-        self.groupByRule = groupByRule && screensaverFile != nil
+        self.shuffle = shuffle && playFile != nil
+        let selectFile = playFile == nil ? selectFile : nil
+        self.reviewMode = reviewMode && selectFile == nil && playFile == nil
+        self.selectFile = selectFile
         self.output = output
         var rng = rng
 
@@ -166,16 +174,7 @@ public final class Session {
             width: cols, rule: rule,
             cells: Automaton.randomCells(width: cols, using: &rng))
         store.saveRule(rule)
-
-        // Cycle position per R-U1 step 6 / R-B3.
-        let saved = store.loadInteresting()
-        if let index = saved.firstIndex(of: rule) {
-            interestingIndex = index
-            unsavedRule = nil
-        } else {
-            interestingIndex = nil
-            unsavedRule = rule
-        }
+        unsavedRule = rule  // the startup rule fills the unsaved slot (R-B3) unless a file opens on look 1
 
         candidates = store.loadCandidates()
         colorSets = store.loadColorSets()  // R-P4
@@ -189,12 +188,14 @@ public final class Session {
         pushRow(automaton.cells)
         output("rule \(rule.id)")
         if reviewMode { loadReview() }
-        if let url = screensaverFile { loadScreensaver(url) }
+        if let url = selectFile { loadSelect(url) }
         if let url = playFile { loadPlay(url) }
     }
 
-    public var screensaverMode: Bool { screensaverFile != nil }
+    public var selectMode: Bool { selectFile != nil }
     public var playMode: Bool { playFile != nil }
+    /// The display shows inverted colors while a flash runs (R-U10).
+    public var inverted: Bool { flashRemaining > 0 }
 
     public var ruleID: String { automaton.rule.id }
 
@@ -263,8 +264,7 @@ public final class Session {
     }
 
     /// The eight-entry display palette: two banks of four (R-X5). Outside
-    /// screensaver mode both banks are the active set, so the whole screen
-    /// recolors at once.
+    /// odca both banks are the active set, so the whole screen recolors at once.
     public var palette8: [RGB] {
         if playMode && !banks[0].isEmpty { return banks[0] + banks[1] }
         let p = palette
@@ -321,6 +321,9 @@ public final class Session {
         output("color set \(activeName) arrangement \(activeArrangement + 1)/\(n)")  // R-O9
     }
 
+    /// R-U10: invert the screen briefly as a cue.
+    private func flash() { flashRemaining = Session.flashSeconds }
+
     // MARK: - Color set review (R-V)
 
     private static func keyRank(_ slot: Int) -> Int { keyOrder.firstIndex(of: slot) ?? 10 }
@@ -368,7 +371,7 @@ public final class Session {
         }
         reviewIndex = index
         announceReview()
-        for _ in 0..<rows { advance() }  // R-V7: fill the screen under the new set
+        fillScreen()  // R-V7
     }
 
     private func dropReview() {  // R-V4
@@ -383,7 +386,7 @@ public final class Session {
         }
         announceReview()
         saveReview()  // R-V5: every drop is saved at once
-        if !reviewEntries.isEmpty { for _ in 0..<rows { advance() } }  // R-V7
+        if !reviewEntries.isEmpty { fillScreen() }  // R-V7
     }
 
     /// Write the kept sets: the first ten in review order own the digit
@@ -404,7 +407,7 @@ public final class Session {
         output("saved \(kept.count) color sets, \(droppedNames.count) dropped")  // R-O11
     }
 
-    // MARK: - Screensaver review (R-W)
+    // MARK: - The pool (R-K17)
 
     /// The whole pool in review order: digit-bound sets by key, then the rest.
     private func poolOrder() -> [ColorSetEntry] {
@@ -418,116 +421,6 @@ public final class Session {
         return slotted + file.sets.filter { $0.slot == nil }
     }
 
-    private func loadScreensaver(_ url: URL) {  // R-W1, R-W2
-        if let loaded = Store.loadScreensaver(url) {
-            pairs = loaded
-        } else {
-            pairs = []
-            Store.saveScreensaver(pairs, to: url)  // a new, empty file
-        }
-        rebuildViewOrder()
-        output("screensaver \(url.lastPathComponent): \(pairs.count) pairs")
-        if !pairs.isEmpty { activate(viewPosition: 0) }
-    }
-
-    /// Presentation order (R-W7): file order, or — in a consistency check —
-    /// pairs grouped by rule, groups in order of each rule's first appearance.
-    private func rebuildViewOrder() {
-        if groupByRule {
-            var groups: [String: [Int]] = [:]
-            var ruleOrder: [String] = []
-            for (i, p) in pairs.enumerated() {
-                if groups[p.rule] == nil { ruleOrder.append(p.rule) }
-                groups[p.rule, default: []].append(i)
-            }
-            viewOrder = ruleOrder.flatMap { groups[$0]! }
-        } else {
-            viewOrder = Array(pairs.indices)
-        }
-        viewPosition = pairIndex.flatMap { viewOrder.firstIndex(of: $0) }
-    }
-
-    /// 1-based group number of a file index among the rule groups, and the count.
-    private func ruleGroup(of index: Int) -> (Int, Int) {
-        var seen: [String] = []
-        for p in pairs where !seen.contains(p.rule) { seen.append(p.rule) }
-        return ((seen.firstIndex(of: pairs[index].rule) ?? 0) + 1, seen.count)
-    }
-
-    private func currentPair() -> ScreensaverPair {
-        let name = activeSet?.name ?? colorSets[colorSet]!.name
-        return ScreensaverPair(rule: automaton.rule.id, colorset: name, colors: arrangedActiveColors())
-    }
-
-    private func activate(viewPosition position: Int) {  // R-W2
-        let index = viewOrder[position]
-        if groupByRule, pairIndex.map({ pairs[$0].rule }) != pairs[index].rule {
-            let (g, total) = ruleGroup(of: index)
-            output("--- rule group \(g)/\(total) ---")  // R-O12
-        }
-        viewPosition = position
-        let pair = pairs[index]
-        pairIndex = index
-        if let rule = try? Rule(id: pair.rule), rule != automaton.rule {
-            undoStack.append(automaton.rule)
-            setRule(rule)
-        }
-        activeSet = ColorSetEntry(slot: nil, name: pair.colorset, colors: pair.colors)
-        activeArrangement = 0  // stored colors are already arranged
-        output("screensaver \(position + 1)/\(pairs.count) \(pair.colorset)")  // R-O12
-        // R-W8: fill the screen with the pair's own output at once, so every
-        // navigation looks the same whether or not the rule changed.
-        for _ in 0..<rows { advance() }
-    }
-
-    private func screensaverStep(_ step: Int) {  // R-W2: no wrap
-        guard !pairs.isEmpty else { return }
-        let next = (viewPosition ?? -1) + step
-        guard (0..<viewOrder.count).contains(next) else {
-            output("screensaver end")
-            return
-        }
-        activate(viewPosition: next)
-    }
-
-    private func saveScreensaver() {
-        guard let url = screensaverFile else { return }
-        Store.saveScreensaver(pairs, to: url)
-        output("saved \(pairs.count) pair\(pairs.count == 1 ? "" : "s") to \(url.lastPathComponent)")  // R-O12
-    }
-
-    private func savePair() {  // R-W4: 's' overwrites the pair under review
-        guard let i = pairIndex else {
-            output("no pair under review")
-            return
-        }
-        pairs[i] = currentPair()  // in place: the file position is unchanged
-        rebuildViewOrder()  // a changed rule may move it between groups
-        saveScreensaver()
-        output("saved pair \((viewPosition ?? i) + 1)/\(pairs.count)")  // R-O12
-    }
-
-    private func appendPair() {  // R-W4: 'S' appends; the review position is unchanged
-        pairs.append(currentPair())  // always at the end of the file
-        rebuildViewOrder()  // in a consistency check it joins its rule's group in the view
-        saveScreensaver()
-        output("added pair \(pairs.count)/\(pairs.count)")  // R-O12
-    }
-
-    private func deletePair() {  // R-W5
-        guard let i = pairIndex, let position = viewPosition else { return }
-        pairs.remove(at: i)  // in place: later pairs keep their relative file order
-        pairIndex = nil
-        rebuildViewOrder()
-        saveScreensaver()
-        output("deleted pair \(position + 1)/\(pairs.count + 1)")  // R-O12
-        if pairs.isEmpty {
-            viewPosition = nil
-        } else {
-            activate(viewPosition: min(position, viewOrder.count - 1))
-        }
-    }
-
     private func poolStep(_ step: Int) {  // R-K17: '[' / ']' walk the whole pool, wrapping
         guard !pool.isEmpty else { return }
         let current = pool.firstIndex { $0.name == activeSet?.name } ?? -1
@@ -539,44 +432,208 @@ public final class Session {
         output("color set \(e.name)")  // R-O15
     }
 
-    // MARK: - Screensaver mode (R-X)
+    /// Compute a screenful at once so a navigation shows only the new state (R-V7, R-W8).
+    private func fillScreen() { for _ in 0..<rows { advance() } }
+
+    // MARK: - The look cycle (R-B, R-W)
+
+    /// n/p order (R-W7): file order, or looks grouped by rule, groups in
+    /// order of each rule's first appearance.
+    private func rebuildViewOrder() {
+        if grouped {
+            var groups: [String: [Int]] = [:]
+            var ruleOrder: [String] = []
+            for (i, p) in looks.enumerated() {
+                if groups[p.rule] == nil { ruleOrder.append(p.rule) }
+                groups[p.rule, default: []].append(i)
+            }
+            viewOrder = ruleOrder.flatMap { groups[$0]! }
+        } else {
+            viewOrder = Array(looks.indices)
+        }
+        viewPosition = lookIndex.flatMap { viewOrder.firstIndex(of: $0) }
+    }
+
+    /// 1-based group number of a file index among the rule groups, and the count.
+    private func ruleGroup(of index: Int) -> (Int, Int) {
+        var seen: [String] = []
+        for p in looks where !seen.contains(p.rule) { seen.append(p.rule) }
+        return ((seen.firstIndex(of: looks[index].rule) ?? 0) + 1, seen.count)
+    }
+
+    private func currentLook() -> Look {
+        Look(rule: automaton.rule.id, colorset: activeName, colors: arrangedActiveColors())
+    }
+
+    /// Show a look's or the unsaved slot's colors: they become the active set (R-B2).
+    private func showColors(name: String, colors: [String]) {
+        activeSet = ColorSetEntry(slot: nil, name: name, colors: colors)
+        activeArrangement = 0  // stored colors are already arranged
+    }
+
+    private func activateLook(viewPosition position: Int, pushUndo: Bool = true) {  // R-B2, R-W8
+        let index = viewOrder[position]
+        let look = looks[index]
+        if grouped, lookIndex.map({ looks[$0].rule }) != look.rule {
+            let (g, total) = ruleGroup(of: index)
+            output("--- rule group \(g)/\(total) ---")  // R-O12
+        }
+        viewPosition = position
+        lookIndex = index
+        if let rule = try? Rule(id: look.rule), rule != automaton.rule {
+            if pushUndo { undoStack.append(automaton.rule) }
+            setRule(rule)
+        }
+        showColors(name: look.colorset, colors: look.colors)
+        output("look \(position + 1)/\(looks.count) \(look.colorset)")  // R-O4
+        fillScreen()  // R-W8: every navigation shows a screenful of the selection
+    }
+
+    /// n/p: cycle through the looks in view order plus the unsaved slot, if
+    /// occupied (R-B2, R-B3). Only odca-select has a file of looks.
+    private func selectLook(step: Int) {
+        let n = viewOrder.count
+        let total = unsavedRule != nil ? n + 1 : n
+        guard n > 0 else {
+            output("no looks")  // R-O5
+            return
+        }
+        let at = lookIndex == nil ? n : viewPosition!
+        let to = ((at + step) % total + total) % total
+        undoStack.append(automaton.rule)
+        if to == n {  // only reachable when the unsaved slot is occupied
+            lookIndex = nil
+            viewPosition = nil
+            output("unsaved rule")  // R-O4
+            setRule(unsavedRule!)
+            if let set = unsavedSet { showColors(name: set.name, colors: set.colors) }
+            fillScreen()  // R-W8
+        } else {
+            activateLook(viewPosition: to, pushUndo: false)
+        }
+    }
+
+    // MARK: - odca-select (R-W)
+
+    private func loadSelect(_ url: URL) {  // R-W1
+        looks = Store.loadOdcaFile(url) ?? []  // a missing file is created by the first save or at exit
+        rebuildViewOrder()
+        output("odca \(url.lastPathComponent): \(looks.count) looks")  // R-O12
+        if !looks.isEmpty {
+            // Open on look 1; the unsaved slot stays empty until r or m fires.
+            unsavedRule = nil
+            unsavedSet = nil
+            activateLook(viewPosition: 0, pushUndo: false)
+        }
+    }
+
+    private func saveLooks() {
+        guard let url = selectFile else { return }
+        Store.saveOdcaFile(looks, to: url)
+        output("saved \(looks.count) look\(looks.count == 1 ? "" : "s") to \(url.lastPathComponent)")  // R-O12
+    }
+
+    private func saveLook() {  // R-W4: 's' rewrites the look under review's color set, or appends
+        guard let i = lookIndex else {
+            appendLook()
+            return
+        }
+        looks[i] = Look(rule: looks[i].rule, colorset: activeName, colors: arrangedActiveColors())
+        saveLooks()
+        output("saved look \((viewPosition ?? i) + 1)/\(looks.count)")  // R-O12
+    }
+
+    private func appendLook() {  // R-W4: 'S' appends a copy of the screen; the position is unchanged
+        looks.append(currentLook())  // always at the end of the file
+        rebuildViewOrder()  // in the grouped order it joins its rule's group
+        saveLooks()
+        output("added look \(looks.count)/\(looks.count)")  // R-O12
+    }
+
+    private func deleteLook() {  // R-W5
+        guard let i = lookIndex, let position = viewPosition else { return }
+        looks.remove(at: i)  // in place: later looks keep their relative file order
+        lookIndex = nil
+        rebuildViewOrder()
+        saveLooks()
+        output("deleted look \(position + 1)/\(looks.count + 1)")  // R-O12
+        if looks.isEmpty {
+            // Nothing left to review: the rule on screen becomes the unsaved rule.
+            viewPosition = nil
+            unsavedRule = automaton.rule
+            unsavedSet = activeSet
+        } else {
+            activateLook(viewPosition: min(position, viewOrder.count - 1))
+        }
+    }
+
+    private func toggleGrouped() {  // R-W7: 'R'
+        grouped.toggle()
+        rebuildViewOrder()
+        output("look order \(grouped ? "grouped by rule" : "file order")")  // R-O12
+        flash()  // R-U10
+    }
+
+    // MARK: - odca (R-X)
 
     private func loadPlay(_ url: URL) {  // R-X1
-        pairs = Store.loadScreensaver(url) ?? []
-        output("screensaver \(url.lastPathComponent): \(pairs.count) pairs")
-        if !pairs.isEmpty { playPair(0, reason: nil) }
+        looks = Store.loadOdcaFile(url) ?? []
+        output("odca \(url.lastPathComponent): \(looks.count) looks")  // R-O13
+        if !looks.isEmpty {
+            newPass()
+            playLook(playOrder[0], reason: nil)
+        }
     }
 
-    /// Activate a pair for play: its rule and colors, then a fresh seed (R-X4).
-    private func playPair(_ index: Int, reason: String?) {
-        let pair = pairs[index]
-        pairIndex = index
-        if let rule = try? Rule(id: pair.rule), rule != automaton.rule { setRule(rule) }
-        activeSet = ColorSetEntry(slot: nil, name: pair.colorset, colors: pair.colors)
-        activeArrangement = 0
+    /// File order, or a fresh shuffle per pass that never opens on the look just played (R-X1).
+    private func newPass() {
+        var order = Array(looks.indices)
+        if shuffle && looks.count > 1 {
+            order.shuffle(using: &rng)
+            if order[0] == lookIndex { order.swapAt(0, order.count - 1) }
+        }
+        playOrder = order
+        playPosition = 0
+    }
+
+    /// Activate a look for play: its rule and colors, then a fresh seed (R-X4).
+    private func playLook(_ index: Int, reason: String?) {
+        let look = looks[index]
+        lookIndex = index
+        if let rule = try? Rule(id: look.rule), rule != automaton.rule { setRule(rule) }
+        showColors(name: look.colorset, colors: look.colors)
         initCells()
-        playElapsed = 0  // the pair's screen time starts now
+        playElapsed = 0  // the look's screen time starts now
         let why = reason.map { " (\($0))" } ?? ""
-        output("screensaver \(index + 1)/\(pairs.count) \(pair.colorset)\(why)")  // R-O13
+        output("look \(index + 1)/\(looks.count) \(look.colorset)\(why)")  // R-O13
     }
 
-    private func nextPlayPair(reason: String) {  // R-X2, R-X3: sequential, looping
-        playPair(((pairIndex ?? -1) + 1) % pairs.count, reason: reason)
+    private func nextPlayLook(reason: String) {  // R-X2, R-X3: on through the pass, then a new pass
+        playPosition = (playPosition ?? -1) + 1
+        if playPosition! >= playOrder.count { newPass() }
+        playLook(playOrder[playPosition!], reason: reason)
     }
 
-    private func playStep(_ step: Int) {  // R-X6: N/P move through the pairs, wrapping
-        guard !pairs.isEmpty else { return }
-        let n = pairs.count
-        playPair((((pairIndex ?? 0) + step) % n + n) % n, reason: step > 0 ? "next" : "previous")
+    private func playStep(_ step: Int) {  // R-X6: N/P move through the pass by hand, wrapping
+        guard !looks.isEmpty else { return }
+        if step > 0 {
+            nextPlayLook(reason: "next")
+        } else {
+            let n = playOrder.count
+            playPosition = (((playPosition ?? 0) - 1) % n + n) % n
+            playLook(playOrder[playPosition!], reason: "previous")
+        }
     }
 
-    /// Call at program exit; in review mode this saves the kept sets (R-V5).
+    /// Call at program exit: odca-select writes its file; review saves (R-V5).
     public func finish() {
-        if reviewMode { saveReview() }  // screensaver mode saves as it goes
+        if selectMode { saveLooks() }
+        if reviewMode { saveReview() }
     }
 
-    /// R-K16: bake the active set's arrangement into its pool entry (by name;
-    /// a set not yet in the file is added, keeping its slot if it has one).
+    /// R-K16: bake the active set's arrangement into its library entry (by
+    /// name; a set not yet in the file is added, keeping its slot if it has
+    /// one). No program binds this in 3.0.0; kept for the color set tool.
     private func saveColorSet() {
         let name = activeName
         let arranged = arrangedActiveColors()
@@ -601,18 +658,19 @@ public final class Session {
         activeSet = ColorSetEntry(slot: slot, name: set.name, colors: set.colors)
     }
 
-    /// Color keys shared by the paused and running states (R-K10).
+    /// Color and look keys shared by the paused and running states (R-K10).
     private func handleColorKey(_ key: Key) -> Bool {
         switch key {
         case .c: cycleColors(1)
         case .C: cycleColors(-1)
         case .S:
-            if screensaverMode { appendPair() } else if !reviewMode { saveColorSet() }
+            if selectMode { appendLook() } else if !reviewMode && !playMode { saveColorSet() }
         case .N:
-            if playMode { playStep(1) } else if screensaverMode { screensaverStep(1) } else if reviewMode { reviewStep(1) }
+            if playMode { playStep(1) } else if reviewMode { reviewStep(1) }
         case .P:
-            if playMode { playStep(-1) } else if screensaverMode { screensaverStep(-1) } else if reviewMode { reviewStep(-1) }
-        case .X: if screensaverMode { deletePair() } else if reviewMode { dropReview() }
+            if playMode { playStep(-1) } else if reviewMode { reviewStep(-1) }
+        case .X: if selectMode { deleteLook() } else if reviewMode { dropReview() }
+        case .R: if selectMode { toggleGrouped() }
         case .poolPrev: if reviewMode { reviewStep(-1) } else { poolStep(-1) }  // R-K17
         case .poolNext: if reviewMode { reviewStep(1) } else { poolStep(1) }
         case .digit(let d): selectColorSet(d)
@@ -637,8 +695,8 @@ public final class Session {
         }
         if autoInit && boringStreak >= rows {
             let reason = boringReason ?? "boring"
-            if playMode && !pairs.isEmpty && playElapsed >= Session.playTimeout {
-                nextPlayPair(reason: reason)  // R-X3: watchdog expired, a re-init transitions
+            if playMode && !looks.isEmpty && playElapsed >= Session.playTimeout {
+                nextPlayLook(reason: reason)  // R-X3: watchdog expired, a re-init transitions
             } else {
                 initCells()
                 output("auto-init (\(reason))")  // R-O6
@@ -726,6 +784,7 @@ public final class Session {
     /// Advance by elapsed wall-clock time (R-U5); call at ~60 Hz.
     public func tick(_ dt: Double) {
         drainSearch()
+        flashRemaining = max(0, flashRemaining - dt)  // display only: runs while paused (R-U10)
         if paused {
             // The main accumulator is frozen while paused (no catch-up burst,
             // R-K10); a queued screenful (R-K13) paces on its own accumulator.
@@ -748,9 +807,9 @@ public final class Session {
         let steps = Int(accumulated / delay)
         accumulated -= Double(steps) * delay
         for _ in 0..<min(steps, Session.stepCap) { advance() }
-        if playMode && !pairs.isEmpty  // R-X3: watchdog expired and the grace period observed
+        if playMode && !looks.isEmpty  // R-X3: watchdog expired and the grace period observed
             && playElapsed >= Session.playTimeout && sinceInit >= Session.playGrace {
-            nextPlayPair(reason: "timeout")
+            nextPlayLook(reason: "timeout")
         }
     }
 
@@ -775,17 +834,13 @@ public final class Session {
         output("rule \(rule.id)")  // R-O1
     }
 
+    /// Make `rule` current and the occupant of the cycle's unsaved slot (R-B3).
     private func setUnsavedRule(_ rule: Rule) {
         unsavedRule = rule
         unsavedSet = activeSet
-        interestingIndex = nil
+        lookIndex = nil
+        viewPosition = nil
         setRule(rule)
-    }
-
-    /// Show a saved or unsaved presentation: its colors become the active set (R-B2).
-    private func showColors(name: String, colors: [String]) {
-        activeSet = ColorSetEntry(slot: nil, name: name, colors: colors)
-        activeArrangement = 0  // stored colors are already arranged
     }
 
     private func newRule() {  // R-K2
@@ -814,12 +869,6 @@ public final class Session {
         if let rule = undoStack.popLast() { setRule(rule) }
     }
 
-    private func saveInteresting() {  // R-K5: the rule with its presentation
-        let pair = currentPair()
-        store.appendInteresting(pair)
-        output("saved rule \(pair.rule) \(pair.colorset)")  // R-O3
-    }
-
     private func initCells() {  // R-K6
         automaton.resetRandom(using: &rng)
         pushRow(automaton.cells)
@@ -827,37 +876,12 @@ public final class Session {
         sinceInit = 0  // R-X3: any initialization restarts the grace period
     }
 
-    private func selectInteresting(step: Int) {  // R-B2, R-B3
-        let pairs = store.loadInterestingPairs().filter { (try? Rule(id: $0.rule)) != nil }
-        guard !pairs.isEmpty else {
-            output("no saved interesting rules")  // R-O5
-            return
-        }
-        let n = pairs.count
-        let total = unsavedRule != nil ? n + 1 : n
-        let at = interestingIndex ?? n
-        let to = ((at + step) % total + total) % total
-        undoStack.append(automaton.rule)
-        if to == n {  // only reachable when the unsaved slot is occupied
-            interestingIndex = nil
-            output("unsaved rule")  // R-O4
-            setRule(unsavedRule!)
-            if let set = unsavedSet { showColors(name: set.name, colors: set.colors) }
-        } else {
-            interestingIndex = to
-            let pair = pairs[to]
-            output("interesting \(to + 1)/\(n) \(pair.colorset)")  // R-O4
-            setRule(try! Rule(id: pair.rule))
-            showColors(name: pair.colorset, colors: pair.colors)
-        }
-    }
-
     // MARK: - Keys (R-K)
 
     /// Returns false when the program should quit.
     public func handleKey(_ key: Key) -> Bool {
         if key == .q { return false }
-        if paused {  // R-K10: space, Return, s, and the color keys are live
+        if paused {  // R-K10: space, Return, s, and the color and look keys are live
             switch key {
             case .space:
                 paused = false
@@ -887,17 +911,17 @@ public final class Session {
         case .u:
             undo()
         case .s:
-            if screensaverMode { savePair() } else { saveInteresting() }  // R-W4
+            if selectMode { saveLook() }  // R-W4; otherwise nothing to save into
         case .i:
             initCells()
         case .n:
-            selectInteresting(step: 1)
+            if playMode { playStep(1) } else { selectLook(step: 1) }
         case .p:
-            selectInteresting(step: -1)
+            if playMode { playStep(-1) } else { selectLook(step: -1) }
         case .a:  // R-K12
             autoInit.toggle()
             output("auto-init \(autoInit ? "on" : "off")")  // R-O6
-        case .c, .C, .S, .N, .P, .X, .poolPrev, .poolNext, .digit:
+        case .c, .C, .S, .N, .P, .X, .R, .poolPrev, .poolNext, .digit:
             _ = handleColorKey(key)
         case .plus:
             delay = max(delay / 2, Session.minDelay)

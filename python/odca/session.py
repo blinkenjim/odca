@@ -1,57 +1,52 @@
 """Toolkit-free orchestration layer (spec R-U, R-K, R-B, R-A, R-V, R-W, R-X, R-O).
 
-Everything the interactive program does except rendering pixels and reading
-raw key events lives here, so it runs headlessly in tests and the pygame
-layer (viewer.py) stays thin. The UI translates toolkit key events into the
+Everything the two programs do except rendering pixels and reading raw key
+events lives here, so it runs headlessly in tests and the pygame layer
+(viewer.py) stays thin. The UI translates toolkit key events into the
 single-character keys below, calls tick(dt) at its refresh rate, and draws
-`history` through `palette8` and `row_banks`.
+`history` through `palette8` and `row_banks` (inverted while `inverted`).
 
-Keys (single characters):
+Programs (spec sections 4c, 4d), selected at construction:
+    select_file   odca-select: compose looks (rule + color set) in an odca
+                  file; n/p cycle the file's looks and the unsaved rule, s
+                  rewrites the look under review's color set (or appends
+                  when on the unsaved rule), S appends a copy of the screen,
+                  X deletes, R toggles the n/p order between file order and
+                  grouped by rule (with a brief inversion of the screen);
+                  the file is written after every change and at exit
+    play_file     odca: play the file's looks one at a time, each for a
+                  watchdog of PLAY_TIMEOUT seconds, then hand over after
+                  PLAY_GRACE quiet seconds or at the next re-init; rows
+                  keep the colors they were painted with; shuffle=True
+                  plays each pass in a fresh random order; N/P step by hand
+    review_mode   color set review (section 4b; on hold, no program binds it)
+
+Keys (single characters), common to both programs:
     q   quit
     r   new random rule, screened: candidates that look like Class I-III
         are discarded and regenerated until a maybe-Class-IV rule passes
         (served from the background-search stash when available)
     m   mutate the rule: change one randomly chosen entry to a new state
     u   undo the last rule change (r, m, n, p, u); repeatable
-    s   save the current rule with its presentation (the active color set,
-        arranged) to interesting-rules.json
-    n   next saved interesting rule, with its saved colors; stepping past the
-        last returns to the unsaved rule, when one exists
-    p   previous saved interesting rule; stepping back from rule 0 returns
-        to the unsaved rule, when one exists
     i   initialize all cells to random contents
     +   speed up (halve the delay between generations)
     -   slow down (double the delay between generations)
-    0-9 select a digit-bound color set — the "hot ten" (colorsets/colorsets.json)
+    0-9 select a digit-bound color set — the "hot ten" (library.json)
     [ ] step backward / forward through the whole color set pool
     c   cycle the active color set through the 24 ways of assigning its
         four colors to the four states (remembered per set)
     C   the same cycle in reverse
-    S   save the active color set, with its arrangement, into its pool entry
     ' ' pause / resume; while paused every key but space, Return, s, the
-        color keys (c, C, S, [, ], digits), and q is ignored
+        color keys, the look keys, and q is ignored
     '\\n' (Return) while paused: compute and display one generation
         (single step), remaining paused; ignored when not paused
     s   while paused: run one screenful of generations at one eighth the
         current delay, then remain paused; each press queues another
-        screenful (when not paused, 's' saves the rule as above)
     a   toggle auto-init (on at startup): once every row on screen is
         boring, re-initialize the cells as 'i' does
 
 Resuming from pause with space (re)starts a screen counter: from then on,
 every completed screenful of generations prints 'screen N'.
-
-Modes (spec sections 4b-4d), selected at construction:
-    review_mode        color set review: N/P ([ ]) step the pool, X drops,
-                       every drop saves; digits disabled
-    screensaver_file   screensaver review: N/P step the file's pairs, s saves
-                       the pair under review, S appends, X deletes, [ ] walk
-                       the pool; group_by_rule views the pairs grouped by rule
-                       (consistency check) without touching file order
-    play_file          screensaver mode: play the pairs in order, each for a
-                       watchdog of PLAY_TIMEOUT seconds, then hand over after
-                       PLAY_GRACE quiet seconds or at the next re-init; rows
-                       keep the colors they were painted with
 """
 
 from collections import Counter, deque
@@ -63,7 +58,7 @@ import numpy as np
 from .automaton import N_STATES, Automaton, Rule
 from .classify import find_candidate
 from .search import CandidateSearch
-from .store import DEFAULT_COLOR_SETS, Store, load_screensaver, save_screensaver
+from .store import DEFAULT_COLOR_SETS, Store, load_odca_file, save_odca_file
 
 DEFAULT_COLOR_SET = 1  # slot active at startup (R-U4)
 KEY_ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]  # digit keys in review order (R-V2, R-K17)
@@ -79,8 +74,9 @@ STAGNATION_SWING = 0.25  # (max - min) / mean below this counts as steady
 STEP_CAP = 2000  # per-tick catch-up cap so a stall can't freeze the UI (R-U5)
 SMOOTH_SCROLL_DELAY = 2 * INITIAL_DELAY  # slower than this: continuous scrolling (R-U3)
 SCREEN_SPEEDUP = 8  # paused 's' zips a screenful at delay / SCREEN_SPEEDUP (R-K13)
-PLAY_TIMEOUT = 120.0  # screensaver: a pair's screen time before it may advance (R-X2)
-PLAY_GRACE = 60.0  # screensaver: no transition within this long of an initialization (R-X3)
+PLAY_TIMEOUT = 120.0  # odca: a look's screen time before it may advance (R-X2)
+PLAY_GRACE = 60.0  # odca: no transition within this long of an initialization (R-X3)
+FLASH_SECONDS = 0.25  # the screen inverts this long as a mode cue (R-U10)
 
 KEY_SPACE = " "
 KEY_RETURN = "\n"
@@ -92,19 +88,19 @@ def _rgb(c):
 
 class Session:
     def __init__(self, cols, rows, store=None, search=None, rng=None,
-                 review_mode=False, screensaver_file=None, group_by_rule=False, play_file=None):
+                 review_mode=False, select_file=None, play_file=None, shuffle=False):
         self.cols = cols
         self.rows = rows
         self.store = store if store is not None else Store()
         self.search = search if search is not None else CandidateSearch()
         self.rng = rng if rng is not None else np.random.default_rng()
-        # Mode precedence: screensaver play, then screensaver review, then color set review.
+        # Program precedence: odca (play), then odca-select, then color set review.
         self.play_file = Path(play_file) if play_file else None
+        self.shuffle = bool(shuffle) and self.play_file is not None
         if self.play_file is not None:
-            screensaver_file = None
-        self.screensaver_file = Path(screensaver_file) if screensaver_file else None
-        self.review_mode = bool(review_mode) and self.screensaver_file is None and self.play_file is None
-        self.group_by_rule = bool(group_by_rule) and self.screensaver_file is not None
+            select_file = None
+        self.select_file = Path(select_file) if select_file else None
+        self.review_mode = bool(review_mode) and self.select_file is None and self.play_file is None
 
         # Startup per R-U1: previous rule (random fallback), random cells.
         rule = self.store.load_rule() or Rule.random(self.rng)
@@ -127,6 +123,7 @@ class Session:
         self.undo_stack = []
         self._accumulated = 0.0
         self._zip_accumulated = 0.0
+        self.flash_remaining = 0.0  # seconds of screen inversion left (R-U10)
         self.auto_init = True  # R-K12: on at startup, not persisted
         self._boring_streak = 0
         self._boring_reason = None
@@ -149,6 +146,17 @@ class Session:
         self.pool = self._pool_order()
         d = self.color_sets[self.color_set]
         self.active_set = {"slot": self.color_set, "name": d["name"], "colors": list(d["colors"])}
+
+        # The look cycle (R-B): the file's looks in view order plus one slot
+        # for the unsaved rule — the one being explored. look_index None = on
+        # the unsaved slot (or no look). The startup rule fills the unsaved
+        # slot unless odca-select opens on a file with looks (R-W1).
+        self.looks = []  # always in file order
+        self.look_index = None  # file index of the look under review
+        self.view_order = []  # file indices in n/p order
+        self.view_position = None  # position of look_index within view_order
+        self.grouped = False  # R: n/p order grouped by rule (R-W7)
+        self.unsaved_rule = rule
         self.unsaved_set = dict(self.active_set)  # the set shown with the unsaved rule (R-B3)
 
         # Color set review (R-V)
@@ -156,34 +164,19 @@ class Session:
         self.review_index = 0
         self.dropped_names = []
         self._review_arrangement = {}
-        # Screensaver review (R-W): pairs in file order, presentation order, cursor
-        self.pairs = []
-        self.pair_index = None
-        self.view_order = []
-        self.view_position = None
-        # Screensaver play (R-X)
-        self.play_elapsed = 0.0  # unpaused seconds on the current pair
+        # odca (R-X)
+        self.play_order = []  # file indices in the order of the current pass
+        self.play_position = None
+        self.play_elapsed = 0.0  # unpaused seconds on the current look
         self.since_init = 0.0  # unpaused seconds since the last (re)initialization
-
-        # The saved rules form a cycle with one extra slot for the "unsaved"
-        # rule — the one running before browsing began. index None = on it.
-        # If the startup rule is itself a saved rule, point the cycle at it
-        # and leave the unsaved slot empty until 'r' or 'm' fills it (R-B3).
-        saved = self.store.load_interesting()
-        if rule in saved:
-            self.interesting_index = saved.index(rule)
-            self.unsaved_rule = None
-        else:
-            self.interesting_index = None
-            self.unsaved_rule = rule
 
         self.candidates = self.store.load_candidates()
         self._push(self.automaton.cells)
         print(f"rule {rule.id}")
         if self.review_mode:
             self._load_review()
-        if self.screensaver_file is not None:
-            self._load_screensaver()
+        if self.select_file is not None:
+            self._load_select()
         if self.play_file is not None:
             self._load_play()
 
@@ -198,12 +191,17 @@ class Session:
         return self.automaton.rule.id
 
     @property
-    def screensaver_mode(self):
-        return self.screensaver_file is not None
+    def select_mode(self):
+        return self.select_file is not None
 
     @property
     def play_mode(self):
         return self.play_file is not None
+
+    @property
+    def inverted(self):
+        """The display shows inverted colors while a flash runs (R-U10)."""
+        return self.flash_remaining > 0
 
     def start_search(self):
         self.search.start()
@@ -212,7 +210,9 @@ class Session:
         self.search.stop()
 
     def finish(self):
-        """Call at program exit; color set review saves the kept sets (R-V5)."""
+        """Call at program exit: odca-select writes its file, review saves (R-V5)."""
+        if self.select_mode:
+            self._save_looks()
         if self.review_mode:
             self.save_review()
 
@@ -248,7 +248,7 @@ class Session:
 
     @property
     def palette8(self):
-        """Two banks of four (R-X5); outside screensaver mode both are the active set."""
+        """Two banks of four (R-X5); outside odca both are the active set."""
         if self.play_mode and self._banks is not None:
             return [_rgb(c) for c in self._banks[0] + self._banks[1]]
         p = self.palette
@@ -272,7 +272,7 @@ class Session:
         self._arrangement_by_name[self.active_name] = index
         print(f"color set {self.active_name} arrangement {index + 1}/{n}")  # R-O9
 
-    def save_color_set(self):  # R-K16: bake the arrangement into the pool entry, by name
+    def save_color_set(self):  # R-K16: bake the arrangement into the library entry, by name
         name = self.active_name
         arranged = self._arranged_active_colors()
         file = self.store.load_color_set_file()
@@ -299,7 +299,7 @@ class Session:
         self.active_set = {"slot": slot, "name": s["name"], "colors": list(s["colors"])}
 
     def _show_colors(self, name, colors):
-        """Show a saved presentation: its colors become the active set (R-B2, R-W2)."""
+        """Show a stored presentation: its colors become the active set (R-B2)."""
         self.active_set = {"slot": None, "name": name, "colors": list(colors)}
         self._arrangement_by_name[name] = 0  # stored colors are already arranged
 
@@ -323,6 +323,9 @@ class Session:
         if e["slot"] is not None:
             self.color_set = e["slot"]
         print(f"color set {e['name']}")  # R-O15
+
+    def flash(self):  # R-U10: invert the screen briefly as a cue
+        self.flash_remaining = FLASH_SECONDS
 
     # ------------------------------------------------------------------ display
 
@@ -380,8 +383,8 @@ class Session:
                 print(f"screen {self.screen_counter}")  # R-O7
         if self.auto_init and self._boring_streak >= self.rows:
             reason = self._boring_reason
-            if self.play_mode and self.pairs and self.play_elapsed >= PLAY_TIMEOUT:
-                self._next_play_pair(reason)  # R-X3: watchdog expired, a re-init transitions
+            if self.play_mode and self.looks and self.play_elapsed >= PLAY_TIMEOUT:
+                self._next_play_look(reason)  # R-X3: watchdog expired, a re-init transitions
             else:
                 self.init_cells()
                 print(f"auto-init ({reason})")  # R-O6
@@ -460,6 +463,7 @@ class Session:
     def tick(self, dt):
         """Advance by elapsed wall-clock seconds (R-U5); call at ~60 Hz."""
         self._drain_search()
+        self.flash_remaining = max(0.0, self.flash_remaining - dt)  # display only: runs while paused
         if self.paused:
             # The main accumulator is frozen while paused (no catch-up burst,
             # R-K10); a queued screenful (R-K13) paces on its own accumulator.
@@ -484,9 +488,9 @@ class Session:
         self._accumulated -= steps * self.delay
         for _ in range(min(steps, STEP_CAP)):
             self._advance()
-        if (self.play_mode and self.pairs  # R-X3: watchdog expired and the grace period observed
+        if (self.play_mode and self.looks  # R-X3: watchdog expired and the grace period observed
                 and self.play_elapsed >= PLAY_TIMEOUT and self.since_init >= PLAY_GRACE):
-            self._next_play_pair("timeout")
+            self._next_play_look("timeout")
 
     def _drain_search(self):
         if len(self.candidates) < MAX_CANDIDATES:
@@ -505,10 +509,11 @@ class Session:
         print(f"rule {rule.id}")  # R-O1
 
     def _set_unsaved_rule(self, rule):
-        """Make `rule` current and the occupant of the cycle's unsaved slot."""
+        """Make `rule` current and the occupant of the cycle's unsaved slot (R-B3)."""
         self.unsaved_rule = rule
         self.unsaved_set = dict(self.active_set)
-        self.interesting_index = None
+        self.look_index = None
+        self.view_position = None
         self._set_rule(rule)
 
     def new_rule(self):  # R-K2
@@ -532,14 +537,9 @@ class Session:
         if self.undo_stack:
             self._set_rule(self.undo_stack.pop())
 
-    def _current_pair(self):
+    def _current_look(self):
         return {"rule": self.automaton.rule.id, "colorset": self.active_name,
                 "colors": self._arranged_active_colors()}
-
-    def save_interesting(self):  # R-K5: the rule with its presentation
-        pair = self._current_pair()
-        self.store.append_interesting(self.automaton.rule, pair["colorset"], pair["colors"])
-        print(f"saved rule {pair['rule']} {pair['colorset']}")  # R-O3
 
     def init_cells(self):  # R-K6
         self.automaton.reset("random")
@@ -547,37 +547,177 @@ class Session:
         self._reset_boredom()
         self.since_init = 0.0  # R-X3: any initialization restarts the grace period
 
-    def select_interesting(self, step):  # R-B2, R-B3
-        """Cycle through the saved pairs plus the unsaved slot, if occupied.
+    # ------------------------------------------------------------ look cycle
 
-        The cycle is [saved pair 0 .. n-1, unsaved rule]; index None means
-        the unsaved slot, so from it 'n' selects pair 0 and 'p' pair n-1.
-        When no unsaved rule exists (startup matched a saved rule and no
-        'r'/'m' has fired), the cycle is just the n saved pairs. A saved pair
+    def _rebuild_view_order(self):  # R-W7: n/p order, file order or grouped by rule
+        if self.grouped:
+            groups, rule_order = {}, []
+            for i, p in enumerate(self.looks):
+                if p["rule"] not in groups:
+                    groups[p["rule"]] = []
+                    rule_order.append(p["rule"])
+                groups[p["rule"]].append(i)
+            self.view_order = [i for r in rule_order for i in groups[r]]
+        else:
+            self.view_order = list(range(len(self.looks)))
+        self.view_position = (self.view_order.index(self.look_index)
+                              if self.look_index is not None and self.look_index in self.view_order else None)
+
+    def _rule_group(self, index):
+        seen = []
+        for p in self.looks:
+            if p["rule"] not in seen:
+                seen.append(p["rule"])
+        return seen.index(self.looks[index]["rule"]) + 1, len(seen)
+
+    def _activate_look(self, position, push_undo=True):  # R-B2, R-W8
+        index = self.view_order[position]
+        look = self.looks[index]
+        if self.grouped and (self.look_index is None
+                             or self.looks[self.look_index]["rule"] != look["rule"]):
+            g, total = self._rule_group(index)
+            print(f"--- rule group {g}/{total} ---")  # R-O12
+        self.view_position = position
+        self.look_index = index
+        rule = Rule.from_id(look["rule"])
+        if rule != self.automaton.rule:
+            if push_undo:
+                self.undo_stack.append(self.automaton.rule)
+            self._set_rule(rule)
+        self._show_colors(look["colorset"], look["colors"])
+        print(f"look {position + 1}/{len(self.looks)} {look['colorset']}")  # R-O4
+        self._fill_screen()  # R-W8
+
+    def select_look(self, step):  # R-B2, R-B3: n/p
+        """Cycle through the looks in view order plus the unsaved slot, if occupied.
+
+        The cycle is [look at view position 0 .. n-1, unsaved rule]; on the
+        unsaved slot 'n' selects the first look and 'p' the last. A look
         brings its colors along; the unsaved slot brings back the set that
-        was showing when the unsaved rule arrived.
+        was showing when the unsaved rule arrived. Only odca-select has a
+        file of looks; elsewhere n/p report that there are none.
         """
-        pairs = self.store.load_interesting_pairs()
-        if not pairs:
-            print("no saved interesting rules")  # R-O5
-            return
-        n = len(pairs)
+        n = len(self.view_order)
         total = n + 1 if self.unsaved_rule is not None else n
-        at = n if self.interesting_index is None else self.interesting_index
+        if n == 0:
+            print("no looks")  # R-O5
+            return
+        at = n if self.look_index is None else self.view_position
         to = (at + step) % total
         self.undo_stack.append(self.automaton.rule)
         if to == n:  # only reachable when the unsaved slot is occupied
-            self.interesting_index = None
+            self.look_index = None
+            self.view_position = None
             print("unsaved rule")  # R-O4
             self._set_rule(self.unsaved_rule)
             if self.unsaved_set is not None:
                 self._show_colors(self.unsaved_set["name"], self.unsaved_set["colors"])
+            self._fill_screen()  # R-W8: every n/p step shows a screenful of the selection
         else:
-            self.interesting_index = to
-            pair = pairs[to]
-            print(f"interesting {to + 1}/{n} {pair['colorset']}")  # R-O4
-            self._set_rule(Rule.from_id(pair["rule"]))
-            self._show_colors(pair["colorset"], pair["colors"])
+            self._activate_look(to, push_undo=False)
+
+    # ------------------------------------------------------------ odca-select
+
+    def _load_select(self):  # R-W1
+        loaded = load_odca_file(self.select_file)
+        self.looks = loaded or []  # a missing file is created by the first save or at exit
+        self._rebuild_view_order()
+        print(f"odca {self.select_file.name}: {len(self.looks)} looks")  # R-O12
+        if self.looks:
+            # Open on look 1; the unsaved slot stays empty until r or m fires.
+            self.unsaved_rule = None
+            self.unsaved_set = None
+            self._activate_look(0, push_undo=False)
+
+    def _save_looks(self):
+        save_odca_file(self.looks, self.select_file)
+        n = len(self.looks)
+        print(f"saved {n} look{'' if n == 1 else 's'} to {self.select_file.name}")  # R-O12
+
+    def save_look(self):  # R-W4: 's' rewrites the look under review's color set, or appends
+        if self.look_index is None:
+            self.append_look()
+            return
+        i = self.look_index
+        self.looks[i] = {"rule": self.looks[i]["rule"], "colorset": self.active_name,
+                         "colors": self._arranged_active_colors()}
+        self._save_looks()
+        print(f"saved look {self.view_position + 1}/{len(self.looks)}")  # R-O12
+
+    def append_look(self):  # R-W4: 'S' appends a copy of the screen; the position is unchanged
+        self.looks.append(self._current_look())
+        self._rebuild_view_order()
+        self._save_looks()
+        print(f"added look {len(self.looks)}/{len(self.looks)}")  # R-O12
+
+    def delete_look(self):  # R-W5
+        if self.look_index is None:
+            return
+        position = self.view_position
+        del self.looks[self.look_index]
+        self.look_index = None
+        self._rebuild_view_order()
+        self._save_looks()
+        print(f"deleted look {position + 1}/{len(self.looks) + 1}")  # R-O12
+        if self.looks:
+            self._activate_look(min(position, len(self.view_order) - 1))
+        else:
+            # Nothing left to review: the rule on screen becomes the unsaved rule.
+            self.view_position = None
+            self.unsaved_rule = self.automaton.rule
+            self.unsaved_set = dict(self.active_set)
+
+    def toggle_grouped(self):  # R-W7: 'R'
+        self.grouped = not self.grouped
+        self._rebuild_view_order()
+        print(f"look order {'grouped by rule' if self.grouped else 'file order'}")  # R-O12
+        self.flash()  # R-U10
+
+    # ------------------------------------------------------------------- odca
+
+    def _load_play(self):  # R-X1
+        self.looks = load_odca_file(self.play_file) or []
+        print(f"odca {self.play_file.name}: {len(self.looks)} looks")  # R-O13
+        if self.looks:
+            self._new_pass()
+            self._play_look(self.play_order[0], None)
+
+    def _new_pass(self):  # R-X1: file order, or a fresh shuffle per pass
+        n = len(self.looks)
+        order = list(range(n))
+        if self.shuffle and n > 1:
+            order = [int(i) for i in self.rng.permutation(n)]
+            if order[0] == self.look_index:  # never repeat the look just played
+                order[0], order[-1] = order[-1], order[0]
+        self.play_order = order
+        self.play_position = 0
+
+    def _play_look(self, index, reason):  # R-X4
+        look = self.looks[index]
+        self.look_index = index
+        rule = Rule.from_id(look["rule"])
+        if rule != self.automaton.rule:
+            self._set_rule(rule)
+        self._show_colors(look["colorset"], look["colors"])
+        self.init_cells()
+        self.play_elapsed = 0.0  # the look's screen time starts now
+        why = f" ({reason})" if reason else ""
+        print(f"look {index + 1}/{len(self.looks)} {look['colorset']}{why}")  # R-O13
+
+    def _next_play_look(self, reason):  # R-X2, R-X3: on through the pass, then a new pass
+        self.play_position += 1
+        if self.play_position >= len(self.play_order):
+            self._new_pass()
+        self._play_look(self.play_order[self.play_position], reason)
+
+    def play_step(self, step):  # R-X6: N/P move through the pass by hand, wrapping
+        if not self.looks:
+            return
+        if step > 0:
+            self._next_play_look("next")
+        else:
+            self.play_position = (self.play_position - 1) % len(self.play_order)
+            self._play_look(self.play_order[self.play_position], "previous")
 
     # -------------------------------------------------------- color set review
 
@@ -651,163 +791,37 @@ class Session:
         self.color_sets = self.store.load_color_sets()
         print(f"saved {len(kept)} color sets, {len(self.dropped_names)} dropped")  # R-O11
 
-    # ------------------------------------------------------- screensaver review
-
-    def _load_screensaver(self):  # R-W1, R-W2
-        loaded = load_screensaver(self.screensaver_file)
-        if loaded is None:
-            self.pairs = []
-            save_screensaver(self.pairs, self.screensaver_file)  # a new, empty file
-        else:
-            self.pairs = loaded
-        self._rebuild_view_order()
-        print(f"screensaver {self.screensaver_file.name}: {len(self.pairs)} pairs")
-        if self.pairs:
-            self._activate(0)
-
-    def _rebuild_view_order(self):  # R-W7: presentation order only
-        if self.group_by_rule:
-            groups, rule_order = {}, []
-            for i, p in enumerate(self.pairs):
-                if p["rule"] not in groups:
-                    groups[p["rule"]] = []
-                    rule_order.append(p["rule"])
-                groups[p["rule"]].append(i)
-            self.view_order = [i for r in rule_order for i in groups[r]]
-        else:
-            self.view_order = list(range(len(self.pairs)))
-        self.view_position = (self.view_order.index(self.pair_index)
-                              if self.pair_index is not None and self.pair_index in self.view_order else None)
-
-    def _rule_group(self, index):
-        seen = []
-        for p in self.pairs:
-            if p["rule"] not in seen:
-                seen.append(p["rule"])
-        return seen.index(self.pairs[index]["rule"]) + 1, len(seen)
-
-    def _activate(self, position):  # R-W2, R-W8
-        index = self.view_order[position]
-        if self.group_by_rule and (self.pair_index is None
-                                   or self.pairs[self.pair_index]["rule"] != self.pairs[index]["rule"]):
-            g, total = self._rule_group(index)
-            print(f"--- rule group {g}/{total} ---")  # R-O12
-        self.view_position = position
-        pair = self.pairs[index]
-        self.pair_index = index
-        rule = Rule.from_id(pair["rule"])
-        if rule != self.automaton.rule:
-            self.undo_stack.append(self.automaton.rule)
-            self._set_rule(rule)
-        self._show_colors(pair["colorset"], pair["colors"])
-        print(f"screensaver {position + 1}/{len(self.pairs)} {pair['colorset']}")  # R-O12
-        self._fill_screen()  # R-W8
-
-    def screensaver_step(self, step):  # R-W2: no wrap
-        if not self.pairs:
-            return
-        nxt = (self.view_position if self.view_position is not None else -1) + step
-        if not 0 <= nxt < len(self.view_order):
-            print("screensaver end")
-            return
-        self._activate(nxt)
-
-    def _save_screensaver(self):
-        save_screensaver(self.pairs, self.screensaver_file)
-        n = len(self.pairs)
-        print(f"saved {n} pair{'' if n == 1 else 's'} to {self.screensaver_file.name}")  # R-O12
-
-    def save_pair(self):  # R-W4: 's' overwrites the pair under review, in place
-        if self.pair_index is None:
-            print("no pair under review")
-            return
-        self.pairs[self.pair_index] = self._current_pair()
-        self._rebuild_view_order()  # a changed rule may move it between groups
-        self._save_screensaver()
-        pos = self.view_position if self.view_position is not None else self.pair_index
-        print(f"saved pair {pos + 1}/{len(self.pairs)}")  # R-O12
-
-    def append_pair(self):  # R-W4: 'S' appends; the review position is unchanged
-        self.pairs.append(self._current_pair())
-        self._rebuild_view_order()
-        self._save_screensaver()
-        print(f"added pair {len(self.pairs)}/{len(self.pairs)}")  # R-O12
-
-    def delete_pair(self):  # R-W5
-        if self.pair_index is None or self.view_position is None:
-            return
-        position = self.view_position
-        del self.pairs[self.pair_index]
-        self.pair_index = None
-        self._rebuild_view_order()
-        self._save_screensaver()
-        print(f"deleted pair {position + 1}/{len(self.pairs) + 1}")  # R-O12
-        if not self.pairs:
-            self.view_position = None
-        else:
-            self._activate(min(position, len(self.view_order) - 1))
-
-    # --------------------------------------------------------- screensaver play
-
-    def _load_play(self):  # R-X1
-        self.pairs = load_screensaver(self.play_file) or []
-        print(f"screensaver {self.play_file.name}: {len(self.pairs)} pairs")
-        if self.pairs:
-            self._play_pair(0, None)
-
-    def _play_pair(self, index, reason):  # R-X4
-        pair = self.pairs[index]
-        self.pair_index = index
-        rule = Rule.from_id(pair["rule"])
-        if rule != self.automaton.rule:
-            self._set_rule(rule)
-        self._show_colors(pair["colorset"], pair["colors"])
-        self.init_cells()
-        self.play_elapsed = 0.0  # the pair's screen time starts now
-        why = f" ({reason})" if reason else ""
-        print(f"screensaver {index + 1}/{len(self.pairs)} {pair['colorset']}{why}")  # R-O13
-
-    def _next_play_pair(self, reason):  # R-X2, R-X3: sequential, looping
-        self._play_pair(((self.pair_index if self.pair_index is not None else -1) + 1) % len(self.pairs), reason)
-
-    def play_step(self, step):  # R-X6: N/P move through the pairs, wrapping
-        if not self.pairs:
-            return
-        at = self.pair_index if self.pair_index is not None else 0
-        self._play_pair((at + step) % len(self.pairs), "next" if step > 0 else "previous")
-
     # ------------------------------------------------------------------- keys
 
     def _handle_color_key(self, key):
-        """Color and review keys shared by the paused and running states (R-K10)."""
+        """Color and look keys shared by the paused and running states (R-K10)."""
         if key == "c":
             self.cycle_colors(1)
         elif key == "C":
             self.cycle_colors(-1)
         elif key == "S":
-            if self.screensaver_mode:
-                self.append_pair()
-            elif not self.review_mode:
-                self.save_color_set()
+            if self.select_mode:
+                self.append_look()  # R-W4
+            elif not self.review_mode and not self.play_mode:
+                self.save_color_set()  # R-K16: no program binds this in 3.0.0
         elif key == "N":
             if self.play_mode:
                 self.play_step(1)
-            elif self.screensaver_mode:
-                self.screensaver_step(1)
             elif self.review_mode:
                 self.review_step(1)
         elif key == "P":
             if self.play_mode:
                 self.play_step(-1)
-            elif self.screensaver_mode:
-                self.screensaver_step(-1)
             elif self.review_mode:
                 self.review_step(-1)
         elif key == "X":
-            if self.screensaver_mode:
-                self.delete_pair()
+            if self.select_mode:
+                self.delete_look()
             elif self.review_mode:
                 self.drop_review()
+        elif key == "R":
+            if self.select_mode:
+                self.toggle_grouped()
         elif key == "[":
             self.review_step(-1) if self.review_mode else self.pool_step(-1)  # R-K17
         elif key == "]":
@@ -848,14 +862,12 @@ class Session:
         elif key == "u":
             self.undo()
         elif key == "s":
-            if self.screensaver_mode:
-                self.save_pair()  # R-W4
-            else:
-                self.save_interesting()
+            if self.select_mode:
+                self.save_look()  # R-W4
         elif key == "n":
-            self.select_interesting(1)
+            self.play_step(1) if self.play_mode else self.select_look(1)
         elif key == "p":
-            self.select_interesting(-1)
+            self.play_step(-1) if self.play_mode else self.select_look(-1)
         elif key == "i":
             self.init_cells()
         elif key == "a":  # R-K12

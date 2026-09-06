@@ -1,4 +1,4 @@
-"""Persistence (R-P): per-user state in ~/.odca/, the keeper file at the repo root."""
+"""Persistence (R-P): per-user state in ~/.odca/, the library and odca files."""
 
 import json
 from pathlib import Path
@@ -8,10 +8,9 @@ from .automaton import Rule
 DEFAULT_PATH = Path.home() / ".odca" / "rule"
 CANDIDATES_PATH = Path.home() / ".odca" / "candidates"
 # Repository root: python/odca/store.py -> python/odca -> python -> root.
-# The keeper file is shared by all implementations (R-P3).
+# The library is shared by all implementations (R-P4).
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-INTERESTING_PATH = _REPO_ROOT / "interesting-rules.json"  # screensaver-format pairs (R-P3)
-COLORSETS_PATH = _REPO_ROOT / "colorsets" / "colorsets.json"  # shared (R-P4)
+LIBRARY_PATH = _REPO_ROOT / "library.json"  # the color set pool (R-P4)
 CANDIDATE_PALETTES_PATH = _REPO_ROOT / "colorsets" / "candidates.json"  # raw pool source (R-V2)
 
 # Built-in fallback so the default slot always exists (R-U4).
@@ -32,19 +31,24 @@ def save_rule(rule, path=DEFAULT_PATH):
     path.write_text(rule.id + "\n")
 
 
-def load_screensaver(path):
-    """Return a screensaver file's pairs [{'rule', 'colorset', 'colors'}] (R-P5),
-    None if the file is missing, [] if unparseable; malformed pairs are skipped.
+def _valid_color(c):
+    return (isinstance(c, str) and len(c) == 7 and c[0] == "#"
+            and all(ch in "0123456789abcdefABCDEF" for ch in c[1:]))
+
+
+def load_odca_file(path):
+    """Return an odca file's looks [{'rule', 'colorset', 'colors'}] (R-P3),
+    None if the file is missing, [] if unparseable; malformed looks are skipped.
     """
     try:
         text = Path(path).read_text()
     except OSError:
         return None
     try:
-        entries = json.loads(text).get("pairs", [])
+        entries = json.loads(text).get("looks", [])
     except (ValueError, AttributeError):
         return []
-    pairs = []
+    looks = []
     for e in entries if isinstance(entries, list) else []:
         try:
             rule = Rule.from_id(str(e["rule"]))
@@ -52,49 +56,20 @@ def load_screensaver(path):
         except (KeyError, TypeError, ValueError):
             continue
         if len(colors) == 4 and all(_valid_color(c) for c in colors):
-            pairs.append({"rule": rule.id, "colorset": name, "colors": [c.upper() for c in colors]})
-    return pairs
+            looks.append({"rule": rule.id, "colorset": name, "colors": [c.upper() for c in colors]})
+    return looks
 
 
-def save_screensaver(pairs, path):
-    """Write a screensaver file (R-P5) in the shared layout."""
+def save_odca_file(looks, path):
+    """Write an odca file (R-P3) in the shared layout."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    entries = [{"rule": p["rule"], "colorset": p["colorset"], "colors": list(p["colors"])} for p in pairs]
-    path.write_text(json.dumps({"pairs": entries}, indent=1) + "\n")
+    entries = [{"rule": p["rule"], "colorset": p["colorset"], "colors": list(p["colors"])} for p in looks]
+    path.write_text(json.dumps({"looks": entries}, indent=1) + "\n")
 
 
-def load_interesting_pairs(path=INTERESTING_PATH):
-    """The keeper file's pairs (R-P3): a screensaver file; missing reads as none."""
-    return load_screensaver(path) or []
-
-
-def save_interesting_pairs(pairs, path=INTERESTING_PATH):
-    save_screensaver(pairs, path)
-
-
-def append_interesting(rule, path=INTERESTING_PATH, colorset=None, colors=None):
-    """Append the rule, with its presentation, as a pair (default color set if none given)."""
-    if colorset is None or colors is None:
-        d = DEFAULT_COLOR_SETS[1]
-        colorset, colors = d["name"], d["colors"]
-    pairs = load_interesting_pairs(path)
-    pairs.append({"rule": rule.id, "colorset": colorset, "colors": list(colors)})
-    save_interesting_pairs(pairs, path)
-
-
-def load_interesting(path=INTERESTING_PATH):
-    """Return the saved Rules in order (one per pair)."""
-    return [Rule.from_id(p["rule"]) for p in load_interesting_pairs(path)]
-
-
-def _valid_color(c):
-    return (isinstance(c, str) and len(c) == 7 and c[0] == "#"
-            and all(ch in "0123456789abcdefABCDEF" for ch in c[1:]))
-
-
-def load_color_set_file(path=COLORSETS_PATH):
-    """Return {'sets': [...], 'dropped': [...]} from the color sets file (R-P4).
+def load_color_set_file(path=LIBRARY_PATH):
+    """Return {'sets': [...], 'dropped': [...]} from the library (R-P4).
 
     Each set is {'slot': int or None, 'name', 'colors'}; slotted sets are
     bound to digit keys, the rest form the pool. Malformed entries are
@@ -123,7 +98,7 @@ def load_color_set_file(path=COLORSETS_PATH):
     return result
 
 
-def save_color_set_file(file, path=COLORSETS_PATH):
+def save_color_set_file(file, path=LIBRARY_PATH):
     """Write the whole pool: sets in the given order (slot omitted when None)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -135,7 +110,7 @@ def save_color_set_file(file, path=COLORSETS_PATH):
     path.write_text(json.dumps({"sets": entries, "dropped": list(file["dropped"])}, indent=1) + "\n")
 
 
-def load_color_sets(path=COLORSETS_PATH):
+def load_color_sets(path=LIBRARY_PATH):
     """Return {slot: {'name', 'colors'}} for the digit-bound sets (R-U4).
 
     The built-in default fills slot 1 unless the file defines it.
@@ -148,7 +123,7 @@ def load_color_sets(path=COLORSETS_PATH):
     return sets
 
 
-def save_color_sets(sets, path=COLORSETS_PATH):
+def save_color_sets(sets, path=LIBRARY_PATH):
     """Replace the digit-bound sets, preserving the pool and the dropped list."""
     file = load_color_set_file(path)
     slotted = [{"slot": slot, "name": v["name"], "colors": list(v["colors"])}
@@ -199,13 +174,12 @@ class Store:
     """Persistence with configurable locations.
 
     The defaults are the real per-user state directory and the shared
-    keeper file; tests point both at a temporary directory (R-P).
+    library; tests point everything at a temporary directory (R-P).
     """
 
-    def __init__(self, state_dir=None, keeper_file=None, colorsets_file=None, candidates_file=None):
+    def __init__(self, state_dir=None, library_file=None, candidates_file=None):
         self.state_dir = Path(state_dir) if state_dir else Path.home() / ".odca"
-        self.keeper_file = Path(keeper_file) if keeper_file else INTERESTING_PATH
-        self.colorsets_file = Path(colorsets_file) if colorsets_file else COLORSETS_PATH
+        self.library_file = Path(library_file) if library_file else LIBRARY_PATH
         self.candidate_palettes_file = Path(candidates_file) if candidates_file else CANDIDATE_PALETTES_PATH
 
     @property
@@ -228,26 +202,17 @@ class Store:
     def save_candidates(self, rules):
         save_candidates(rules, self.candidates_file)
 
-    def append_interesting(self, rule, colorset=None, colors=None):
-        append_interesting(rule, self.keeper_file, colorset, colors)
-
-    def load_interesting_pairs(self):
-        return load_interesting_pairs(self.keeper_file)
-
-    def load_interesting(self):
-        return load_interesting(self.keeper_file)
-
     def load_color_sets(self):
-        return load_color_sets(self.colorsets_file)
+        return load_color_sets(self.library_file)
 
     def load_color_set_file(self):
-        return load_color_set_file(self.colorsets_file)
+        return load_color_set_file(self.library_file)
 
     def save_color_set_file(self, file):
-        save_color_set_file(file, self.colorsets_file)
+        save_color_set_file(file, self.library_file)
 
     def load_candidate_palettes(self):
         return load_candidate_palettes(self.candidate_palettes_file)
 
     def save_color_sets(self, sets):
-        save_color_sets(sets, self.colorsets_file)
+        save_color_sets(sets, self.library_file)

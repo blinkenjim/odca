@@ -1,0 +1,27 @@
+odca: one-dimensional cellular automata as art
+
+usage: odca <file.odca> [--shuffle]
+       odca --help
+
+Plays the looks in an odca file, one at a time, looping. A look is a rule
+with a color set; odca-select composes them. Each look gets two minutes of
+screen time, re-seeding in place whenever it goes boring; then it hands
+over after a quiet minute or at the next re-seed, and the next look grows
+in from a fresh field below the old rows, which keep their colors.
+
+  --shuffle   play the looks in random order instead of file order (each
+              pass is a fresh shuffle that does not repeat the last look)
+
+Keys:
+  q     quit                            space   pause / resume
+  N / P next / previous look by hand    return  single step while paused
+  i     re-seed the cells               s       while paused: one screenful
+  a     toggle auto-init (on at start)  + / -   faster / slower
+  r     new screened random rule        m       mutate one rule entry
+  u     undo the last rule change       n / p   as N / P
+  0-9   color set (the hot ten)         [ / ]   walk the whole color set pool
+  c / C arrange colors forward / back
+
+Files: the odca file named on the command line is read only; color sets
+come from library.json at the repository root; ~/.odca/ holds the current
+rule and the candidate stash.

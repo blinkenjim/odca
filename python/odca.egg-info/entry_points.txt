@@ -1,0 +1,3 @@
+[console_scripts]
+odca = odca.play:main
+odca-select = odca.select:main

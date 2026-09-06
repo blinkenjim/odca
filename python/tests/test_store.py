@@ -1,7 +1,7 @@
 import numpy as np
 
 from odca.automaton import Rule
-from odca.store import append_interesting, load_interesting, load_rule, save_rule
+from odca.store import load_odca_file, load_rule, save_odca_file, save_rule
 
 
 def test_save_and_load_round_trip(tmp_path):
@@ -21,40 +21,28 @@ def test_load_corrupt_file_returns_none(tmp_path):
     assert load_rule(path) is None
 
 
-def test_append_interesting_writes_pairs(tmp_path):
-    from odca.store import load_interesting_pairs
-    path = tmp_path / "interesting-rules.json"
-    rule = Rule.random(np.random.default_rng(6))
-    append_interesting(rule, path)  # default color set
-    append_interesting(rule, path, "Mine", ["#000000", "#111111", "#222222", "#333333"])
-    pairs = load_interesting_pairs(path)
-    assert [p["rule"] for p in pairs] == [rule.id, rule.id]
-    assert pairs[0]["colorset"] == "ODCA default" and pairs[1]["colors"][3] == "#333333"
-    assert path.read_text().startswith('{\n "pairs": [\n  {\n   "rule": "')
+def test_odca_file_round_trip_and_layout(tmp_path):  # PT-8
+    path = tmp_path / "looks.odca"
+    rng = np.random.default_rng(6)
+    looks = [{"rule": Rule.random(rng).id, "colorset": "Mine", "colors": ["#000000", "#111111", "#222222", "#333333"]}
+             for _ in range(3)]
+    save_odca_file(looks, path)
+    assert load_odca_file(path) == looks
+    assert path.read_text().startswith('{\n "looks": [\n  {\n   "rule": "')
 
 
-def test_load_interesting_round_trip(tmp_path):
-    path = tmp_path / "interesting-rules.json"
-    rng = np.random.default_rng(7)
-    rules = [Rule.random(rng) for _ in range(3)]
-    for rule in rules:
-        append_interesting(rule, path)
-    assert load_interesting(path) == rules
-
-
-def test_load_interesting_skips_invalid_pairs(tmp_path):
-    path = tmp_path / "interesting-rules.json"
+def test_odca_file_skips_invalid_looks(tmp_path):  # PT-8
+    path = tmp_path / "looks.odca"
     rule = Rule.random(np.random.default_rng(8))
-    path.write_text('{"pairs": [{"rule": "notarule", "colorset": "x", "colors": ["#000000"]*4}, '
-                    f'{{"rule": "{rule.id}", "colorset": "ok", "colors": ["#000000", "#000000", "#000000", "#000000"]}}]}}'
-                    .replace('["#000000"]*4', '["#000000", "#000000", "#000000", "#000000"]'))
-    assert load_interesting(path) == [rule]
-    path.write_text(f"rule {rule.id}\n")  # the old text format is no longer read
-    assert load_interesting(path) == []
+    path.write_text('{"looks": [{"rule": "notarule", "colorset": "x", "colors": ["#000000", "#000000", "#000000", "#000000"]}, '
+                    f'{{"rule": "{rule.id}", "colorset": "ok", "colors": ["#000000", "#000000", "#000000", "#000000"]}}]}}')
+    assert [p["rule"] for p in load_odca_file(path)] == [rule.id]
+    path.write_text(f'{{"pairs": [{{"rule": "{rule.id}", "colorset": "old", "colors": ["#000000", "#000000", "#000000", "#000000"]}}]}}')
+    assert load_odca_file(path) == []  # the 2.x "pairs" key is no longer read
 
 
-def test_load_interesting_missing_file(tmp_path):
-    assert load_interesting(tmp_path / "nope") == []
+def test_odca_file_missing_reads_as_none(tmp_path):
+    assert load_odca_file(tmp_path / "nope.odca") is None
 
 
 def test_save_overwrites_previous(tmp_path):
@@ -113,19 +101,15 @@ def test_candidate_palettes_load_and_skip_malformed(tmp_path):  # PT-27
     assert load_candidate_palettes(tmp_path / "missing.json") == []
 
 
-def test_screensaver_file_round_trip(tmp_path):  # PT-29
-    from odca.store import load_screensaver, save_screensaver
-    path = tmp_path / "saver.json"
-    assert load_screensaver(path) is None  # missing
-    save_screensaver([], path)
-    assert path.read_text() == '{\n "pairs": []\n}\n'
-    assert load_screensaver(path) == []
+def test_odca_file_edge_cases(tmp_path):  # PT-29
+    path = tmp_path / "saver.odca"
+    save_odca_file([], path)
+    assert path.read_text() == '{\n "looks": []\n}\n'
+    assert load_odca_file(path) == []
     rule = Rule.random(np.random.default_rng(9))
-    pairs = [{"rule": rule.id, "colorset": 'Say "hi"', "colors": ["#000000", "#111111", "#222222", "#333333"]}]
-    save_screensaver(pairs, path)
-    assert load_screensaver(path) == pairs
+    looks = [{"rule": rule.id, "colorset": 'Say "hi"', "colors": ["#000000", "#111111", "#222222", "#333333"]}]
+    save_odca_file(looks, path)
+    assert load_odca_file(path) == looks
     assert '\\"hi\\"' in path.read_text()
-    path.write_text('{"pairs": [{"rule": "notarule", "colorset": "x", "colors": ["#000000", "#000000", "#000000", "#000000"]}]}')
-    assert load_screensaver(path) == []
     path.write_text("{not json")
-    assert load_screensaver(path) == []
+    assert load_odca_file(path) == []

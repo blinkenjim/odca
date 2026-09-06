@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "odca"
+description = "One-dimensional cellular automata as art: the odca player and the odca-select workbench"
+requires-python = ">=3.9"
+dynamic = ["version"]
+dependencies = ["numpy", "pygame"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+odca = "odca.play:main"
+odca-select = "odca.select:main"
+
+[tool.setuptools]
+packages = ["odca"]
+
+[tool.setuptools.dynamic]
+version = {attr = "odca.__version__"}

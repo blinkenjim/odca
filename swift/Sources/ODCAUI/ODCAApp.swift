@@ -55,23 +55,13 @@ struct ContentView: View {
     }
 }
 
-/// The process entry: `--help` prints the shared text and exits before any
-/// state is read, any worker started, or any window opened (R-U9).
-@main
-enum Main {
-    static func main() {
-        if CommandLine.arguments.dropFirst().contains("--help") {
-            print(helpText, terminator: "")
-            exit(0)
-        }
-        ODCAApp.main()
-    }
-}
-
-struct ODCAApp: App {
+/// The SwiftUI app; `launch` (Launch.swift) bootstraps the model and calls `main()`.
+public struct ODCAApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
-    var body: some Scene {
+    public init() {}
+
+    public var body: some Scene {
         WindowGroup {
             ContentView(model: ViewerModel.shared)
         }
