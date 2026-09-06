@@ -81,6 +81,25 @@ script design.
       the frame then uploads once per refresh instead of being scaled on
       the CPU. Needs the Pi to decide; ask what the glitches look like
       (horizontal tears vs stutters).
+- [ ] Art installation target (user, 2026-09-06): `odca` full screen on a
+      1080p monitor in portrait, 1080 wide by 1920 tall, most likely on
+      the Pi 5. At cell 4 that is a 270 x 480 grid: a narrow automaton
+      and a tall screen. Implications to settle: (1) launching full
+      screen unattended (kiosk item below, or a flag) since there is no
+      hand for the green button; (2) the screenful-based windows (R-A1,
+      R-K13/14, R-X) scale with `rows` = 480, so repetition looks back
+      4800 rows and stagnation 1920 — check the detectors still fire at
+      the right moment on a tall screen, or size those windows in cells
+      rather than screens; (3) whether 4 px cells are right on a 1080-wide
+      portrait panel viewed from gallery distance (a cell size option is
+      a spec change, R-U2 says "not yet adjustable"); (4) the display
+      rotation is the OS's job; (5) the Pi stutters (user, 2026-09-06:
+      "stutters more than tears"): at 1080 x 1920 the CPU path scales two
+      million pixels per frame, the strongest reason yet for the GPU
+      display path above; also the background search takes cpu_count - 1
+      workers (three of the Pi's four cores) until the stash fills, and
+      each worker process carries a numpy import, which on 1 GB matters —
+      consider fewer workers, or none, in play mode on small machines.
 - [ ] Window size and position memory for pygame (R-U2 "may"): SDL has no
       frame autosave; would be a file under `~/.odca/`.
 - [ ] Shuffle constraints for `odca --shuffle` (user, 2026-09-05: "subject
