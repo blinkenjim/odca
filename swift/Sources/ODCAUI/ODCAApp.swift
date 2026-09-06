@@ -2,6 +2,8 @@ import SwiftUI
 import ODCAKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// `odca --fullscreen`: enter full screen as soon as the window exists (R-U2).
+    nonisolated(unsafe) static var fullScreenAtLaunch = false
     private var observers: [Any] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -22,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 window.contentResizeIncrements = NSSize(width: ViewerModel.cellSize, height: ViewerModel.cellSize)
                 window.collectionBehavior.insert(.fullScreenPrimary)
                 window.setFrameAutosaveName("ODCA main window")
+                if AppDelegate.fullScreenAtLaunch { window.toggleFullScreen(nil) }
             }
         }
     }

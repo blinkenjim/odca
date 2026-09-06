@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.2.0 — 2026-09-06
+Version 3.4.0 — 2026-09-06
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -110,7 +110,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-32 | R-U8 | After 40 generations at 32 × 16: narrowing to 20 keeps the middle 20 cells of the live row and of every remembered row, keeps the history, resets the boring count, and prints `resized 20x16`; widening to 30 keeps those 20 centered with state-0 padding in old rows and random cells in the live row; a taller window shows the last rows + 1 remembered rows; a no-op resize returns false; sizes clamp to the minimum. The history never exceeds 2048 rows. |
 | PT-34 | R-K5, R-B2, R-B3 | In `odca-select`, `S` appends the current rule with the active set's name and arranged colors and prints it; `n` onto that look restores both the rule and the colors; stepping onto the unsaved slot restores the unsaved rule with the set that was active when it arrived. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
-| PT-35 | R-U9 | Each program's embedded help text equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1. |
+| PT-35 | R-U9 | Each program's embedded help text equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1; `odca` accepts `--shuffle` and `--fullscreen` in either position and `odca-select` rejects both as unknown. |
 | PT-37 | R-U4, R-P4 | The digit-bound sets of the shipped `library.json` equal the R-U4 table of `REQTS.md`: same slots, names, and colors in state order. |
 | PT-36 | R-X1 | With six looks and `--shuffle`: six steps play every look exactly once; the next six form a fresh permutation whose first look differs from the previous pass's last; `P` steps back within the pass; without the flag the order is file order. |
 
@@ -153,7 +153,8 @@ from `REQTS.md`.
   taller uncovers older rows; the animation freezes during the drag and
   resumes without a burst; full screen centers the grid with thin
   background margins and hides the pointer; the size and position return
-  on relaunch (R-U2, R-U8).
+  on relaunch; `odca <file> --fullscreen` opens full screen at once with
+  the pointer hidden, and the platform's control leaves it (R-U2, R-U8).
 
 ---
 

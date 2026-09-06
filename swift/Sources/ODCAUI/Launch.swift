@@ -34,9 +34,11 @@ public func parseArguments(program: String, help: String, flags: [String] = []) 
 
 /// Open the window on a session built by `make` (called once, on the main
 /// actor, with the default geometry) and run the app until it quits.
+/// `fullScreen` opens the window full screen at launch (`--fullscreen`, R-U2).
 @MainActor
-public func launch(_ make: @escaping (_ cols: Int, _ rows: Int) -> Session) {
+public func launch(fullScreen: Bool = false, _ make: @escaping (_ cols: Int, _ rows: Int) -> Session) {
     ViewerModel.bootstrap { make(ViewerModel.defaultCols, ViewerModel.defaultRows) }
+    AppDelegate.fullScreenAtLaunch = fullScreen
     // AppKit treats unknown command-line arguments as documents to open, and
     // SwiftUI then shows no default window (it expects a DocumentGroup to
     // take the file). Our argument is ours, not a document (3.0.0 shipped

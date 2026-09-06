@@ -9,7 +9,7 @@ All commands below run from this `swift/` directory.
 ## Run
 
 ```sh
-swift run -c release odca ../interesting.odca          # play a file of looks (--shuffle optional)
+swift run -c release odca ../interesting.odca          # play a file of looks (--shuffle, --fullscreen optional)
 swift run -c release odca-select ../my-looks.odca      # compose looks into a file
 ```
 

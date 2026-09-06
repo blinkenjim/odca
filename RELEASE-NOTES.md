@@ -5,6 +5,18 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.4.0 (Swift) and 3.5.0 (Python) — 2026-09-06
+
+Step two for the portrait installation: `odca <file> --fullscreen` opens
+full screen at launch, pointer hidden, no hand needed. Leaving it is the
+platform's own control as before (the green button or its shortcut on
+the Mac; on the Pi, whatever the window manager offers, or `q`).
+`odca-select` does not take the flag. Help text updated on both sides.
+
+That is all this release does. Kiosk mode, which would also lock the
+keyboard, stays on the list. Step three, the boring detector windows on
+a 480-row screen, waits for the Pi.
+
 ## 3.2.0 (Swift) and 3.3.0 (Python) — 2026-09-06
 
 Your complaint after the 3.1.1 test: pressing `N` in `odca` recolored

@@ -1,7 +1,9 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-06):** Spec 3.2.0, Swift 3.2.0, Python 3.3.0:
-rows keep their colors for good in `odca` (per-row palette table; the
+**YOU ARE HERE (2026-09-06):** Spec 3.4.0, Swift 3.4.0, Python 3.5.0:
+`odca --fullscreen`, step two of three for the portrait installation
+(step three, the detector windows on a 480-row screen, waits for the
+user's Pi). Before that, 3.2.0 / 3.3.0: rows keep their colors for good in `odca` (per-row palette table; the
 two-bank limitation is gone), after the user saw `N` recolor the whole
 screen. The 3.1.1 test verdict on the Mac: "velvety smooth at slow
 speeds and blasts the frames out at high speed". Before that, Python
@@ -93,9 +95,8 @@ script design.
 - [ ] Art installation target (user, 2026-09-06): `odca` full screen on a
       1080p monitor in portrait, 1080 wide by 1920 tall, most likely on
       the Pi 5. At cell 4 that is a 270 x 480 grid: a narrow automaton
-      and a tall screen. Implications to settle: (1) launching full
-      screen unattended (kiosk item below, or a flag) since there is no
-      hand for the green button; (2) the screenful-based windows (R-A1,
+      and a tall screen. Implications to settle: (1) DONE 3.4.0/3.5.0:
+      `odca --fullscreen`; (2) the screenful-based windows (R-A1,
       R-K13/14, R-X) scale with `rows` = 480, so repetition looks back
       4800 rows and stagnation 1920 — check the detectors still fire at
       the right moment on a tall screen, or size those windows in cells

@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.2.0 — 2026-09-06
+Version 3.4.0 — 2026-09-06
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -43,7 +43,7 @@ color sets file `library.json` — R-U1, R-U9, R-K5, R-K16, section 4, R-P3,
 R-P4, R-P5 merged, R-O3–R-O5, R-O12, R-O13, section 10; color set review
 (section 4b) is bound by no program. 3.2.0: rows keep their colors for
 good, however many color changes share a screenful — R-X5, the two-bank
-limitation withdrawn.)
+limitation withdrawn. 3.4.0: `odca --fullscreen` — R-U2, section 10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -177,7 +177,10 @@ increments of `cell_size`); where a remainder is unavoidable (full screen)
 the grid is centered and the margins are painted in the state-0 color.
 The window may remember its last size and position through the
 platform's standard mechanism. In full screen the mouse pointer is
-hidden, and shown again on leaving. The automaton's width equals `cols`.
+hidden, and shown again on leaving. `odca --fullscreen` opens the window
+full screen at launch, for unattended runs (an installation, a kiosk);
+leaving full screen is the platform's own control, as entering it is
+without the flag. The automaton's width equals `cols`.
 
 **R-U3 (scrolling).** The display shows the most recent generations as
 horizontal rows, newest at the bottom of the filled region. A history
@@ -854,8 +857,8 @@ loses one update (loaders already tolerate malformed content, R-P).
 ## 10. Explicit non-requirements
 
 - The command line is one positional argument, the odca file, plus
-  `--help` (R-U9) and, for `odca`, `--shuffle` (R-X1); no configuration
-  files or menus. No other flags exist in 3.0.0 (the 2.x developer flags
+  `--help` (R-U9) and, for `odca`, `--shuffle` (R-X1) and `--fullscreen`
+  (R-U2); no configuration files or menus. No other flags exist (the 2.x developer flags
   `--colorset-review`, `--screensaver-review`, `--consistency-check`, and
   `--screensaver` are gone: the last two became `odca-select` and `odca`,
   the consistency check became `R`, and color set review is on hold).

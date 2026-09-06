@@ -3,13 +3,13 @@ import Foundation
 import ODCAKit
 import ODCAUI
 
-let (file, flags) = parseArguments(program: "odca", help: helpOdca, flags: ["--shuffle"])
+let (file, flags) = parseArguments(program: "odca", help: helpOdca, flags: ["--shuffle", "--fullscreen"])
 guard FileManager.default.fileExists(atPath: file.path) else {  // R-X1: the file must exist
     print("error: \(file.path) does not exist")
     exit(1)
 }
 MainActor.assumeIsolated {  // top-level code of an executable runs on the main thread
-    launch { cols, rows in
+    launch(fullScreen: flags.contains("--fullscreen")) { cols, rows in  // R-U2
         Session(cols: cols, rows: rows, playFile: file, shuffle: flags.contains("--shuffle"))
     }
 }

@@ -4,7 +4,7 @@
 public let helpOdca = """
 odca: one-dimensional cellular automata as art
 
-usage: odca <file.odca> [--shuffle]
+usage: odca <file.odca> [--shuffle] [--fullscreen]
        odca --help
 
 Plays the looks in an odca file, one at a time, looping. A look is a rule
@@ -13,8 +13,10 @@ screen time, re-seeding in place whenever it goes boring; then it hands
 over after a quiet minute or at the next re-seed, and the next look grows
 in from a fresh field below the old rows, which keep their colors.
 
-  --shuffle   play the looks in random order instead of file order (each
-              pass is a fresh shuffle that does not repeat the last look)
+  --shuffle     play the looks in random order instead of file order (each
+                pass is a fresh shuffle that does not repeat the last look)
+  --fullscreen  open the window full screen, for unattended runs; the
+                platform's own control leaves it, as it entered it before
 
 Keys:
   q     quit                            space   pause / resume
