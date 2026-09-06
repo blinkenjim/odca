@@ -3,8 +3,8 @@
 All behavior lives in session.py (the toolkit-free orchestration layer);
 this module only opens the window, turns pygame key events into Session
 keys, calls Session.tick once per refresh, and shows the visible slice of
-Session.history through the two-bank palette (Session.palette8,
-Session.row_banks), inverted during a flash. Drawing goes through SDL's
+Session.history through the per-row palette table (Session.palette_table,
+Session.row_palettes), inverted during a flash. Drawing goes through SDL's
 renderer (pygame._sdl2.video): the frame is one small texture, one texel
 per cell, that the GPU scales to the grid and presents in step with the
 display's refresh (R-U5). The window is resizable (R-U2): the grid holds as
@@ -88,13 +88,13 @@ class Viewer:
         """The rows + 1 history rows the display shows, as an RGB array:
         filled rows from the top, background below until the buffer fills."""
         session = self.session
-        palette8 = np.array(session.palette8, dtype=np.uint8)  # two banks of four (R-X5)
+        table = np.array(session.palette_table, dtype=np.uint8)  # (palette, state) -> RGB (R-X5)
         start = session.visible_start
         shown = session.history[start:]
-        banks = session.row_banks[start:]
+        palettes = session.row_palettes[start:]
         rgb = np.empty((session.rows + 1, session.cols, 3), dtype=np.uint8)
         rgb[:] = session.palette[0]
-        rgb[:len(shown)] = palette8[banks[:, None].astype(np.int64) * 4 + shown]
+        rgb[:len(shown)] = table[palettes[:, None].astype(np.int64) * 4 + shown]
         if session.inverted:  # R-U10: a brief inversion as a mode cue
             rgb = 255 - rgb
         return rgb

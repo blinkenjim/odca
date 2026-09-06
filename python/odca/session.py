@@ -4,7 +4,7 @@ Everything the two programs do except rendering pixels and reading raw key
 events lives here, so it runs headlessly in tests and the pygame layer
 (viewer.py) stays thin. The UI translates toolkit key events into the
 single-character keys below, calls tick(dt) at its refresh rate, and draws
-`history` through `palette8` and `row_banks` (inverted while `inverted`).
+`history` through `palette_table` and `row_palettes` (inverted while `inverted`).
 
 Programs (spec sections 4c, 4d), selected at construction:
     select_file   odca-select: compose looks (rule + color set) in an odca
@@ -78,6 +78,7 @@ PLAY_TIMEOUT = 120.0  # odca: a look's screen time before it may advance (R-X2)
 PLAY_GRACE = 60.0  # odca: no transition within this long of an initialization (R-X3)
 FLASH_SECONDS = 0.25  # the screen inverts this long as a mode cue (R-U10)
 HISTORY_DEPTH = 2048  # rows remembered beyond the screen (R-U8)
+PALETTE_LIMIT = 64  # odca: prune the per-row palette table past this many entries (R-X5)
 MIN_COLS = 3  # R-M2
 
 KEY_SPACE = " "
@@ -112,16 +113,18 @@ class Session:
         # Remembered generations, oldest first, up to HISTORY_DEPTH (never
         # fewer than rows + 1). The display shows the last rows + 1: one more
         # than the window, so continuous scrolling has a row to slide in; a
-        # taller window uncovers older rows (R-U8). `history` and `row_banks`
-        # (the palette bank each row was painted from, R-X5) are views into
-        # a buffer twice the depth, compacted once it runs out, so a push is
-        # a single row write.
+        # taller window uncovers older rows (R-U8). `history` and
+        # `row_palettes` (the palette each row was painted with, R-X5) are
+        # views into a buffer twice the depth, compacted once it runs out, so
+        # a push is a single row write.
         self._buf = np.zeros((2 * self._keep(), cols), dtype=np.uint8)
-        self._buf_banks = np.zeros(2 * self._keep(), dtype=np.uint8)
+        self._buf_palettes = np.zeros(2 * self._keep(), dtype=np.uint16)
         self._end = 0  # one past the newest row in the buffers
         self._count = 0  # rows remembered
-        self._bank = 0
-        self._banks = None  # two banks of four hex colors, once play mode paints a row
+        # odca (R-X5): the color sets rows were painted with, as hex lists;
+        # row_palettes indexes this table. Other modes use one entry, index 0.
+        self._palettes = []
+        self._palette_index = 0
         self.delay = INITIAL_DELAY
         self.paused = False
         self.screen_remaining = 0  # generations still to zip after a paused 's'
@@ -254,16 +257,17 @@ class Session:
         return [_rgb(c) for c in self._current_hex()]
 
     @property
-    def palette8(self):
-        """Two banks of four (R-X5); outside odca both are the active set."""
-        if self.play_mode and self._banks is not None:
-            return [_rgb(c) for c in self._banks[0] + self._banks[1]]
-        p = self.palette
-        return p + p
+    def palette_table(self):
+        """RGB for every (palette, state) as one list, entry palette * 4 + state
+        (R-X5). Outside odca there is one palette, the active set, so the
+        whole screen recolors at once."""
+        if self.play_mode and self._palettes:
+            return [_rgb(c) for p in self._palettes for c in p]
+        return self.palette
 
     def color(self, row, col):
-        """Display color of a history cell: its state through its row's bank."""
-        return self.palette8[int(self.row_banks[row]) * 4 + int(self.history[row][col])]
+        """Display color of a history cell: its state through its row's palette."""
+        return self.palette_table[int(self.row_palettes[row]) * 4 + int(self.history[row][col])]
 
     # ----------------------------------------------------------------- history
 
@@ -276,9 +280,9 @@ class Session:
         return self._buf[self._end - self._count:self._end]
 
     @property
-    def row_banks(self):
-        """Palette bank (0 or 1) each history row was painted from (R-X5)."""
-        return self._buf_banks[self._end - self._count:self._end]
+    def row_palettes(self):
+        """Index into palette_table of the palette each history row was painted with (R-X5)."""
+        return self._buf_palettes[self._end - self._count:self._end]
 
     @property
     def filled(self):
@@ -320,14 +324,14 @@ class Session:
                     self.rng.integers(0, N_STATES, pad[0], dtype=np.uint8),
                     self.automaton.cells,
                     self.rng.integers(0, N_STATES, pad[1], dtype=np.uint8)))
-            banks = self.row_banks.copy()
+            palettes = self.row_palettes.copy()
             self.cols = cols
             self.rows = rows
             self._buf = np.zeros((2 * self._keep(), cols), dtype=np.uint8)
-            self._buf_banks = np.zeros(2 * self._keep(), dtype=np.uint8)
+            self._buf_palettes = np.zeros(2 * self._keep(), dtype=np.uint16)
             self._end = self._count = 0
-            for row, bank in zip(fitted, banks):
-                self._append(row, bank)
+            for row, index in zip(fitted, palettes):
+                self._append(row, index)
             self.automaton.width = cols
             self.automaton.cells = np.ascontiguousarray(cells)
             if self._count:
@@ -339,14 +343,14 @@ class Session:
         print(f"resized {self.cols}x{self.rows}")  # R-O14
         return True
 
-    def _append(self, row, bank):
+    def _append(self, row, palette):
         if self._end == len(self._buf):  # out of room: slide the kept rows to the front
             keep = min(self._count, self._keep())
             self._buf[:keep] = self._buf[self._end - keep:self._end]
-            self._buf_banks[:keep] = self._buf_banks[self._end - keep:self._end]
+            self._buf_palettes[:keep] = self._buf_palettes[self._end - keep:self._end]
             self._end, self._count = keep, keep
         self._buf[self._end] = row
-        self._buf_banks[self._end] = bank
+        self._buf_palettes[self._end] = palette
         self._end += 1
         self._count += 1
         self._trim_history()
@@ -439,15 +443,32 @@ class Session:
 
     def _push(self, row):
         if self.play_mode:
-            # R-X5: a new color set takes the idle bank; rows already on
-            # screen keep theirs until they scroll off.
+            # R-X5: a row keeps the colors it was painted with. A changed
+            # active set becomes a new table entry for the rows from now on.
             current = self._arranged_active_colors()
-            if self._banks is None:
-                self._banks = [list(current), list(current)]
-            elif current != self._banks[self._bank]:
-                self._bank ^= 1
-                self._banks[self._bank] = list(current)
-        self._append(row, self._bank)
+            if not self._palettes:
+                self._palettes.append(list(current))
+            elif current != self._palettes[self._palette_index]:
+                if current in self._palettes:  # a set seen before: share its entry
+                    self._palette_index = self._palettes.index(current)
+                else:
+                    if len(self._palettes) >= PALETTE_LIMIT:
+                        self._prune_palettes()
+                    self._palettes.append(list(current))
+                    self._palette_index = len(self._palettes) - 1
+        self._append(row, self._palette_index)
+
+    def _prune_palettes(self):
+        """Drop table entries no remembered row uses any more, renumbering the rest."""
+        used = set(int(i) for i in np.unique(self.row_palettes)) | {self._palette_index}
+        keep = sorted(used)
+        lut = np.zeros(len(self._palettes), dtype=np.uint16)
+        for new, old in enumerate(keep):
+            lut[old] = new
+        view = self._buf_palettes[self._end - self._count:self._end]
+        view[:] = lut[view]
+        self._palettes = [self._palettes[i] for i in keep]
+        self._palette_index = int(lut[self._palette_index])
 
     def _fill_screen(self):
         """Compute a screenful at once so a navigation shows only the new state (R-V7, R-W8)."""

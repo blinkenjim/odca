@@ -776,11 +776,11 @@ def test_play_in_order_and_loops(make_store, odca_file, capsys):  # PT-31
     assert s.look_index == 1
     assert s.play_elapsed < 1
     assert s.palette[0] == rgb("#141414")
-    banks = list(s.row_banks)
-    first_b = banks.index(1)
-    assert banks[first_b - 1] == 0 and banks[-1] == 1  # R-X5
+    palettes = list(s.row_palettes)
+    first_b = palettes.index(1)
+    assert palettes[first_b - 1] == 0 and palettes[-1] == 1  # R-X5
     assert s.color(first_b - 1, 0) == rgb("#0A0A0A")
-    assert s.palette8[0] == rgb("#0A0A0A") and s.palette8[4] == rgb("#141414")
+    assert s.palette_table[0] == rgb("#0A0A0A") and s.palette_table[4] == rgb("#141414")
     assert "look 2/2 B (repeating (period 1))" in capsys.readouterr().out
     s.tick(PLAY_TIMEOUT)  # loops back to look 1
     assert s.look_index == 0
@@ -960,9 +960,51 @@ def test_history_depth_is_bounded(make_store):  # PT-32, R-U8
     for _ in range(3):
         s.tick(1.0)  # well past the depth (2000 steps per tick cap)
     assert s.history.shape == (HISTORY_DEPTH, 32)
-    assert len(s.row_banks) == HISTORY_DEPTH
+    assert len(s.row_palettes) == HISTORY_DEPTH
     newest = s.history[-1].copy()
     s.tick(s.delay)  # one more: the oldest row leaves, the newest is the live row
     assert s.history.shape == (HISTORY_DEPTH, 32)
     assert list(s.history[-2]) == list(newest)
     assert list(s.history[-1]) == list(s.automaton.cells)
+
+
+def test_rows_keep_their_colors_through_quick_transitions(make_store, odca_file, capsys):  # PT-31, R-X5
+    from odca.session import PALETTE_LIMIT
+    store = review_store(make_store)
+    file = odca_file(name="saver.odca")
+    save_odca_file([{"rule": ALL_ZERO.id, "colorset": n, "colors": grey(v)}
+                    for n, v in (("A", 10), ("B", 20), ("C", 30))], file)
+    s = make_session(store, play_file=file)
+    s.handle_key("a")
+
+    def painted(lo, hi, colors):
+        for row in range(lo, hi):
+            assert s.color(row, 0) == rgb(colors[int(s.history[row][0])]), row
+
+    for _ in range(3):
+        s.tick(s.delay)
+    rows_a = s.filled
+    s.handle_key("N")  # look 2, well within the screenful
+    for _ in range(3):
+        s.tick(s.delay)
+    rows_ab = s.filled
+    s.handle_key("N")  # look 3: a third color set on one screen
+    for _ in range(3):
+        s.tick(s.delay)
+    painted(0, rows_a, grey(10))
+    painted(rows_a, rows_ab, grey(20))
+    painted(rows_ab, s.filled, grey(30))
+    assert len(s.palette_table) == 12  # three palettes
+    s.handle_key("N")  # back to look 1: its palette is shared, not duplicated
+    s.tick(s.delay)
+    assert len(s.palette_table) == 12
+    # Many distinct palettes (arrangements of each set) pass the table's limit:
+    # it is pruned to what remembered rows still use, and no row changes color.
+    for i in range(PALETTE_LIMIT + 10):
+        s.handle_key("N")  # the look shows its baked colors, arrangement 1
+        for _ in range(i % 23 + 1):
+            s.handle_key("c")  # then a different arrangement each time round
+        s.tick(s.delay)
+    painted(0, rows_a, grey(10))
+    painted(rows_a, rows_ab, grey(20))
+    assert 4 * PALETTE_LIMIT < len(s.palette_table) <= 4 * s.filled

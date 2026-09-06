@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.1.1 — 2026-09-06 (drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.3.0 — 2026-09-06 (per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -57,7 +57,7 @@ copy these choices, but they are known to work.
   that is compacted once it runs out, so a push is one row write and the
   view is never copied; `Session.visible_start` indexes the last
   `rows + 1` rows (R-U8). `Viewer.frame` looks those up through the
-  two-bank palette (background below them until the buffer fills) as a
+  per-row palette table (background below them until the buffer fills) as a
   `(rows + 1, cols, 3)` array. `Viewer.draw` uploads it into one
   streaming `Texture` of SDL's renderer (`pygame._sdl2.video`; one texel
   per cell, remade when the grid changes) and draws the texture stretched
@@ -123,9 +123,13 @@ copy these choices, but they are known to work.
   name through `Store.load_color_set_file`/`save_color_set_file`. Paths are
   anchored to `library.json` and `colorsets/candidates.json` at
   the repo root, injectable for tests (`Store(candidates_file=...)`).
-  `Session.palette8` and `Session.row_banks` give the two-bank palette of
-  R-X5; `viewer.py` indexes `palette8[row_banks * 4 + history]` each frame
-  (outside screensaver mode both banks are the active set). `map_key` takes
+  `Session.palette_table` and `Session.row_palettes` carry R-X5: each
+  history row records an index into the table of color sets rows have
+  been painted with (uint16, in the same compacting buffer as the rows);
+  in play mode `_push` appends a changed active set, reuses an identical
+  entry, and prunes unused entries past `PALETTE_LIMIT` (64); other modes
+  have one entry. `viewer.py` indexes `table[row_palettes * 4 + history]`
+  each frame. `map_key` takes
   the pygame key code plus `event.unicode` so `S`, `C`, `N`, `P`, `X`, `[`,
   and `]` arrive as typed.
 - **`--help` and arguments** (R-U9): `odca/help.py` holds `HELP_ODCA` and
