@@ -55,6 +55,10 @@ implementation's normal test suite. Reference:
 Coverage: R-M1–R-M9 (engine), including permutation invariance (paired
 reversed-row cases) and both edge modes.
 
+**File:** `library.json` — the shipped digit-bound sets must equal the
+R-U4 table of `REQTS.md`, slot by slot, name and colors; the reference
+suite parses the table and compares (PT-37).
+
 **Files:** `conformance/help-odca.txt` and `conformance/help-odca-select.txt`
 — the normative `--help` texts (R-U9), printed byte for byte by every
 implementation. Editing one is a spec change (bump `REQTS.md`). Each
@@ -107,6 +111,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-34 | R-K5, R-B2, R-B3 | In `odca-select`, `S` appends the current rule with the active set's name and arranged colors and prints it; `n` onto that look restores both the rule and the colors; stepping onto the unsaved slot restores the unsaved rule with the set that was active when it arrived. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
 | PT-35 | R-U9 | Each program's embedded help text equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1. |
+| PT-37 | R-U4, R-P4 | The digit-bound sets of the shipped `library.json` equal the R-U4 table of `REQTS.md`: same slots, names, and colors in state order. |
 | PT-36 | R-X1 | With six looks and `--shuffle`: six steps play every look exactly once; the next six form a fresh permutation whose first look differs from the previous pass's last; `P` steps back within the pass; without the flag the order is file order. |
 
 ---

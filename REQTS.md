@@ -202,8 +202,9 @@ slots exist, bound to the digit keys `0`–`9`, loaded at startup from the
 shared library (R-P4); a slot the file does not define is
 undefined, and selecting it is a silent no-op. Slot 1 is the built-in
 default, `ODCA default`, defined even without the file, and is active at
-startup. The file as shipped (3.0.1; the file is authoritative and
-review sessions rewrite it, so this table is informative) defines:
+startup. The shipped file must define exactly these digit-bound sets
+(this table is normative; a review session that changes the slots is a
+spec change made here, and a test holds the file to the table):
 
 | slot | name | state 0 | state 1 | state 2 | state 3 |
 |------|------|---------|---------|---------|---------|
