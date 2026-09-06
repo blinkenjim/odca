@@ -155,7 +155,31 @@ viewer sees. Roadmap, roughly in order:
       between combinations, and perhaps at auto-init.
 - [ ] Layered ODCA: let some colors be transparent so another ODCA
       "beneath" shows through; possibly different color sets and even
-      different execution rates per layer.
+      different execution rates per layer. Scriptable blend modes between
+      layers (user, 2026-09-06), not only alpha. Note for the Pi: layers
+      that share the cell grid can be composed at cell resolution (tens of
+      thousands of cells, one numpy expression) and scaled once, so plain
+      alpha layering is cheap on the CPU; per-pixel blend modes on the
+      full window and the final scale are what want the GPU. See the
+      display path item below.
+- [ ] Overlay band (user, 2026-09-06): white text over a smoke-gray,
+      semi-transparent background across the top of the screen, for the
+      screensaver (what it says is open: rule, look, script state).
+      pygame can do it on the CPU (a font surface and an alpha blit of a
+      full-width band are a fraction of a millisecond, even on a Pi 5);
+      on Swift it is a CATextLayer over the grid layer. Belongs to the
+      script design: the band is a scripted element, not a key.
+- [ ] GPU display path for Python (user, 2026-09-06, anticipating layers,
+      blend modes, and the overlay on a Pi 5): render through SDL's
+      renderer (`pygame._sdl2.video` `Renderer` + streaming `Texture`s,
+      experimental API in pygame 2.6 but stable in practice) so each
+      layer and the overlay is a texture composed by the GPU with vsync,
+      hardware scaling, and SDL's blend modes (blend, add, modulate,
+      multiply) for free; the automaton stays in numpy. Swift already has
+      this through CALayer compositing (opacity, compositingFilter, a
+      text layer). Do this once, before the modes that need it, and it
+      is also the first fix to try for the Pi glitches (above). Python
+      display change only; spec unaffected until the modes exist.
 - [x] Data flow to match the workflow (user, 2026-09-05; the jq merge of
       two pair files was the last straw). DONE in 3.0.0, with the design
       revised in discussion before building:
