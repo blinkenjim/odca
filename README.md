@@ -49,7 +49,8 @@ git-tagged (`v2.0.0`, `v2.1.0`, …).
 
 ## Using the program
 
-On startup the program loads its previous rule (from `~/.odca/rule`, random
+`odca --help` prints a summary of the flags and keys below (the same text
+from both implementations). On startup the program loads its previous rule (from `~/.odca/rule`, random
 on first run) and initializes all cells to random contents. Rule IDs are
 printed to the terminal at startup and whenever the rule changes.
 

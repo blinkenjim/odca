@@ -1,7 +1,7 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-05):** Swift 2.34.0, Python 2.17.0: at par on
-every special mode. The color set pool is reviewed (30 kept, 16 dropped).
+**YOU ARE HERE (2026-09-05):** Swift 2.36.0, Python 2.19.0: at par on
+every special mode, and `--help` prints the shared help text. The color set pool is reviewed (30 kept, 16 dropped).
 Both have the two workshop modes (`--colorset-review`,
 `--screensaver-review <file>` with `--consistency-check <file>`) and the
 first study of the art itself: `--screensaver <file>` plays pairs

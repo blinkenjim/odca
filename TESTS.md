@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 2.34.0 — 2026-09-05
+Version 2.36.0 — 2026-09-05
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -55,6 +55,11 @@ implementation's normal test suite. Reference:
 Coverage: R-M1–R-M9 (engine), including permutation invariance (paired
 reversed-row cases) and both edge modes.
 
+**File:** `conformance/help.txt` — the normative `--help` text (R-U9),
+printed byte for byte by every implementation. Editing it is a spec change
+(bump `REQTS.md`). Each implementation's suite compares its embedded copy
+to this file.
+
 ---
 
 ## Layer 2: Property tests
@@ -101,6 +106,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-32 | R-U8 | After 40 generations at 32 × 16: narrowing to 20 keeps the middle 20 cells of the live row and of every remembered row, keeps the history, resets the boring count, and prints `resized 20x16`; widening to 30 keeps those 20 centered with state-0 padding in old rows and random cells in the live row; a taller window shows the last rows + 1 remembered rows; a no-op resize returns false; sizes clamp to the minimum. The history never exceeds 2048 rows. |
 | PT-34 | R-K5, R-B2, R-B3 | `s` appends the current rule with the active set's name and arranged colors and prints them; `n` onto that pair restores both the rule and the colors; stepping onto the unsaved slot restores the unsaved rule with the set that was active when it arrived. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
+| PT-35 | R-U9 | The embedded help text equals `conformance/help.txt` byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched. |
 
 ---
 
@@ -128,6 +134,8 @@ from `REQTS.md`.
 - **M-9** At speeds below 30 generations per second the picture slides
   continuously rather than stepping; pausing and resuming produce no
   visible jump (R-U3, R-K10).
+- **M-11** `--help` prints the help text and exits at once, with no
+  window, no toolkit banner, and no change to `~/.odca` (R-U9).
 - **M-10** Dragging the window edge resizes in 4-point steps; the picture
   stays centered while cells appear or vanish at the edges; growing
   taller uncovers older rows; the animation freezes during the drag and

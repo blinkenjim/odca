@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 2.34.0 — 2026-09-05 (color set and screensaver review modes; ahead of Python)
+Version 2.36.0 — 2026-09-05 (`--help`; color set and screensaver review modes, screensaver mode; Python 2.19.0 at par on the modes)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -112,6 +112,13 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   is read and written with the screensaver-file code
   (`loadInterestingPairs`, `appendInteresting(_ pair:)`); `Session.unsavedSet`
   remembers the set shown with the unsaved rule.
+- **`--help`** (R-U9): `ODCAKit.helpText` (`Help.swift`) is a multi-line
+  string literal of `conformance/help.txt`; the literal drops the file's
+  final line break, so the source carries one extra empty line before the
+  closing quotes. The process entry is `@main enum Main` in
+  `ODCAApp.swift`, which prints and exits before `ODCAApp.main()` starts
+  SwiftUI, so no window, `ViewerModel`, or `Session` is created.
+  `HelpTests` compares against the file.
 - **Launch via `swift run -c release odca`** (no app bundle): the app
   delegate sets `NSApp.setActivationPolicy(.regular)` and activates, so the
   window appears and takes keyboard focus. Build release for viewing: the

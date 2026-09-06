@@ -1,6 +1,7 @@
 """Command-line entry point: python -m odca [mode flags]
 
-No flags are needed for ordinary use. Developer / workbench flags (REQTS 4b-4d):
+No flags are needed for ordinary use. --help prints the shared help text (R-U9).
+Developer / workbench flags (REQTS 4b-4d):
     --colorset-review              review the color set pool (N/P step, X drops)
     --screensaver-review <file>    compose a screensaver file of rule/color-set pairs
     --consistency-check <file>     the same on an existing file, viewed grouped by rule
@@ -10,8 +11,7 @@ No flags are needed for ordinary use. Developer / workbench flags (REQTS 4b-4d):
 import sys
 from pathlib import Path
 
-from .session import Session
-from .viewer import Viewer
+from .help import HELP_TEXT
 
 
 def _value(args, flag):
@@ -24,6 +24,11 @@ def _value(args, flag):
 
 def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
+    if "--help" in args:  # R-U9: before any state, search, or window
+        print(HELP_TEXT, end="")
+        sys.exit(0)
+    from .session import Session  # deferred: pygame prints a banner on import
+    from .viewer import Viewer
     review = "--colorset-review" in args
     screensaver = _value(args, "--screensaver-review")
     consistency = _value(args, "--consistency-check")

@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 2.34.0 — 2026-09-05
+Version 2.36.0 — 2026-09-05
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -34,7 +34,8 @@ time per pair — watchdog 180 s with a 60 s grace period — R-X2, R-X3.
 2.30.1: watchdog 120 s. 2.32.0: `[`/`]` walk the whole pool in every
 mode; the active set model everywhere — R-K17, R-K15, R-K16, R-O9,
 R-O10, R-O15. 2.34.0: saved rules carry their presentation; the keeper
-file is a screensaver-format file — R-K5, R-B2, R-B3, R-P3, R-O3, R-O4.)
+file is a screensaver-format file — R-K5, R-B2, R-B3, R-P3, R-O3, R-O4.
+2.36.0: `--help` — R-U9, section 10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -243,6 +244,16 @@ no catch-up.
 
 **R-U7 (shutdown).** Pressing `q` or closing the window exits the program
 cleanly, stopping all background workers.
+
+**R-U9 (`--help`).** When `--help` appears anywhere on the command line the
+program prints the help text to standard output and exits with status 0,
+before reading or writing any persisted state (R-P), starting the
+background search (R-S), or opening a window; nothing else is printed and
+every other argument is ignored. The help text is the file
+`conformance/help.txt`, reproduced byte for byte (it ends with a single
+newline); it names every flag and key and is the one place the flags of
+sections 4b–4d are documented to the user. Changing the text is a spec
+change made in that file.
 
 ---
 
@@ -804,7 +815,8 @@ loses one update (loaders already tolerate malformed content, R-P).
 ## 10. Explicit non-requirements
 
 - No command-line arguments are required for ordinary use, and no
-  configuration files or menus; hidden developer flags (such as
+  configuration files or menus; `--help` (R-U9) describes the program and
+  its flags; hidden developer flags (such as
   `--colorset-review`, section 4b, `--screensaver-review <file>` and
   `--consistency-check <file>`, section 4c) are permitted, as is the
   `--screensaver <file>` flag that starts the art (section 4d).

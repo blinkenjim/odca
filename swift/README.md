@@ -17,7 +17,7 @@ every bounds check and skips inlining in the per-frame pixel loop, and the
 animation is visibly choppy even on a fast Mac; release is smooth. The
 first release build takes about a minute, then it launches at once.
 
-Workbench modes (see the root README): `--colorset-review`,
+`--help` prints the flags and keys. Workbench modes (see the root README): `--colorset-review`,
 `--screensaver-review <file>`, `--consistency-check <file>`,
 `--screensaver <file>`.
 

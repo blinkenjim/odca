@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 2.17.0 — 2026-09-05 (catch-up: active-set pool model with `[`/`]`, color set review, screensaver review and consistency check, screensaver play, saved presentations by n/p; gallery polish stays Swift-only)
+Version 2.19.0 — 2026-09-05 (`--help` — R-U9; 2.17.0 catch-up: active-set pool model with `[`/`]`, color set review, screensaver review and consistency check, screensaver play, saved presentations by n/p; gallery polish stays Swift-only)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -81,6 +81,10 @@ copy these choices, but they are known to work.
   (outside screensaver mode both banks are the active set). `map_key` takes
   the pygame key code plus `event.unicode` so `S`, `C`, `N`, `P`, `X`, `[`,
   and `]` arrive as typed.
+- **`--help`** (R-U9): `odca/help.py` holds `HELP_TEXT`, a copy of
+  `conformance/help.txt` (`tests/test_main.py` checks byte equality).
+  `__main__.main` handles it before importing `viewer`, because pygame
+  prints its banner at import time and R-U9 allows no other output.
 - **Modes** (REQTS 4b–4d): `python -m odca --colorset-review`,
   `--screensaver-review <file>`, `--consistency-check <file>` (must exist;
   the grouped view of R-W7), `--screensaver <file>` (must exist; play, with
