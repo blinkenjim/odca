@@ -8,11 +8,16 @@ import ODCAKit
 /// screen refresh with the true frame interval.
 @MainActor
 public final class ViewerModel: ObservableObject {
-    /// Set once by `launch` before the app starts (R-U1).
-    static var shared: ViewerModel!
+    /// How to build the session, handed over by `launch` before the app
+    /// starts (R-U1). The model and its session are created lazily, on the
+    /// first access from the SwiftUI scene, once NSApplication is running:
+    /// the model installs a key monitor, and the session starts the search
+    /// workers, neither of which belongs before launch.
+    private static var pendingMake: (() -> Session)?
+    static let shared = ViewerModel(session: pendingMake!())
 
-    static func bootstrap(session: Session) {
-        shared = ViewerModel(session: session)
+    public static func bootstrap(make: @escaping () -> Session) {
+        pendingMake = make
     }
 
     public static let cellSize = 4  // points per cell (R-U2)

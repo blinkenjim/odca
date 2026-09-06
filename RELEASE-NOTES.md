@@ -5,6 +5,16 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.0.1 (Swift) — 2026-09-06
+
+3.0.0's Swift programs printed their startup lines and opened no window.
+Cause: AppKit treats an unknown command-line argument as a document to
+open, and SwiftUI then withholds the default window expecting a document
+window to take its place. 2.x never passed a file on the command line,
+so it never hit this. Fixed by telling AppKit not to treat arguments as
+documents before the app starts. Python was unaffected. No behavior
+change otherwise; the spec stays at 3.0.0.
+
 ## 3.0.0 — 2026-09-06
 
 ### The one-line version

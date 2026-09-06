@@ -9,9 +9,12 @@ rule, s/S/X, R for the grouped order with a screen flash, autosave). The
 keeper file is now `interesting.odca` (28 looks), the color set pool
 `library.json`; color set review is on hold until it becomes its own
 program. Python installs `odca` and `odca-select` as console scripts.
-Next: use odca-select to build a show from interesting.odca and watch it
-with odca; then the shuffle constraints, the color set tool, and the
-vision items, starting with the declarative script design.
+Swift 3.0.1 fixes the missing window (the file argument was taken for a
+document). First night's test: the Python player "ran beautifully". Next
+(user, 2026-09-06): Python parity with Swift's window — resizing and full
+screen; then use odca-select to build a show and watch it, the shuffle
+constraints, the color set tool, and the vision items, starting with the
+declarative script design.
 
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
@@ -51,11 +54,19 @@ vision items, starting with the declarative script design.
       (`--screensaver-review`, `--consistency-check`) with the screen-fill
       on steps; screensaver play (`--screensaver`, watchdog and grace, rows
       keeping their colors, N/P); saved presentations applied by n/p.
-      Pygame's window stays fixed-size (resizable optional, not done);
+      Pygame's window stayed fixed-size then (now its own item below);
       smoothness is not a goal.
 - [x] (3.0.0: the keeper file *is* an odca file, `interesting.odca`;
       `odca-select interesting.odca` or a copy of it is the seed) Seed a
       screensaver file from the keeper file (user question, 2026-09-05).
+- [ ] Python window parity (user, 2026-09-06, after the first odca test):
+      a resizable pygame window with full screen, following R-U2/R-U8 as
+      Swift does (grid of whole cells, picture kept centered while cells
+      appear or vanish at the edges, deep history so a taller window
+      uncovers older rows, frozen during a live resize, pointer hidden in
+      full screen if pygame allows). This reverses the 2026-09-05 decision
+      that the resizable window was Swift-only polish; display-link pacing
+      stays out of scope. PT-32 then applies to Python too. Python 3.1.0.
 - [ ] Shuffle constraints for `odca --shuffle` (user, 2026-09-05: "subject
       to certain constraints which I'll describe later"). 3.0.0 ships the
       minimum: a fresh permutation per pass that never opens on the look

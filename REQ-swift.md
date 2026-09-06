@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.0.0 — 2026-09-05 (two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.0.1 — 2026-09-06 (window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -120,9 +120,16 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   carries one extra empty line before the closing quotes. Each executable
   is a `main.swift` (top-level code, so no `@main`): `parseArguments`
   prints help or a usage error and exits before any `Session`, then
-  `launch` bootstraps `ViewerModel.shared` and calls `ODCAApp.main()`
-  inside `MainActor.assumeIsolated`. `HelpTests` compares against the
-  files.
+  `launch` hands `ViewerModel` a closure that builds the session, registers
+  the volatile default `NSTreatUnknownArgumentsAsOpen = NO`, and calls
+  `ODCAApp.main()` inside `MainActor.assumeIsolated`. `ViewerModel.shared`
+  and its `Session` are created lazily from the SwiftUI scene, after
+  NSApplication is running. The default matters (3.0.1): AppKit treats
+  unknown command-line arguments — our odca file — as documents to open,
+  and SwiftUI then creates no default window at all; 3.0.0 launched with
+  text on stdout and no window. `parseArguments` also line-buffers stdout
+  (`setlinebuf`) so status lines arrive promptly when piped or logged.
+  `HelpTests` compares against the files.
 - **Launch via `swift run -c release odca <file.odca>`** (no app bundle): the app
   delegate sets `NSApp.setActivationPolicy(.regular)` and activates, so the
   window appears and takes keyboard focus. Build release for viewing: the
