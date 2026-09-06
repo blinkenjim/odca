@@ -202,7 +202,10 @@ viewer sees. Roadmap, roughly in order:
       documented one-liner, and a README quick start at the root that shows
       both. 3.0.0 did the Python half's packaging (`pyproject.toml` with
       console scripts; the stock pip needs `pip install --upgrade pip
-      setuptools` first). The Swift wrapper must build release: the debug build is choppy
+      setuptools` first). The user's MacPorts Python 3.14 at /opt/local/bin
+      would skip that upgrade, but pygame publishes no 3.14 wheel yet
+      (checked 2026-09-06), so stock 3.9 stays the documented path until
+      it does. The Swift wrapper must build release: the debug build is choppy
       on any Mac (confirmed on an M1 Pro, 2026-09-05; the per-frame pixel
       loop is unoptimized), so `swift run -c release odca` is the command.
       Check the Python version floor (3.9 on a stock Mac) and pygame's
