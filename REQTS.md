@@ -202,23 +202,24 @@ slots exist, bound to the digit keys `0`–`9`, loaded at startup from the
 shared library (R-P4); a slot the file does not define is
 undefined, and selecting it is a silent no-op. Slot 1 is the built-in
 default, `ODCA default`, defined even without the file, and is active at
-startup. The file as shipped defines:
+startup. The file as shipped (3.0.1; the file is authoritative and
+review sessions rewrite it, so this table is informative) defines:
 
 | slot | name | state 0 | state 1 | state 2 | state 3 |
 |------|------|---------|---------|---------|---------|
-| 0 | Ocean Sunset Vibes | `#325379` | `#DD5471` | `#F8D377` | `#62D3A3` |
+| 0 | Mysterious Midnight Magic | `#4F5188` | `#D6C0FB` | `#8C7BD0` | `#2C2A48` |
 | 1 | ODCA default | `#121218` | `#EBEBE1` | `#FFA136` | `#409CFF` |
-| 2 | Meadow Sunflower Glow | `#D6E0A2` | `#F6F4D5` | `#CFDEC0` | `#E5A07F` |
-| 3 | Candy Floss Dreams | `#F2AAA1` | `#F9F3DF` | `#C4F0E6` | `#B7D8DF` |
-| 4 | Fiery Ice Cream Delight | `#102F47` | `#C53A32` | `#E78531` | `#F3C15F` |
-| 5 | Golden Autumn Twilight | `#4D9CB9` | `#112F45` | `#F4BA41` | `#EC8B33` |
-| 6 | Midnight Sun Dance | `#041523` | `#2E606B` | `#FCEDD4` | `#EE8432` |
-| 7 | Seaside Serenity | `#E8ECEF` | `#304B74` | `#6C95B7` | `#ACCDEE` |
-| 8 | Cherry Blossom Sky | `#2B2D40` | `#8F99AC` | `#EEF2F4` | `#DC3C44` |
-| 9 | Cotton Candy Skies | `#8AD4FB` | `#EE79A5` | `#F19C78` | `#F8D87F` |
+| 2 | Fiery Ice Cream Delight | `#102F47` | `#E78531` | `#F3C15F` | `#C53A32` |
+| 3 | Golden Autumn Twilight | `#4D9CB9` | `#F4BA41` | `#EC8B33` | `#112F45` |
+| 4 | Midnight Sun Dance | `#041523` | `#FCEDD4` | `#2E606B` | `#EE8432` |
+| 5 | Seaside Serenity | `#ACCDEE` | `#6C95B7` | `#304B74` | `#E8ECEF` |
+| 6 | Cherry Blossom Sky | `#2B2D40` | `#8F99AC` | `#EEF2F4` | `#DC3C44` |
+| 7 | Ocean Sunset Vibes | `#325379` | `#DD5471` | `#F8D377` | `#62D3A3` |
+| 8 | Jungle Safari Adventure | `#626C3E` | `#FDFAE3` | `#D4A369` | `#2B361C` |
+| 9 | Mystic Moonlight Shades | `#333333` | `#A8A29D` | `#D3CCC8` | `#28262B` |
 
 Slots 0 and 2–9 are palettes from coolors.co, recorded with their
-sources in `colorsets/`. The set active in a slot may be *arranged* — its
+sources in `colorsets/`, some already arranged by earlier sessions. The set active in a slot may be *arranged* — its
 four colors assigned to the states in any of the 4! = 24 orders — with
 `c` (R-K15); the arrangement is per set, kept for the session, and
 recorded in the looks that `s`/`S` save (R-K5).

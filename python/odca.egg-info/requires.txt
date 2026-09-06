@@ -1,5 +1,0 @@
-numpy
-pygame
-
-[test]
-pytest

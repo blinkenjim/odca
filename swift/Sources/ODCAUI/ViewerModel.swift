@@ -144,8 +144,8 @@ public final class ViewerModel: ObservableObject {
         case "P": return .P  // review: previous
         case "X": return .X  // review: drop (R-V4, R-W5)
         case "R": return .R  // odca-select: toggle the n/p order (R-W7)
-        case "[": return .poolPrev  // screensaver review: previous pool set (R-W3)
-        case "]": return .poolNext
+        case "[": return .poolPrev  // previous pool set (R-K17)
+        case "]": return .poolNext  // next pool set (R-K17)
         case "+", "=": return .plus  // '=' is unshifted '+' on US layouts (R-K8)
         case "-": return .minus
         case " ": return .space

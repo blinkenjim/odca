@@ -121,7 +121,7 @@ already has looks opens on look 1 with the unsaved slot empty until `r` or
 
 Color sets come from `library.json` at the repository root (shared by every
 implementation). **1** is the default set (near-black, off-white, amber,
-blue), active at startup; the others are palettes from coolors.co: **0** Ocean Sunset Vibes; **2** Meadow Sunflower Glow; **3** Candy Floss Dreams; **4** Fiery Ice Cream Delight; **5** Golden Autumn Twilight; **6** Midnight Sun Dance; **7** Seaside Serenity; **8** Cherry Blossom Sky; **9** Cotton Candy Skies.
+blue), active at startup; the others are palettes from coolors.co: **0** Mysterious Midnight Magic; **2** Fiery Ice Cream Delight; **3** Golden Autumn Twilight; **4** Midnight Sun Dance; **5** Seaside Serenity; **6** Cherry Blossom Sky; **7** Ocean Sunset Vibes; **8** Jungle Safari Adventure; **9** Mystic Moonlight Shades.
 `c` cycles the current set through the 24 ways of assigning its four
 colors to the four states, and a look records the arranged colors. The
 library is also the pool of every kept color set, reached with `[` and

@@ -81,7 +81,7 @@ copy these choices, but they are known to work.
   whole pool in review order (`Session.pool`), and arrangements are
   remembered per set name; `S` bakes the arrangement into the pool entry by
   name through `Store.load_color_set_file`/`save_color_set_file`. Paths are
-  anchored to `colorsets/colorsets.json` and `colorsets/candidates.json` at
+  anchored to `library.json` and `colorsets/candidates.json` at
   the repo root, injectable for tests (`Store(candidates_file=...)`).
   `Session.palette8` and `Session.row_banks` give the two-bank palette of
   R-X5; `viewer.py` indexes `palette8[row_banks * 4 + history]` each frame
