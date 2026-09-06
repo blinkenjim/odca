@@ -30,10 +30,10 @@ def parse(argv, program, help_text, flags=()):
     return Path(files[0]), given
 
 
-def run(session_kwargs):
+def run(session_kwargs, fullscreen=False):
     """Open the pygame viewer on a Session built with the given keyword arguments."""
     from .session import Session  # deferred: pygame prints a banner on import
     from .viewer import Viewer
     width, height, cell = 1200, 800, 4
     session = Session(width // cell, height // cell, **session_kwargs)
-    Viewer(width, height, cell, session=session).run()
+    Viewer(width, height, cell, session=session, fullscreen=fullscreen).run()

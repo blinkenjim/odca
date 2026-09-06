@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.3.0 — 2026-09-06 (per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.5.0 — 2026-09-06 (`--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -86,7 +86,11 @@ copy these choices, but they are known to work.
   window as wide as a desktop and at least 0.9 of its height, since SDL
   does not flag a full screen Space and a notched display's Space is
   shorter than the desktop. The window size is not remembered (R-U2
-  allows either).
+  allows either). `--fullscreen` (`cli.run(..., fullscreen=True)`) creates
+  the `Window` with `fullscreen_desktop=True` — the desktop's own size,
+  no mode change, which on macOS is a full screen Space and on the Pi the
+  whole panel — and fits the grid and hides the pointer at once, before
+  the first frame.
 - **`Session.resize`** (R-U8): crops or zero-pads every history row about
   its center with numpy slicing, pads the live row with `rng` cells,
   rebuilds the history buffers at the new width, sets the automaton's

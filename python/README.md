@@ -21,7 +21,7 @@ ships with a stock macOS Python is too old for the editable install of a
 ## Run
 
 ```sh
-.venv/bin/odca ../interesting.odca            # play a file of looks (--shuffle optional)
+.venv/bin/odca ../interesting.odca            # play a file of looks (--shuffle, --fullscreen optional)
 .venv/bin/odca-select ../my-looks.odca        # compose looks into a file
 ```
 

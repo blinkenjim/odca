@@ -71,9 +71,10 @@ def grid_rect(width, height, cols, rows, cell):
 
 
 class Viewer:
-    def __init__(self, width=1200, height=800, cell_size=4, session=None):
+    def __init__(self, width=1200, height=800, cell_size=4, session=None, fullscreen=False):
         self.cell_size = cell_size
         self.width, self.height = width, height
+        self.fullscreen = fullscreen  # open full screen at launch (--fullscreen, R-U2)
         if session is None:
             session = Session(*grid_size(width, height, cell_size))
         self.session = session
@@ -134,11 +135,14 @@ class Viewer:
         session = self.session
         session.start_search()
         pygame.init()
-        window = Window("ODCA", size=(self.width, self.height), resizable=True)
+        window = Window("ODCA", size=(self.width, self.height), resizable=True,
+                        fullscreen_desktop=self.fullscreen)  # the desktop's size, no mode change
         try:
             renderer, cap = Renderer(window, vsync=True), VSYNC_FPS_CAP  # the display paces (R-U5)
         except pygame.error:
             renderer, cap = Renderer(window), FPS  # no vsync here: a timer paces
+        self.fit(*window.size)  # a full screen window is already not the default size
+        pygame.mouse.set_visible(not self.is_full_screen(*window.size))  # R-U2
         clock = pygame.time.Clock()
         title = None
         running = True

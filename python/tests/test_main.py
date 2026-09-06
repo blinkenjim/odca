@@ -29,10 +29,25 @@ def test_help_prints_and_exits_zero(main, text, capsys, tmp_path, monkeypatch): 
 def test_usage_errors(capsys, tmp_path):  # R-W1, R-X1
     with pytest.raises(SystemExit) as e:
         play_main([])
-    assert e.value.code == 2 and "usage: odca <file.odca> [--shuffle]" in capsys.readouterr().out
+    assert e.value.code == 2 and "usage: odca <file.odca> [--shuffle] [--fullscreen]" in capsys.readouterr().out
     with pytest.raises(SystemExit) as e:
         play_main([str(tmp_path / "nope.odca")])
     assert e.value.code == 1 and "does not exist" in capsys.readouterr().out
     with pytest.raises(SystemExit) as e:
         select_main(["--shuffle", "x.odca"])
     assert e.value.code == 2 and "unknown option --shuffle" in capsys.readouterr().out
+    with pytest.raises(SystemExit) as e:
+        select_main(["x.odca", "--fullscreen"])  # odca's flag only (R-U2)
+    assert e.value.code == 2 and "unknown option --fullscreen" in capsys.readouterr().out
+
+
+def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
+    from odca import play
+    file = tmp_path / "show.odca"
+    file.write_text('{"looks": []}')
+    calls = []
+    monkeypatch.setattr(play, "run", lambda kwargs, fullscreen=False: calls.append((kwargs, fullscreen)))
+    play.main([str(file), "--fullscreen"])
+    play.main(["--shuffle", str(file)])
+    assert calls == [({"play_file": file, "shuffle": False}, True),
+                     ({"play_file": file, "shuffle": True}, False)]
