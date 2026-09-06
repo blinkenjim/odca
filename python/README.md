@@ -32,7 +32,8 @@ install.
 The window is resizable; full screen is the platform's own control (the
 green button on macOS). The picture stays centered while cells appear or
 vanish at the edges, a taller window uncovers older rows, and the pointer
-hides in full screen.
+hides in full screen. Drawing goes through SDL's renderer, so the GPU
+scales the picture and paces it to the display's refresh where it can.
 
 ## Tests
 

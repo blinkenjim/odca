@@ -1,7 +1,11 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-06):** Python 3.1.0 brought the pygame window to
-parity with Swift's: resizable, full screen through the platform's own
+**YOU ARE HERE (2026-09-06):** Python 3.1.1 moved drawing onto SDL's
+renderer: one texel per cell, GPU scaling, vsync pacing — the first of
+three agreed steps toward the portrait art installation (next: launching
+full screen unattended, then the boring detector windows on a 480-row
+screen); the Pi is away, so the Mac is the test bed. Before it, Python
+3.1.0 brought the pygame window to parity with Swift's: resizable, full screen through the platform's own
 control, centered grid with margins for the remainder, a 2048-row history
 that a taller window uncovers, frozen during the drag, pointer hidden in
 full screen (a heuristic, since SDL does not flag a macOS full screen
@@ -188,17 +192,16 @@ viewer sees. Roadmap, roughly in order:
       full-width band are a fraction of a millisecond, even on a Pi 5);
       on Swift it is a CATextLayer over the grid layer. Belongs to the
       script design: the band is a scripted element, not a key.
-- [ ] GPU display path for Python (user, 2026-09-06, anticipating layers,
-      blend modes, and the overlay on a Pi 5): render through SDL's
-      renderer (`pygame._sdl2.video` `Renderer` + streaming `Texture`s,
-      experimental API in pygame 2.6 but stable in practice) so each
-      layer and the overlay is a texture composed by the GPU with vsync,
-      hardware scaling, and SDL's blend modes (blend, add, modulate,
-      multiply) for free; the automaton stays in numpy. Swift already has
-      this through CALayer compositing (opacity, compositingFilter, a
-      text layer). Do this once, before the modes that need it, and it
-      is also the first fix to try for the Pi glitches (above). Python
-      display change only; spec unaffected until the modes exist.
+- [x] (3.1.1, 2026-09-06; Pi untested, the user's Pi is away) GPU display
+      path for Python (user, 2026-09-06, anticipating layers, blend modes,
+      and the overlay on a Pi 5): render through SDL's renderer
+      (`pygame._sdl2.video` `Renderer` + a streaming `Texture`, one texel
+      per cell) so the GPU scales and presents with vsync; each future
+      layer and the overlay becomes another texture with SDL's blend
+      modes (blend, add, modulate, multiply) for free; the automaton stays
+      in numpy. Swift already has this through CALayer compositing. Agreed
+      order (user, 2026-09-06): this, then launching full screen
+      unattended, then the detector windows on a tall screen.
 - [x] Data flow to match the workflow (user, 2026-09-05; the jq merge of
       two pair files was the last straw). DONE in 3.0.0, with the design
       revised in discussion before building:

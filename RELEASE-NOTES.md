@@ -5,6 +5,23 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.1.1 (Python) — 2026-09-06
+
+The GPU display path, first of the three steps you agreed to for the
+portrait installation. Nothing looks different on purpose. Under the
+hood, the frame that leaves Python is now one small texture, one texel
+per cell, and SDL's renderer (Metal on the Mac, OpenGL ES on the Pi)
+scales it to the window and presents it in step with the display's
+refresh. The per-frame software scale that grew with the window is gone,
+and vsync is on, so the picture should be steadier on the Pi and scroll
+at 120 Hz on a ProMotion Mac. The same renderer will carry layers, blend
+modes, and the overlay band when they come.
+
+What to try on the Mac: the usual drag, the green button, and `+` up to
+top speed, watching for anything that stutters or tears. If SDL refuses
+vsync somewhere, the viewer falls back to the old 60 Hz timer and says
+nothing, so a Pi test later should also note whether it feels smoother.
+
 ## 3.1.0 (Python) — 2026-09-06
 
 Window parity. The pygame window resizes, full screen works through the

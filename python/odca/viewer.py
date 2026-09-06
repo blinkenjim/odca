@@ -2,20 +2,29 @@
 
 All behavior lives in session.py (the toolkit-free orchestration layer);
 this module only opens the window, turns pygame key events into Session
-keys, calls Session.tick at the refresh rate, and blits the visible slice
-of Session.history through the two-bank palette (Session.palette8,
-Session.row_banks), inverted during a flash. The window is resizable
-(R-U2): the grid holds as many whole cells as fit, centered, with the
-margins in the background color, and follows the window through
-Session.resize (R-U8). See session.py for the controls and programs.
+keys, calls Session.tick once per refresh, and shows the visible slice of
+Session.history through the two-bank palette (Session.palette8,
+Session.row_banks), inverted during a flash. Drawing goes through SDL's
+renderer (pygame._sdl2.video): the frame is one small texture, one texel
+per cell, that the GPU scales to the grid and presents in step with the
+display's refresh (R-U5). The window is resizable (R-U2): the grid holds as
+many whole cells as fit, centered, with the margins in the background
+color, and follows the window through Session.resize (R-U8). See
+session.py for the controls and programs.
 """
 
+import os
+
 import numpy as np
-import pygame
 
-from .session import Session
+os.environ.setdefault("SDL_RENDER_SCALE_QUALITY", "0")  # nearest: crisp cells, no smoothing
+import pygame  # noqa: E402
+from pygame._sdl2.video import Renderer, Texture, Window  # noqa: E402
 
-FPS = 60  # display refresh rate; generation rate is governed by Session.delay
+from .session import Session  # noqa: E402
+
+FPS = 60  # refresh cap when the display cannot pace us (no vsync)
+VSYNC_FPS_CAP = 240  # with vsync the display paces; this only bounds a runaway loop
 MIN_COLS, MIN_ROWS = 40, 30  # the smallest grid: 160 x 120 points at cell 4 (R-U2)
 
 _KEYS = {
@@ -68,6 +77,7 @@ class Viewer:
         if session is None:
             session = Session(*grid_size(width, height, cell_size))
         self.session = session
+        self._texture = None  # one texel per cell, rows + 1 tall; remade when the grid changes
 
     def background(self):
         """The margin color: state 0 of the active set, inverted during a flash."""
@@ -89,20 +99,23 @@ class Viewer:
             rgb = 255 - rgb
         return rgb
 
-    def draw(self, screen):
+    def draw(self, renderer):
+        """Compose one frame on the renderer (present() is the caller's)."""
         session = self.session
         cell = self.cell_size
-        surf = pygame.surfarray.make_surface(self.frame().transpose(1, 0, 2))
-        x, y, w, h = grid_rect(screen.get_width(), screen.get_height(),
-                               session.cols, session.rows, cell)
-        scaled = pygame.transform.scale(surf, (w, h + cell))
-        screen.fill(self.background())
-        # R-U3: the image is one row taller than the grid; scroll_offset says
+        size = (session.cols, session.rows + 1)
+        if self._texture is None or (self._texture.width, self._texture.height) != size:
+            self._texture = Texture(renderer, size, streaming=True)
+        self._texture.update(pygame.surfarray.make_surface(self.frame().transpose(1, 0, 2)))
+        x, y, w, h = grid_rect(self.width, self.height, session.cols, session.rows, cell)
+        renderer.draw_color = self.background() + (255,)
+        renderer.clear()
+        # R-U3: the texture is one row taller than the grid; scroll_offset says
         # how far into the top row the view is (continuous at slow speeds).
-        # The grid rectangle clips the slide so it never paints the margins.
-        screen.set_clip(pygame.Rect(x, y, w, h))
-        screen.blit(scaled, (x, y - int(round(session.scroll_offset * cell))))
-        screen.set_clip(None)
+        # The viewport is the grid rectangle, so the slide never paints the margins.
+        renderer.set_viewport(pygame.Rect(x, y, w, h))
+        self._texture.draw(dstrect=pygame.Rect(0, -int(round(session.scroll_offset * cell)), w, h + cell))
+        renderer.set_viewport(None)
 
     def fit(self, width, height):
         """Follow the window: as many whole cells as fit (R-U8)."""
@@ -111,26 +124,28 @@ class Viewer:
 
     @staticmethod
     def is_full_screen(width, height):
-        """Full screen, whether entered by pygame or by the platform's own
-        control. SDL does not flag the latter (a macOS full screen Space), so
-        a window as wide as a desktop and nearly as tall counts: on a notched
-        display the Space stops short of the desktop height by the notch."""
-        if pygame.display.is_fullscreen():
-            return True
+        """Full screen is the platform's own control, which SDL does not flag
+        (a macOS full screen Space), so a window as wide as a desktop and
+        nearly as tall counts: on a notched display the Space stops short of
+        the desktop height by the notch."""
         return any(width >= dw and height >= 0.9 * dh for dw, dh in pygame.display.get_desktop_sizes())
 
     def run(self):
         session = self.session
         session.start_search()
         pygame.init()
-        screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
+        window = Window("ODCA", size=(self.width, self.height), resizable=True)
+        try:
+            renderer, cap = Renderer(window, vsync=True), VSYNC_FPS_CAP  # the display paces (R-U5)
+        except pygame.error:
+            renderer, cap = Renderer(window), FPS  # no vsync here: a timer paces
         clock = pygame.time.Clock()
         title = None
         running = True
         while running:
             resized = False
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+                if event.type in (pygame.QUIT, pygame.WINDOWCLOSE):
                     running = False
                 elif event.type == pygame.KEYDOWN:
                     key = map_key(event.key, event.unicode)
@@ -138,19 +153,18 @@ class Viewer:
                         running = session.handle_key(key)
                 elif event.type in (pygame.VIDEORESIZE, pygame.WINDOWSIZECHANGED):
                     resized = True  # a drag, a full screen change, or a programmatic size
-            dt = clock.tick(FPS) / 1000.0
+            dt = clock.tick(cap) / 1000.0
             if resized:
-                screen = pygame.display.get_surface()
-                self.fit(screen.get_width(), screen.get_height())
-                pygame.mouse.set_visible(not self.is_full_screen(self.width, self.height))  # R-U2
+                self.fit(*window.size)
+                pygame.mouse.set_visible(not self.is_full_screen(*window.size))  # R-U2
                 dt = 0.0  # R-U8: frozen while resizing; time resumes now, no catch-up
             session.tick(dt)
-            self.draw(screen)
+            self.draw(renderer)
             new_title = f"ODCA — rule {session.rule_id}"  # R-U6
             if new_title != title:
-                pygame.display.set_caption(new_title)
+                window.title = new_title
                 title = new_title
-            pygame.display.flip()
+            renderer.present()  # blocks until the refresh when vsync is on
         session.finish()  # odca-select writes its file; review saves (R-V5)
         session.stop_search()
         pygame.quit()

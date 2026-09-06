@@ -1,12 +1,17 @@
 """The pygame layer's geometry (R-U2, R-U3, R-U8), without a display.
 
-Surfaces and surfarray work without a window, so the frame and the draw are
-checked on plain surfaces; the window itself is manual (M-10).
+The frame is checked as an array; the draw is checked by rendering to a
+hidden window under SDL's dummy video driver and reading the pixels back,
+which exercises the real renderer path (software renderer here, the GPU
+in use). The window itself is manual (M-10).
 """
+
+import os
 
 import numpy as np
 import pygame
 import pytest
+from pygame._sdl2.video import Renderer, Window
 
 from odca.search import CandidateSearch
 from odca.session import Session
@@ -22,6 +27,22 @@ def viewer(tmp_path):
                       rng=np.random.default_rng(3))
     session.handle_key("a")  # no re-seeding during the test
     return Viewer(160, 120, 4, session=session)
+
+
+@pytest.fixture
+def renderer(viewer):
+    """A software renderer on a hidden dummy-driver window, 163 x 123.
+
+    Depends on `viewer` so this tears down first and can release the
+    viewer's texture before the display quits: letting pytest free the
+    texture afterwards segfaulted the run (order of SDL teardown).
+    """
+    os.environ["SDL_VIDEODRIVER"] = "dummy"
+    pygame.display.init()
+    window = Window("test", size=(163, 123), hidden=True)
+    yield Renderer(window, accelerated=0)
+    viewer._texture = None
+    pygame.display.quit()
 
 
 def test_grid_follows_the_window_in_whole_cells():
@@ -48,18 +69,25 @@ def test_frame_shows_the_last_rows_plus_one_with_background_below(viewer):
     assert viewer.background() == tuple(255 - c for c in bg)
 
 
-def test_draw_centers_the_grid_and_paints_the_margins(viewer):
+def test_draw_centers_the_grid_and_paints_the_margins(viewer, renderer):
     s = viewer.session
     s.tick(s.delay * 40)
-    screen = pygame.Surface((170, 130))  # 10 spare points each way: 5-point margins
-    viewer.draw(screen)
+    viewer.fit(163, 123)  # 3 spare points each way: 1-point margins, the grid still 40 x 30
+    assert (s.cols, s.rows) == (40, 30)
+    viewer.draw(renderer)
+    screen = renderer.to_surface()
     bg = s.palette[0]
-    assert screen.get_at((0, 0))[:3] == bg and screen.get_at((169, 129))[:3] == bg
-    assert screen.get_at((2, 64))[:3] == bg and screen.get_at((84, 2))[:3] == bg  # margins
+    assert screen.get_at((0, 0))[:3] == bg and screen.get_at((162, 122))[:3] == bg
+    assert screen.get_at((0, 64))[:3] == bg and screen.get_at((84, 0))[:3] == bg  # margins
     # Inside the grid every 4x4 block is one history cell of the visible slice.
     row = s.history[s.visible_start + 1]  # scrolled by one full row at this speed
     for col in (0, 17, 39):
-        assert screen.get_at((5 + col * 4 + 1, 5 + 1))[:3] == s.palette[int(row[col])]
+        assert screen.get_at((1 + col * 4 + 1, 1 + 1))[:3] == s.palette[int(row[col])]
+    # The grid changes size: the texture follows it.
+    viewer.fit(163 + 8, 123)
+    assert s.cols == 42
+    viewer.draw(renderer)
+    assert viewer._texture.width == 42
 
 
 def test_fit_resizes_the_session_to_the_window(viewer, capsys):

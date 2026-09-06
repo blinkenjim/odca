@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.1.0 — 2026-09-06 (resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.1.1 — 2026-09-06 (drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -57,13 +57,22 @@ copy these choices, but they are known to work.
   that is compacted once it runs out, so a push is one row write and the
   view is never copied; `Session.visible_start` indexes the last
   `rows + 1` rows (R-U8). `Viewer.frame` looks those up through the
-  two-bank palette (background below them until the buffer fills), wraps
-  them with `pygame.surfarray.make_surface`, scales with
-  `pygame.transform.scale` to one row taller than the grid, and blits at
-  `-scroll_offset * cell_size` inside a clip rectangle on the grid (R-U3).
-  No per-cell draw calls.
-- **Window** (R-U2, R-U8): `pygame.RESIZABLE`; on `VIDEORESIZE` /
-  `WINDOWSIZECHANGED` the viewer calls `Session.resize` with as many whole
+  two-bank palette (background below them until the buffer fills) as a
+  `(rows + 1, cols, 3)` array. `Viewer.draw` uploads it into one
+  streaming `Texture` of SDL's renderer (`pygame._sdl2.video`; one texel
+  per cell, remade when the grid changes) and draws the texture stretched
+  to one row taller than the grid at `-scroll_offset * cell_size` inside a
+  viewport on the grid rectangle (R-U3); the GPU does the scaling
+  (`SDL_RENDER_SCALE_QUALITY=0`, nearest, so cells stay crisp) and the
+  margins are the renderer's clear color. No per-cell draw calls, and no
+  per-pixel work on the CPU: the frame that leaves Python is a few
+  hundred kilobytes whatever the window size. SDL picks the accelerated
+  driver (Metal on macOS, OpenGL ES on the Pi) and falls back to its own
+  software renderer where none exists. The renderer API is marked
+  experimental in pygame 2.6 but has been stable for years and is
+  official in pygame-ce.
+- **Window** (R-U2, R-U8): `pygame._sdl2.video.Window(resizable=True)`;
+  on `VIDEORESIZE` / `WINDOWSIZECHANGED` the viewer calls `Session.resize` with as many whole
   cells as fit (never below 40 × 30: a smaller window crops the grid,
   since pygame 2.6 has no minimum-size call) and passes `dt = 0` for that
   frame, so the interval spent resizing is never caught up. On macOS SDL
@@ -73,20 +82,24 @@ copy these choices, but they are known to work.
   resize increments, so `grid_rect` centers the grid and the remainder
   becomes margins in the background color. Full screen is the platform's
   own control (macOS: the green button, which SDL gives every resizable
-  window); the pointer hides while `Viewer.is_full_screen` holds — pygame's
-  `is_fullscreen()` or a window as wide as a desktop and at least 0.9 of
-  its height, since SDL does not flag a full screen Space and a notched
-  display's Space is shorter than the desktop. The window size is not
-  remembered (R-U2 allows either).
+  window); the pointer hides while `Viewer.is_full_screen` holds — a
+  window as wide as a desktop and at least 0.9 of its height, since SDL
+  does not flag a full screen Space and a notched display's Space is
+  shorter than the desktop. The window size is not remembered (R-U2
+  allows either).
 - **`Session.resize`** (R-U8): crops or zero-pads every history row about
   its center with numpy slicing, pads the live row with `rng` cells,
   rebuilds the history buffers at the new width, sets the automaton's
   `width` and `cells` in place (the generation count survives), trims to
   the depth, renews the stagnation window for the new `rows`, resets the
   detectors, and prints R-O14.
-- **Timing** (R-U5): `pygame.time.Clock().tick(60)` paces refreshes; a
-  float accumulator converts elapsed time to whole generations. Catch-up
-  cap: 2000 steps/refresh.
+- **Timing** (R-U5): `Renderer(window, vsync=True)` makes `present()`
+  block until the display's refresh, so refreshes are paced by the
+  display itself (60 or 120 Hz) as R-U5 asks; `Clock.tick(240)` only
+  measures the frame interval and bounds a runaway loop. If SDL refuses
+  vsync the viewer falls back to `Clock.tick(60)`. A float accumulator
+  converts elapsed time to whole generations. Catch-up cap: 2000
+  steps/refresh.
 - **Parallel search** (R-S1): `multiprocessing` processes, not threads —
   the GIL serializes CPU-bound Python threads, and the screening loop's
   many small numpy calls hold the GIL between array ops. Workers are
@@ -154,9 +167,11 @@ copy these choices, but they are known to work.
   `test_store.py`; PT-35 in `test_main.py`; PT-37 in `test_library.py`),
   using pytest `tmp_path` for all file paths.
 - `tests/test_viewer.py` checks the pygame layer's geometry (grid size,
-  centering, margins, the visible slice, the inversion) on plain
-  `pygame.Surface`s, which need no window; the window itself is M-10.
-  Ad-hoc window checks: set `SDL_VIDEODRIVER=dummy`, or drive a copy of
+  centering, margins, the visible slice, the inversion, the texture
+  following the grid): the frame as an array, and the draw by rendering
+  to a hidden window under `SDL_VIDEODRIVER=dummy` with SDL's software
+  renderer and reading the pixels back with `Renderer.to_surface()`. The
+  window itself is M-10. Ad-hoc window checks: drive a copy of
   `Viewer.run`'s loop with `pygame._sdl2.video.Window.size` changes.
 - **Warning:** a default-constructed `Session` (or `Viewer`) touches real
   user state (`$HOME/.odca/`, and `library.json` if anything bakes). Any
