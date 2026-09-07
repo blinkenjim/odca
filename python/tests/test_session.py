@@ -82,14 +82,14 @@ def test_cycle_with_unsaved_slot(make_store, odca_file):  # PT-10
     s = make_session(make_store(current=OUTSIDE), select_file=odca_file(FOUR))
     # A non-empty file opens on look 1 with the unsaved slot empty (R-W1) ...
     assert s.look_index == 0 and s.unsaved_rule is None and s.rule == FOUR[0]
-    s.handle_key("m")  # ... until r or m fills it
+    s.handle_key("r")  # ... until r fills it (m on a look is an edit of it, 3.16.0)
     outside = s.rule
     assert s.look_index is None and s.unsaved_rule == outside
     s.handle_key("n"); assert s.rule == FOUR[0]  # first n -> look 1
     s.handle_key("p"); assert s.rule == outside  # back to unsaved
     s.handle_key("p"); assert s.rule == FOUR[3]  # wraps to look n
     s.handle_key("n"); assert s.rule == outside  # past last -> unsaved
-    s.handle_key("m")  # new rule occupies the unsaved slot
+    s.handle_key("m")  # on the slot, a mutation replaces the unsaved rule and stays there
     mutant = s.rule
     assert s.look_index is None and s.unsaved_rule == mutant
     s.handle_key("n"); assert s.rule == FOUR[0]
@@ -102,11 +102,11 @@ def test_cycle_startup_on_first_look(make_store, odca_file):  # PT-10a
     s.handle_key("n"); assert s.rule == FOUR[1]
     s.handle_key("p"); s.handle_key("p"); assert s.rule == FOUR[3]  # wraps with no unsaved stop
     s.handle_key("n"); assert s.rule == FOUR[0]
-    s.handle_key("m")
-    mutant = s.rule
-    assert s.unsaved_rule == mutant
+    s.handle_key("r")  # a fresh rule: the unsaved slot reappears holding it
+    fresh = s.rule
+    assert s.unsaved_rule == fresh
     s.handle_key("n"); assert s.rule == FOUR[0]
-    s.handle_key("p"); assert s.rule == mutant
+    s.handle_key("p"); assert s.rule == fresh
 
 
 def test_cycle_empty_file_and_no_file(make_store, odca_file, capsys):  # R-B4
@@ -955,6 +955,33 @@ def test_look_carries_its_color_set_and_cycle_applies_it(make_store, odca_file, 
     s.handle_key("n")  # back to the unsaved slot: mutant with S3
     assert s.rule == mutant
     assert s.palette[0] == rgb("#1E1E1E")
+
+
+def test_mutating_a_look_edits_it_in_place(make_store, odca_file, capsys):  # PT-34, R-K3, R-W4
+    store = review_store(make_store)
+    file = odca_file(rules=[FOUR[0], FOUR[1]], name="saver.odca")
+    s = make_session(store, select_file=file)
+    assert s.look_index == 0 and s.unsaved_rule is None
+    s.handle_key("m")  # an edit of look 1: the position stays, the unsaved slot stays empty
+    assert s.rule != FOUR[0] and s.look_index == 0 and s.view_position == 0 and s.unsaved_rule is None
+    s.handle_key("u")  # walked back, still on look 1
+    assert s.rule == FOUR[0] and s.look_index == 0
+    s.handle_key("m")
+    mutant = s.rule
+    s.handle_key("3")
+    capsys.readouterr()
+    s.handle_key("s")  # rewrites look 1 in place: rule and colors
+    assert "saved look 1/2" in capsys.readouterr().out
+    looks = load_odca_file(file)
+    assert len(looks) == 2 and looks[0]["rule"] == mutant.id and looks[0]["colorset"] == "S3"
+    s.handle_key("m")  # a further edit, discarded by leaving the look
+    s.handle_key("n")
+    s.handle_key("p")
+    assert s.rule == mutant and s.look_index == 0
+    s.handle_key("r")  # a fresh rule is a new exploration: the unsaved slot, as before
+    assert s.look_index is None and s.unsaved_rule == s.rule
+    s.handle_key("m")  # on the unsaved slot the mutant stays there
+    assert s.look_index is None and s.unsaved_rule == s.rule
 
 
 def test_resize_preserves_center_and_uncovers_history(make_store, capsys):  # PT-32, R-U8
