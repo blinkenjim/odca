@@ -100,7 +100,11 @@ script design.
       R-K13/14, R-X) scale with `rows` = 480, so repetition looks back
       4800 rows and stagnation 1920 — check the detectors still fire at
       the right moment on a tall screen, or size those windows in cells
-      rather than screens; (3) whether 4 px cells are right on a 1080-wide
+      rather than screens (parked, user, 2026-09-06; needs no Pi: the
+      detectors are functions of `rows`, so a headless 270 x 480 Session
+      gives exact time-to-boredom per look, and a 480-row screen fits a
+      Mac at 2-point cells through `Viewer(cell_size=2)`, which the
+      command line does not expose); (3) whether 4 px cells are right on a 1080-wide
       portrait panel viewed from gallery distance (a cell size option is
       a spec change, R-U2 says "not yet adjustable"); (4) the display
       rotation is the OS's job; (5) the Pi stutters (user, 2026-09-06:
