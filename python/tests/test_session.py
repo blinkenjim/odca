@@ -486,6 +486,20 @@ def test_brent_short_period_exact(make_store, capsys):  # PT-22
     assert s.cycle_period == 7
 
 
+def test_initial_delay_scales_the_speed_and_the_threshold(make_store):  # PT-25, R-U5, R-U3
+    s = make_session(make_store(), initial_delay=INITIAL_DELAY / 4)  # --1: four times the speed
+    s.handle_key("a")
+    assert s.delay == INITIAL_DELAY / 4
+    s.tick(s.delay * s.rows)  # a screenful in a quarter of the default time
+    assert s.filled == s.rows + 1 and s.scroll_offset == 1.0  # fast: discrete
+    s.handle_key("-")  # twice the initial delay: still discrete
+    assert s.delay == INITIAL_DELAY / 2 and s.scroll_offset == 1.0
+    s.handle_key("-")  # four times: continuous, though this delay is discrete at the default size
+    assert s.delay == INITIAL_DELAY
+    s.tick(s.delay / 4)
+    assert abs(s.scroll_offset - 0.25) < 1e-9
+
+
 def test_scroll_offset_semantics(make_store):  # PT-25, R-U3
     from odca.session import SMOOTH_SCROLL_DELAY
     s = make_session(make_store())

@@ -55,6 +55,13 @@ def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
                      ({"play_file": file, "shuffle": False}, False, 1)]
 
 
+def test_initial_delay_follows_the_cell_size():  # R-U5
+    from odca.cli import initial_delay
+    from odca.session import INITIAL_DELAY
+    assert initial_delay(4) == INITIAL_DELAY
+    assert initial_delay(2) == INITIAL_DELAY / 2 and initial_delay(1) == INITIAL_DELAY / 4
+
+
 def test_cell_size_flags(monkeypatch, tmp_path, capsys):  # R-U2
     from odca import select
     calls = []

@@ -41,10 +41,16 @@ def cell_size(program, flags):
     return int(chosen[0][2:]) if chosen else 4
 
 
+def initial_delay(cell):
+    """R-U5: 1/60 s at the default cell size, halved for each halving of the cell."""
+    from .session import INITIAL_DELAY
+    return INITIAL_DELAY * cell / 4
+
+
 def run(session_kwargs, fullscreen=False, cell=4):
     """Open the pygame viewer on a Session built with the given keyword arguments."""
     from .session import Session  # deferred: pygame prints a banner on import
     from .viewer import Viewer
     width, height = 1200, 800
-    session = Session(width // cell, height // cell, **session_kwargs)
+    session = Session(width // cell, height // cell, initial_delay=initial_delay(cell), **session_kwargs)
     Viewer(width, height, cell, session=session, fullscreen=fullscreen).run()

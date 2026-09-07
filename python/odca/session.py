@@ -91,9 +91,14 @@ def _rgb(c):
 
 class Session:
     def __init__(self, cols, rows, store=None, search=None, rng=None,
-                 review_mode=False, select_file=None, play_file=None, shuffle=False):
+                 review_mode=False, select_file=None, play_file=None, shuffle=False,
+                 initial_delay=INITIAL_DELAY):
         self.cols = cols
         self.rows = rows
+        # R-U5: the starting delay, 1/60 s at the default cell size and halved
+        # per halving of the cell, so the picture moves at the same speed in
+        # points; the continuous-scrolling threshold is twice it (R-U3).
+        self.initial_delay = initial_delay
         self.store = store if store is not None else Store()
         self.search = search if search is not None else CandidateSearch()
         self.rng = rng if rng is not None else np.random.default_rng()
@@ -125,7 +130,7 @@ class Session:
         # row_palettes indexes this table. Other modes use one entry, index 0.
         self._palettes = []
         self._palette_index = 0
-        self.delay = INITIAL_DELAY
+        self.delay = initial_delay
         self.paused = False
         self.screen_remaining = 0  # generations still to zip after a paused 's'
         self.screen_counter = None  # screenfuls since the last resume; None = inactive
@@ -437,7 +442,7 @@ class Session:
         """
         if self._count <= self.rows:
             return 0.0
-        if self.paused or self.delay <= SMOOTH_SCROLL_DELAY:
+        if self.paused or self.delay <= 2 * self.initial_delay:
             return 1.0
         return min(self._accumulated / self.delay, 1.0)
 
