@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.4.0 — 2026-09-06
+Version 3.6.0 — 2026-09-06
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -154,7 +154,9 @@ from `REQTS.md`.
   resumes without a burst; full screen centers the grid with thin
   background margins and hides the pointer; the size and position return
   on relaunch; `odca <file> --fullscreen` opens full screen at once with
-  the pointer hidden, and the platform's control leaves it (R-U2, R-U8).
+  the pointer hidden, and the platform's control leaves it; `F` enters and
+  leaves full screen in both programs, also while paused, and leaves a
+  full screen entered by the platform's control (R-U2, R-U8, R-K18).
 
 ---
 

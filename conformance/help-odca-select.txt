@@ -25,6 +25,7 @@ Keys:
         (the screen inverts briefly to confirm)
   0-9   color set (the hot ten)         [ / ]   walk the whole color set pool
   c / C arrange colors forward / back
+  F     toggle full screen (also while paused)
 
 Files: the odca file named on the command line; color sets come from
 library.json at the repository root; ~/.odca/ holds the current rule and

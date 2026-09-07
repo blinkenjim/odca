@@ -23,6 +23,7 @@ Keys:
   u     undo the last rule change       n / p   as N / P
   0-9   color set (the hot ten)         [ / ]   walk the whole color set pool
   c / C arrange colors forward / back
+  F     toggle full screen (also while paused)
 
 Files: the odca file named on the command line is read only; color sets
 come from library.json at the repository root; ~/.odca/ holds the current

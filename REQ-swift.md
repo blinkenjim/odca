@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.4.0 — 2026-09-06 (`--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.6.0 — 2026-09-06 (`F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -98,6 +98,9 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   `AppDelegate.fullScreenAtLaunch`; once the window exists the delegate
   calls `toggleFullScreen(nil)`, the same path as the green button, so the
   pointer hiding and the frame autosave behave as for a manual entry.
+- **`F`** (R-K18): handled in `ViewerModel`'s key monitor before the
+  session mapping — `toggleFullScreen(nil)` on the event's window — so
+  the session never sees it and the pause rule needs no case for it.
 - **Resizing** (R-U2, R-U8): `AutomatonView.layout()` derives cols/rows
   from its bounds and calls `Session.resize`; the grid lives in a
   clipping `gridLayer` centered in the view, whose background is the
@@ -136,7 +139,8 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   text on stdout and no window. `parseArguments` also line-buffers stdout
   (`setlinebuf`) so status lines arrive promptly when piped or logged.
   `HelpTests` compares against the files.
-- **Launch via `swift run -c release odca <file.odca>`** (no app bundle): the app
+- **Launch via `swift run -c release odca <file.odca>`**, or the `swift/run`
+  wrapper that builds release and runs the binary (no app bundle): the app
   delegate sets `NSApp.setActivationPolicy(.regular)` and activates, so the
   window appears and takes keyboard focus. Build release for viewing: the
   debug build leaves `renderImage()`'s per-pixel loop unoptimized (bounds

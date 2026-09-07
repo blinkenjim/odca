@@ -1,6 +1,10 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-06):** Spec 3.4.0, Swift 3.4.0, Python 3.5.0:
+**YOU ARE HERE (2026-09-06):** Spec 3.6.0, Swift 3.6.0, Python 3.7.0:
+`F` toggles full screen (R-K18), and `python/run` / `swift/run` run
+either program straight out of a fresh clone. The user's stated heading
+after these: the layers mode ("where we're headed"); the color set tool
+can wait. Before that, 3.4.0 / 3.5.0:
 `odca --fullscreen`, step two of three for the portrait installation
 (step three, the detector windows on a 480-row screen, waits for the
 user's Pi). Before that, 3.2.0 / 3.3.0: rows keep their colors for good in `odca` (per-row palette table; the
@@ -78,10 +82,9 @@ script design.
       pointer hidden in full screen). Reversed the 2026-09-05 decision that
       the resizable window was Swift-only polish; display-link pacing
       stays out of scope. PT-32 applies to Python too.
-- [ ] Keyboard full screen toggle (from 3.1.0): pygame has no green
-      button on Linux, so the Pi relies on the window manager. A key needs
-      a binding on both sides (spec R-K, the key-binding rethink) and, in
-      Swift, `window.toggleFullScreen(nil)`.
+- [x] (3.6.0/3.7.0, 2026-09-06: `F`, R-K18) Keyboard full screen toggle
+      (from 3.1.0): pygame has no green button on Linux, so the Pi relied
+      on the window manager.
 - [ ] Pi display glitches (user, 2026-09-06: a Pi 5 with 1 GB "did well,
       but I saw a few display glitches"). Untested hypotheses: tearing
       from an unsynced blit, or dropped frames from the per-frame scale.
@@ -276,7 +279,8 @@ viewer sees. Roadmap, roughly in order:
       (4) TestFlight on the user's own Apple TV; (5) App Store submission,
       artifacts and answers prepared in advance, the web forms walked
       through together.
-- [ ] Run straight out of a fresh clone, both sides (user, 2026-09-05).
+- [x] (2026-09-06: `python/run` and `swift/run`, program name first,
+      root README quick start) Run straight out of a fresh clone, both sides (user, 2026-09-05).
       Today Python needs a venv and a pip install by hand, and Swift needs
       the toolchain and `swift run` from the right directory. Aim for one
       obvious command per side that works on a new Mac with nothing else

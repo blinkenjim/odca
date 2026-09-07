@@ -13,6 +13,19 @@ A rule's shareable ID is its 20 next-states as base-4 digits. The lookup
 keeps the original's summing trick: weighted states make the plain
 neighborhood sum a unique index into the rule table.
 
+## Quick start
+
+```sh
+git clone https://github.com/blinkenjim/odca.git
+cd odca
+python/run odca interesting.odca      # Python: makes its venv on first use (needs python3 >= 3.9)
+swift/run odca interesting.odca       # Swift, macOS: builds release on first use (needs Xcode)
+```
+
+Either plays the looks kept so far; press `F` for full screen, `q` to
+quit. `python/run odca-select my.odca` (or `swift/run odca-select my.odca`)
+composes a show of your own. `--help` on either program lists the keys.
+
 ## Repository layout
 
 This is a monorepo: the specification and conformance data live at the
@@ -29,7 +42,7 @@ its own directory.
 | `conformance/` | golden engine vectors and the `--help` texts, byte-identical across implementations |
 | `python/` | the reference implementation (Python + pygame); see `python/README.md` |
 | `REQ-python.md` | implementation notes for the Python version |
-| `swift/` | Swift implementation (macOS, `swift run -c release odca <file.odca>`); see `swift/README.md` |
+| `swift/` | Swift implementation (macOS, `swift/run odca <file.odca>`); see `swift/README.md` |
 | `REQ-swift.md` | implementation notes for the Swift version |
 
 Planned: `cpp/`.
@@ -100,9 +113,10 @@ consume candidates.
 | -   | slow down (double the delay between generations) |
 | 0-9 | select a color set                           |
 | [ / ] | step backward / forward through the whole color set pool (the digits reach only the "hot ten") |
+| F   | toggle full screen                           |
 | c   | cycle the current color set through its 24 color-to-state arrangements |
 | C   | the same cycle in reverse |
-| space | pause / resume (while paused, only space, return, `s`, the color keys `c`/`C`/`[`/`]`/digits, the look keys, and `q` are live); resuming starts a screen counter that prints `screen N` after every screenful |
+| space | pause / resume (while paused, only space, return, `s`, the color keys `c`/`C`/`[`/`]`/digits, the look keys, `F`, and `q` are live); resuming starts a screen counter that prints `screen N` after every screenful |
 | return | while paused: single-step one generation, staying paused |
 | a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; on at startup |
 | q   | quit                                         |

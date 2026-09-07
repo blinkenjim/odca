@@ -5,6 +5,23 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.6.0 (Swift) and 3.7.0 (Python) — 2026-09-06
+
+Two small things you asked for.
+
+`F` toggles full screen, in both programs, on both sides, also while
+paused. It leaves a full screen you entered with the green button too.
+The Pi now has a way in and out of full screen without a window manager
+shortcut. Both help texts list it.
+
+Run straight out of a fresh clone: `python/run odca interesting.odca`
+makes the venv and installs everything on first use, then runs the
+program; `swift/run odca interesting.odca` builds release on first use,
+then runs the binary. Both take the program name first (`odca` or
+`odca-select`) and pass the rest through; file paths are relative to
+where you are, not to the script. The root README opens with them. No
+version for the wrappers themselves; they are tooling.
+
 ## 3.4.0 (Swift) and 3.5.0 (Python) — 2026-09-06
 
 Step two for the portrait installation: `odca <file> --fullscreen` opens

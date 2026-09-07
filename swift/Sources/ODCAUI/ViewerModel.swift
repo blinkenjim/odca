@@ -39,7 +39,12 @@ public final class ViewerModel: ObservableObject {
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
             [weak self] event in
-            guard let self, let key = Self.mapKey(event) else { return event }
+            guard let self else { return event }
+            if Self.isFullScreenKey(event) {  // R-K18: a window key, live in every mode and while paused
+                (event.window ?? NSApp.keyWindow)?.toggleFullScreen(nil)
+                return nil
+            }
+            guard let key = Self.mapKey(event) else { return event }
             if !self.session.handleKey(key) {
                 self.shutDown()
                 NSApp.terminate(nil)
@@ -115,6 +120,10 @@ public final class ViewerModel: ObservableObject {
             bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
             provider: provider, decode: nil, shouldInterpolate: false,
             intent: .defaultIntent)
+    }
+
+    private static func isFullScreenKey(_ event: NSEvent) -> Bool {
+        !event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "F"  // shift-f
     }
 
     private static func mapKey(_ event: NSEvent) -> Session.Key? {

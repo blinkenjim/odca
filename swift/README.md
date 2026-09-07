@@ -4,7 +4,10 @@ See the repository root `README.md` for what ODCA is and how to use it,
 `../REQTS.md` for the specification, and `../REQ-swift.md` for
 implementation notes. macOS 14+ with the Xcode toolchain.
 
-All commands below run from this `swift/` directory.
+All commands below run from this `swift/` directory. The shortcut is
+`./run odca <file.odca>` (or `run odca-select`, `run test`), which builds
+release on first use and then runs the binary; it can be called from
+anywhere, as `swift/run` from the repository root.
 
 ## Run
 

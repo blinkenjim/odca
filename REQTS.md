@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.4.0 — 2026-09-06
+Version 3.6.0 — 2026-09-06
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -43,7 +43,8 @@ color sets file `library.json` — R-U1, R-U9, R-K5, R-K16, section 4, R-P3,
 R-P4, R-P5 merged, R-O3–R-O5, R-O12, R-O13, section 10; color set review
 (section 4b) is bound by no program. 3.2.0: rows keep their colors for
 good, however many color changes share a screenful — R-X5, the two-bank
-limitation withdrawn. 3.4.0: `odca --fullscreen` — R-U2, section 10.)
+limitation withdrawn. 3.4.0: `odca --fullscreen` — R-U2, section 10.
+3.6.0: `F` toggles full screen — R-K18, R-K10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -345,7 +346,7 @@ first refresh so that the picture, which showed the newest row fully while
 paused, continues without a jump (R-U3). While paused, every key except
 the spacebar, Return (R-K11), `s` (R-K13), `c`/`C` (R-K15), `[`/`]`
 (R-K17), the digits (R-K9), the look keys `S`, `X`, `R` (section 4c) and
-`N`/`P` (section 4d), and `q` is ignored; `q` quits normally. Those keys
+`N`/`P` (section 4d), `F` (R-K18), and `q` is ignored; `q` quits normally. Those keys
 touch colors and files, never the running computation (the screenfuls
 that navigation fills, R-W8, are the exception, being part of the
 navigation), so they remain live. Pausing does not stop the background
@@ -391,6 +392,12 @@ digit-bound sets by key 1–9, 0, then the pool-only sets), wrapping, and
 print the name (R-O15). Stepping onto a digit-bound set also makes it the
 digit position. In color set review (section 4b) these keys are synonyms
 for `P` / `N`. Live while paused, like the other color keys (R-K10).
+
+**R-K18 (`F` — full screen).** In every mode, enter full screen if the
+window is not in it, by whatever route it got there, and leave it if it
+is (R-U2). A window key, not a session key: nothing about the automaton,
+the undo stack, or the look cycle changes, and it is live while paused
+(R-K10). The platform's own controls keep working alongside it.
 
 **R-K12 (`a` — auto-initialization).** Toggles auto-initialization mode
 (section 4a) and prints its new state (R-O6). The mode is on at startup
