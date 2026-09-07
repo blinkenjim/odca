@@ -15,5 +15,7 @@ case "$prog" in
   test) exec swift test --package-path "$dir" ;;
   *) echo "usage: swift/run odca|odca-select|test [arguments]"; exit 2 ;;
 esac
-swift build --package-path "$dir" -c release --product "$prog" 2>&1 | grep -v "^\[" >&2 || true
+# Quiet when there is nothing to compile; compiler output and errors still show.
+swift build --package-path "$dir" -c release --product "$prog" 2>&1 \
+  | grep -v "^\[\|^Building for\|^Build of product\|^Build complete" >&2 || true
 exec "$dir/.build/release/$prog" "$@"
