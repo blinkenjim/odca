@@ -14,8 +14,10 @@ screen time, re-seeding in place whenever it goes boring; then it hands
 over after a quiet minute or at the next re-seed, and the next look grows
 in from a fresh field below the old rows, which keep their colors.
 
-  --shuffle     play the looks in random order instead of file order (each
-                pass is a fresh shuffle that does not repeat the last look)
+  --shuffle     play the looks in random order instead of file order: each
+                pass is a fresh shuffle of all of them in which no rule and
+                no color set follows itself, the seam between passes included
+                (a file too small to allow that plays a plain shuffle)
   --fullscreen  open the window full screen, for unattended runs; the
                 platform's own control leaves it, as it entered it before
   --4 / --2 / --1

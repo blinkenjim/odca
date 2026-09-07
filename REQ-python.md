@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.11.0 — 2026-09-06 (initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.13.0 — 2026-09-06 (shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -165,9 +165,10 @@ copy these choices, but they are known to work.
   and `unsaved_set` are the extra slot. `finish()` writes the odca file at
   exit. Play mode clocks (`play_elapsed`, `since_init`) advance in `tick`
   before the generations, so a re-seed inside a tick restarts the grace
-  period from that tick; `play_order` is the current pass (a numpy
-  permutation under `--shuffle`, its first entry swapped away from the
-  look just played). `flash_remaining` counts down in `tick` even while
+  period from that tick; `play_order` is the current pass (under
+  `--shuffle`, a numpy permutation redrawn up to `SHUFFLE_TRIES` (100)
+  times until `_no_repeats` holds: no two consecutive looks, the one just
+  played included, share a rule or sorted colors). `flash_remaining` counts down in `tick` even while
   paused; `viewer.draw` inverts the frame while `inverted` (R-U10).
   Display-link pacing stays Swift-only; the window, resizing, and pointer
   hiding reached parity in 3.1.0.

@@ -849,24 +849,33 @@ def test_play_watchdog_and_grace_period(make_store, odca_file, capsys):  # PT-31
 def test_play_shuffle_is_a_fresh_pass_without_repeats(make_store, odca_file):  # PT-36
     store = review_store(make_store)
     file = odca_file(name="saver.odca")
-    save_odca_file([{"rule": ALL_PRODUCIBLE.id, "colorset": f"S{i}", "colors": grey(i * 10)}
-                    for i in range(6)], file)
+    a, b, c = ALL_PRODUCIBLE, FOUR[1], FOUR[2]  # three distinct rules
+    x, y, z = grey(10), grey(20), grey(30)
+    looks = [(a, "X", x), (a, "Y", y), (b, "X'", list(reversed(x))), (b, "Z", z), (c, "Y", y), (c, "Z", z)]
+    save_odca_file([{"rule": r.id, "colorset": n, "colors": cs} for r, n, cs in looks], file)
     s = make_session(store, play_file=file, shuffle=True)
     assert s.shuffle
     played = [s.look_index]
-    for _ in range(5):
+    for _ in range(59):  # ten passes
         s.handle_key("N")
         played.append(s.look_index)
-    assert sorted(played) == list(range(6))  # one pass: every look once
-    last = played[-1]
-    for _ in range(6):  # a second pass, freshly shuffled, never opening on the last look
-        s.handle_key("N")
-        played.append(s.look_index)
-    assert played[6] != last and sorted(played[6:]) == list(range(6))
+    for p in range(10):
+        assert sorted(played[6 * p:6 * p + 6]) == list(range(6))  # every pass: every look once
+    for i, j in zip(played, played[1:]):  # never the same rule or color set in a row, seams included
+        assert looks[i][0] != looks[j][0], (i, j)
+        assert sorted(looks[i][2]) != sorted(looks[j][2]), (i, j)
     s.handle_key("P")  # back one within the pass
     assert s.look_index == played[-2]
     plain = make_session(store, play_file=file)
     assert plain.play_order == list(range(6)) and not plain.shuffle
+    # No order can avoid a repeat: the requirement is dropped and the show goes on.
+    save_odca_file([{"rule": a.id, "colorset": "X", "colors": x}, {"rule": a.id, "colorset": "Y", "colors": y}], file)
+    s = make_session(store, play_file=file, shuffle=True)
+    played = [s.look_index]
+    for _ in range(5):
+        s.handle_key("N")
+        played.append(s.look_index)
+    assert all(sorted(played[i:i + 2]) == [0, 1] for i in (0, 2, 4))
 
 
 def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33

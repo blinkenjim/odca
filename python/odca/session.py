@@ -76,6 +76,7 @@ SMOOTH_SCROLL_DELAY = 2 * INITIAL_DELAY  # slower than this: continuous scrollin
 SCREEN_SPEEDUP = 8  # paused 's' zips a screenful at delay / SCREEN_SPEEDUP (R-K13)
 PLAY_TIMEOUT = 120.0  # odca: a look's screen time before it may advance (R-X2)
 PLAY_GRACE = 60.0  # odca: no transition within this long of an initialization (R-X3)
+SHUFFLE_TRIES = 100  # odca --shuffle: shuffles tried for an order without repeats before giving up (R-X1)
 FLASH_SECONDS = 0.25  # the screen inverts this long as a mode cue (R-U10)
 HISTORY_DEPTH = 2048  # rows remembered beyond the screen (R-U8)
 PALETTE_LIMIT = 64  # odca: prune the per-row palette table past this many entries (R-X5)
@@ -797,11 +798,24 @@ class Session:
         n = len(self.looks)
         order = list(range(n))
         if self.shuffle and n > 1:
-            order = [int(i) for i in self.rng.permutation(n)]
-            if order[0] == self.look_index:  # never repeat the look just played
-                order[0], order[-1] = order[-1], order[0]
+            # A fresh permutation in which no rule and no color set follows
+            # itself, the seam from the look just played included; a file
+            # that allows no such order plays the last shuffle as it is.
+            for _ in range(SHUFFLE_TRIES):
+                order = [int(i) for i in self.rng.permutation(n)]
+                if self._no_repeats(order, self.look_index):
+                    break
         self.play_order = order
         self.play_position = 0
+
+    def _no_repeats(self, order, previous):
+        chain = ([previous] if previous is not None else []) + order
+        return not any(self._clash(a, b) for a, b in zip(chain, chain[1:]))
+
+    def _clash(self, a, b):
+        """Two looks repeat if they share the rule or the color set (in any arrangement)."""
+        la, lb = self.looks[a], self.looks[b]
+        return la["rule"] == lb["rule"] or sorted(la["colors"]) == sorted(lb["colors"])
 
     def _play_look(self, index, reason):  # R-X4
         look = self.looks[index]
