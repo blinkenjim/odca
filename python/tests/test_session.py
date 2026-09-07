@@ -984,6 +984,34 @@ def test_mutating_a_look_edits_it_in_place(make_store, odca_file, capsys):  # PT
     assert s.look_index is None and s.unsaved_rule == s.rule
 
 
+def test_U_undoes_every_change_since_the_position_moved(make_store, odca_file):  # PT-9, R-K19
+    store = review_store(make_store)
+    s = make_session(store, select_file=odca_file(rules=[FOUR[0], FOUR[1]], name="saver.odca"))
+    depth = len(s.undo_stack)
+    for _ in range(3):
+        s.handle_key("m")
+    assert s.rule != FOUR[0] and len(s.undo_stack) == depth + 3
+    s.handle_key("U")  # all three at once, still on look 1
+    assert s.rule == FOUR[0] and s.look_index == 0 and len(s.undo_stack) == depth
+    s.handle_key("U")  # nothing left since arriving here: a no-op
+    assert s.rule == FOUR[0] and len(s.undo_stack) == depth
+    s.handle_key("n")  # look 2 (one push); edits here unwind to look 2, not further
+    s.handle_key("m")
+    s.handle_key("m")
+    s.handle_key("U")
+    assert s.rule == FOUR[1] and s.look_index == 1 and len(s.undo_stack) == depth + 1
+    s.handle_key("r")  # the unsaved slot: U unwinds to the rule r brought
+    fresh = s.rule
+    s.handle_key("m")
+    s.handle_key("m")
+    assert s.rule != fresh
+    s.handle_key("U")
+    assert s.rule == fresh and s.look_index is None and s.unsaved_rule == fresh
+    s.handle_key(" ")  # paused: U is not live, like u
+    s.handle_key("m")
+    assert s.rule == fresh
+
+
 def test_resize_preserves_center_and_uncovers_history(make_store, capsys):  # PT-32, R-U8
     s = make_session(make_store())
     s.handle_key("a")  # keep auto-init out of the way

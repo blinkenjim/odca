@@ -141,6 +141,7 @@ class Session:
         self.screen_counter = None  # screenfuls since the last resume; None = inactive
         self._counted = 0  # generations since the counter started
         self.undo_stack = []
+        self._undo_mark = 0  # stack depth when the cycle position last moved; U unwinds to it (R-K19)
         self._accumulated = 0.0
         self._zip_accumulated = 0.0
         self.flash_remaining = 0.0  # seconds of screen inversion left (R-U10)
@@ -624,13 +625,19 @@ class Session:
         self.store.save_rule(rule)
         print(f"rule {rule.id}")  # R-O1
 
-    def _set_unsaved_rule(self, rule):
-        """Make `rule` current and the occupant of the cycle's unsaved slot (R-B3)."""
+    def _set_unsaved_rule(self, rule, arrival=True):
+        """Make `rule` current and the occupant of the cycle's unsaved slot (R-B3).
+
+        An arrival (r, or entering the slot) is where U unwinds to (R-K19); a
+        mutation made on the slot is an edit, and U undoes it too.
+        """
         self.unsaved_rule = rule
         self.unsaved_set = dict(self.active_set)
         self.look_index = None
         self.view_position = None
         self._set_rule(rule)
+        if arrival:
+            self._undo_mark = len(self.undo_stack)
 
     def new_rule(self):  # R-K2
         self.undo_stack.append(self.automaton.rule)
@@ -651,11 +658,20 @@ class Session:
         if self.select_mode and self.look_index is not None:
             self._set_rule(mutant)  # an edit of the look under review: the position stays; 's' records it
         else:
-            self._set_unsaved_rule(mutant)
+            self._set_unsaved_rule(mutant, arrival=False)
 
     def undo(self):  # R-K4
         if self.undo_stack:
             self._set_rule(self.undo_stack.pop())
+
+    def undo_all(self):  # R-K19: every change since the cycle position last moved, at once
+        mark = min(self._undo_mark, len(self.undo_stack))
+        if len(self.undo_stack) > mark:
+            rule = self.undo_stack[mark]
+            del self.undo_stack[mark:]
+            self._set_rule(rule)
+            if self.select_mode and self.look_index is None:
+                self.unsaved_rule = rule  # the slot's mutations are undone with it
 
     def _current_look(self):
         return {"rule": self.automaton.rule.id, "colorset": self.active_name,
@@ -705,6 +721,7 @@ class Session:
                 self.undo_stack.append(self.automaton.rule)
             self._set_rule(rule)
         self._show_colors(look["colorset"], look["colors"])
+        self._undo_mark = len(self.undo_stack)
         print(f"look {position + 1}/{len(self.looks)} {look['colorset']}")  # R-O4
         self._fill_screen()  # R-W8
 
@@ -832,6 +849,7 @@ class Session:
         rule = Rule.from_id(look["rule"])
         if rule != self.automaton.rule:
             self._set_rule(rule)
+        self._undo_mark = len(self.undo_stack)  # R-K19: U returns to the look as played
         self._show_colors(look["colorset"], look["colors"])
         self.init_cells()
         self.play_elapsed = 0.0  # the look's screen time starts now
@@ -995,6 +1013,8 @@ class Session:
             self.mutate_rule()
         elif key == "u":
             self.undo()
+        elif key == "U":
+            self.undo_all()  # R-K19
         elif key == "s":
             if self.select_mode:
                 self.save_look()  # R-W4

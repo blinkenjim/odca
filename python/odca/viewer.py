@@ -51,7 +51,7 @@ _KEYS = {
 
 def map_key(key, unicode=""):
     """Translate a pygame key code (plus typed character) to a Session key."""
-    if unicode in ("S", "C", "N", "P", "X", "R", "[", "]"):  # shifted / review / pool keys
+    if unicode in ("S", "C", "N", "P", "X", "R", "U", "[", "]"):  # shifted / review / pool keys
         return unicode
     if pygame.K_0 <= key <= pygame.K_9:
         return str(key - pygame.K_0)
