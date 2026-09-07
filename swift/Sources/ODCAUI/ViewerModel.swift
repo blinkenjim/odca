@@ -20,9 +20,9 @@ public final class ViewerModel: ObservableObject {
         pendingMake = make
     }
 
-    public static let cellSize = 4  // points per cell (R-U2)
-    public static let defaultCols = 1200 / cellSize
-    public static let defaultRows = 800 / cellSize
+    public static var cellSize = 4  // points per cell, set by `launch` before the window exists (R-U2)
+    public static var defaultCols: Int { 1200 / cellSize }
+    public static var defaultRows: Int { 800 / cellSize }
     var cols: Int { session.cols }
     var rows: Int { session.rows }
 

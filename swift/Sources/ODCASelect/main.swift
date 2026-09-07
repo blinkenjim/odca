@@ -3,9 +3,10 @@ import Foundation
 import ODCAKit
 import ODCAUI
 
-let (file, _) = parseArguments(program: "odca-select", help: helpOdcaSelect)
+let (file, flags) = parseArguments(program: "odca-select", help: helpOdcaSelect, flags: cellFlags)
+let cellSize = chooseCellSize(program: "odca-select", flags: flags)  // R-U2
 MainActor.assumeIsolated {  // top-level code of an executable runs on the main thread
-    launch { cols, rows in
+    launch(cellSize: cellSize) { cols, rows in
         Session(cols: cols, rows: rows, selectFile: file)  // R-W1: a missing file is created on the first save
     }
 }

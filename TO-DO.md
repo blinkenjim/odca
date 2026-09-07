@@ -1,8 +1,12 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-06):** Spec 3.6.0, Swift 3.6.0, Python 3.7.0:
-`F` toggles full screen (R-K18), and `python/run` / `swift/run` run
-either program straight out of a fresh clone. The user's stated heading
+**YOU ARE HERE (2026-09-06):** Spec 3.8.0, Swift 3.8.0, Python 3.9.0:
+cell size flags `--4` / `--2` / `--1` on both programs (the user's "fun
+side path"). The user reports the Python version "almost
+indistinguishable" from Swift on the M5 MacBook Pro; Pi testing on hold.
+Before that, 3.6.0 / 3.7.0: `F` toggles full screen (R-K18), and
+`python/run` / `swift/run` run either program straight out of a fresh
+clone. The user's stated heading
 after these: the layers mode ("where we're headed"); the color set tool
 can wait. Before that, 3.4.0 / 3.5.0:
 `odca --fullscreen`, step two of three for the portrait installation
@@ -108,8 +112,8 @@ script design.
       gives exact time-to-boredom per look, and a 480-row screen fits a
       Mac at 2-point cells through `Viewer(cell_size=2)`, which the
       command line does not expose); (3) whether 4 px cells are right on a 1080-wide
-      portrait panel viewed from gallery distance (a cell size option is
-      a spec change, R-U2 says "not yet adjustable"); (4) the display
+      portrait panel viewed from gallery distance (`--2` / `--1` exist
+      since 3.8.0/3.9.0; the choice itself waits for the panel); (4) the display
       rotation is the OS's job; (5) the Pi stutters (user, 2026-09-06:
       "stutters more than tears"): at 1080 x 1920 the CPU path scales two
       million pixels per frame, the strongest reason yet for the GPU

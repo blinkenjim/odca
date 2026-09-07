@@ -5,6 +5,23 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.8.0 (Swift) and 3.9.0 (Python) — 2026-09-06
+
+The side path: `--4`, `--2`, `--1` on both programs, both sides, choose
+the cell size for the run. `--4` is what you had. `--2` puts four times
+the cells in the same window, `--1` sixteen, and the picture stays crisp
+at every size, in full screen included. Points, never device pixels, so
+on this Retina Mac a 1-point cell is still a 2 × 2 block. Two of the
+flags at once is a usage error.
+
+Things that scale with it, by design: the automaton is wider, the
+boring detectors look at more rows (they count screenfuls), and the
+history is deeper on screen. Things to watch: at `--1` the Swift frame
+loop does 960,000 cells per refresh in the default window and 1.5
+million full screen; if it stutters at 120 Hz, that is the place to
+look. Python's frame is numpy and the GPU scales it, so it should not
+care.
+
 ## 3.6.0 (Swift) and 3.7.0 (Python) — 2026-09-06
 
 Two small things you asked for.

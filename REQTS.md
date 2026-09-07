@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.6.0 — 2026-09-06
+Version 3.8.0 — 2026-09-06
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -44,7 +44,8 @@ R-P4, R-P5 merged, R-O3–R-O5, R-O12, R-O13, section 10; color set review
 (section 4b) is bound by no program. 3.2.0: rows keep their colors for
 good, however many color changes share a screenful — R-X5, the two-bank
 limitation withdrawn. 3.4.0: `odca --fullscreen` — R-U2, section 10.
-3.6.0: `F` toggles full screen — R-K18, R-K10.)
+3.6.0: `F` toggles full screen — R-K18, R-K10. 3.8.0: cell size flags
+`--4` / `--2` / `--1` on both programs — R-U2, section 10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -168,12 +169,18 @@ must:
    at once (R-X1).
 
 **R-U2 (display geometry).** The display is a grid of square cells,
-`cell_size` points on a side (4; a single constant, not yet adjustable).
+`cell_size` points on a side: 4 by default, or 2 or 1 for the run when
+either program is given `--2` or `--1` (`--4` names the default; at most
+one of the three, more is a usage error, R-U9). Points, never device
+pixels: on a high-density display a 1-point cell still covers several
+device pixels, and the picture is scaled without smoothing. (The Python
+implementation counts its window in pixels, the same unit in practice.)
 The window is resizable, including full screen, and the grid holds as
 many whole cells as fit: `cols` = ⌊width / cell_size⌋, `rows` =
 ⌊height / cell_size⌋. The default (and first-launch) window is 1200×800
-points, giving 300 × 200 cells; the minimum is 160×120 points (40 × 30
-cells). Interactive resizing should snap to whole cells (resize
+points, giving 300 × 200 cells at the default size (600 × 400 with `--2`,
+1200 × 800 with `--1`); the minimum is 160×120 points (40 × 30 cells at
+the default size). Interactive resizing should snap to whole cells (resize
 increments of `cell_size`); where a remainder is unavoidable (full screen)
 the grid is centered and the margins are painted in the state-0 color.
 The window may remember its last size and position through the
@@ -864,8 +871,9 @@ loses one update (loaders already tolerate malformed content, R-P).
 ## 10. Explicit non-requirements
 
 - The command line is one positional argument, the odca file, plus
-  `--help` (R-U9) and, for `odca`, `--shuffle` (R-X1) and `--fullscreen`
-  (R-U2); no configuration files or menus. No other flags exist (the 2.x developer flags
+  `--help` (R-U9), the cell size flags `--4` / `--2` / `--1` (R-U2), and,
+  for `odca`, `--shuffle` (R-X1) and `--fullscreen` (R-U2); no
+  configuration files or menus. No other flags exist (the 2.x developer flags
   `--colorset-review`, `--screensaver-review`, `--consistency-check`, and
   `--screensaver` are gone: the last two became `odca-select` and `odca`,
   the consistency check became `R`, and color set review is on hold).

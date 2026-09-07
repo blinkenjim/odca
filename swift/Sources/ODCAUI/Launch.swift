@@ -32,11 +32,28 @@ public func parseArguments(program: String, help: String, flags: [String] = []) 
     return (URL(fileURLWithPath: files[0]), given)
 }
 
+/// The cell size flags (R-U2), accepted by both programs.
+public let cellFlags = ["--4", "--2", "--1"]
+
+/// Points per cell for this run: 4 unless one cell flag says otherwise;
+/// more than one is a usage error (exit 2).
+public func chooseCellSize(program: String, flags: Set<String>) -> Int {
+    let chosen = cellFlags.filter { flags.contains($0) }
+    guard chosen.count <= 1 else {
+        print("\(program): choose one of \(cellFlags.joined(separator: ", "))")
+        exit(2)
+    }
+    return chosen.first.map { Int($0.dropFirst(2))! } ?? 4
+}
+
 /// Open the window on a session built by `make` (called once, on the main
 /// actor, with the default geometry) and run the app until it quits.
-/// `fullScreen` opens the window full screen at launch (`--fullscreen`, R-U2).
+/// `fullScreen` opens the window full screen at launch (`--fullscreen`, R-U2);
+/// `cellSize` is the points per cell for the run (`--4` / `--2` / `--1`).
 @MainActor
-public func launch(fullScreen: Bool = false, _ make: @escaping (_ cols: Int, _ rows: Int) -> Session) {
+public func launch(fullScreen: Bool = false, cellSize: Int = 4,
+                   _ make: @escaping (_ cols: Int, _ rows: Int) -> Session) {
+    ViewerModel.cellSize = cellSize
     ViewerModel.bootstrap { make(ViewerModel.defaultCols, ViewerModel.defaultRows) }
     AppDelegate.fullScreenAtLaunch = fullScreen
     // AppKit treats unknown command-line arguments as documents to open, and

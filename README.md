@@ -65,7 +65,7 @@ git-tagged (`v2.0.0`, `v2.1.0`, …).
 
 There are two programs, sharing the engine and most of the keyboard:
 
-- **`odca <file.odca> [--shuffle] [--fullscreen]`** plays the *looks* in an odca file,
+- **`odca <file.odca> [--shuffle] [--fullscreen] [--4 | --2 | --1]`** plays the *looks* in an odca file,
   one after another, looping. A look is a rule with a color set. Every look
   gets two minutes of screen time, re-seeding in place whenever it goes
   boring; then it hands over after a quiet minute or at the next re-seed,
@@ -73,7 +73,7 @@ There are two programs, sharing the engine and most of the keyboard:
   keep their colors. `--shuffle` plays each pass in a fresh random order;
   `--fullscreen` opens full screen at once, for unattended runs.
   `N`/`P` (or `n`/`p`) step by hand. The file is never written.
-- **`odca-select <file.odca>`** is the workbench that composes them: it
+- **`odca-select <file.odca> [--4 | --2 | --1]`** is the workbench that composes them: it
   shows screened random rules, you dress each in a color set, and `s`/`S`
   save the result as a look in the named file (created if missing). `n`/`p`
   cycle through the file's looks and one extra slot holding the unsaved
@@ -123,7 +123,8 @@ consume candidates.
 
 The window is resizable, with full screen available through the platform's
 own control (the green button on macOS); the grid holds as many whole
-4-point cells as fit, centered, and the automaton's width follows the
+cells as fit (4 points on a side by default; `--2` and `--1` on either
+program choose smaller cells for the run), centered, and the automaton's width follows the
 window, keeping the picture centered while cells appear or vanish at the
 edges. A taller window uncovers remembered rows. Swift snaps the window to
 whole cells; pygame paints the remainder as thin margins.

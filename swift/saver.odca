@@ -21,16 +21,6 @@
    ]
   },
   {
-   "rule": "22310203230002331122",
-   "colorset": "Lemonade Disco Fever",
-   "colors": [
-    "#F5C144",
-    "#EA336F",
-    "#7A3CE3",
-    "#E8622C"
-   ]
-  },
-  {
    "rule": "32202201003022321010",
    "colorset": "Sandy Beach Sunset",
    "colors": [
@@ -38,16 +28,6 @@
     "#E3C577",
     "#4F9B8F",
     "#E8A66C"
-   ]
-  },
-  {
-   "rule": "22022321121130110123",
-   "colorset": "Vibrant Rainbow Burst",
-   "colors": [
-    "#F8D45D",
-    "#6BCBAE",
-    "#4D146A",
-    "#DC5068"
    ]
   },
   {
@@ -82,12 +62,12 @@
   },
   {
    "rule": "02320201313001213222",
-   "colorset": "Earthy Coral Harmony",
+   "colorset": "Ocean Pearl Blossom",
    "colors": [
-    "#8BB19C",
-    "#D27F65",
-    "#3E4059",
-    "#F3F1E0"
+    "#11235F",
+    "#5590C7",
+    "#FEFAFF",
+    "#C7415D"
    ]
   },
   {
@@ -122,12 +102,12 @@
   },
   {
    "rule": "32202201003022321010",
-   "colorset": "Earthy Coral Harmony",
+   "colorset": "Ocean Blue Horizon",
    "colors": [
-    "#D27F65",
-    "#F3F1E0",
-    "#3E4059",
-    "#8BB19C"
+    "#1F498C",
+    "#88A3C9",
+    "#DDE4ED",
+    "#4E7BAD"
    ]
   },
   {

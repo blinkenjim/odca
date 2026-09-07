@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.6.0 — 2026-09-06 (`F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.8.0 — 2026-09-06 (cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -98,6 +98,13 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   `AppDelegate.fullScreenAtLaunch`; once the window exists the delegate
   calls `toggleFullScreen(nil)`, the same path as the green button, so the
   pointer hiding and the frame autosave behave as for a manual entry.
+- **Cell size** (R-U2): `chooseCellSize(program:flags:)` in `Launch.swift`
+  reads `--4` / `--2` / `--1` (two exit 2) and `launch(cellSize:)` stores
+  it in `ViewerModel.cellSize`, a static set once before the window
+  exists; `defaultCols` / `defaultRows` derive from it, and the view,
+  the resize increments, and the image scale read it. The pixel loop in
+  `renderImage` is per cell, so smaller cells cost proportionally more per
+  frame (1200 × 800 cells at `--1` in the default window).
 - **`F`** (R-K18): handled in `ViewerModel`'s key monitor before the
   session mapping — `toggleFullScreen(nil)` on the event's window — so
   the session never sees it and the pause rule needs no case for it.

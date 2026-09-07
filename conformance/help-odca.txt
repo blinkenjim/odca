@@ -1,6 +1,6 @@
 odca: one-dimensional cellular automata as art
 
-usage: odca <file.odca> [--shuffle] [--fullscreen]
+usage: odca <file.odca> [--shuffle] [--fullscreen] [--4 | --2 | --1]
        odca --help
 
 Plays the looks in an odca file, one at a time, looping. A look is a rule
@@ -13,6 +13,9 @@ in from a fresh field below the old rows, which keep their colors.
                 pass is a fresh shuffle that does not repeat the last look)
   --fullscreen  open the window full screen, for unattended runs; the
                 platform's own control leaves it, as it entered it before
+  --4 / --2 / --1
+                cells 4 (the default), 2, or 1 points on a side (pixels,
+                in the Python version)
 
 Keys:
   q     quit                            space   pause / resume
