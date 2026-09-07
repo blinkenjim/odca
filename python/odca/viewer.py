@@ -25,7 +25,7 @@ from .session import Session  # noqa: E402
 
 FPS = 60  # refresh cap when the display cannot pace us (no vsync)
 VSYNC_FPS_CAP = 240  # with vsync the display paces; this only bounds a runaway loop
-MIN_COLS, MIN_ROWS = 40, 30  # the smallest grid: 160 x 120 points at cell 4 (R-U2)
+MIN_WINDOW = (160, 120)  # the smallest window in pixels, whatever the cell size (R-U2)
 
 _KEYS = {
     pygame.K_q: "q",
@@ -59,8 +59,8 @@ def map_key(key, unicode=""):
 
 
 def grid_size(width, height, cell):
-    """Whole cells that fit a window of the given size, at least the minimum (R-U2)."""
-    return max(MIN_COLS, width // cell), max(MIN_ROWS, height // cell)
+    """Whole cells that fit a window of the given size, at least the minimum window's (R-U2)."""
+    return max(MIN_WINDOW[0] // cell, width // cell), max(MIN_WINDOW[1] // cell, height // cell)
 
 
 def grid_rect(width, height, cols, rows, cell):

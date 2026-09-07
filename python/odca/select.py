@@ -1,12 +1,13 @@
 """odca-select: compose looks in an odca file (REQTS section 4c)."""
 
-from .cli import parse, run
+from .cli import CELL_FLAGS, cell_size, parse, run
 from .help import HELP_ODCA_SELECT
 
 
 def main(argv=None):
-    file, _ = parse(argv, "odca-select", HELP_ODCA_SELECT)
-    run({"select_file": file})  # R-W1: a missing file is created on the first save
+    file, flags = parse(argv, "odca-select", HELP_ODCA_SELECT, flags=CELL_FLAGS)
+    cell = cell_size("odca-select", flags)  # R-U2
+    run({"select_file": file}, cell=cell)  # R-W1: a missing file is created on the first save
 
 
 if __name__ == "__main__":

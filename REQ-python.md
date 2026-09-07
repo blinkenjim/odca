@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.7.0 — 2026-09-06 (`F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.9.0 — 2026-09-06 (cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -72,6 +72,13 @@ copy these choices, but they are known to work.
   software renderer where none exists. The renderer API is marked
   experimental in pygame 2.6 but has been stable for years and is
   official in pygame-ce.
+- **Cell size** (R-U2): `cli.cell_size(program, flags)` reads `--4` /
+  `--2` / `--1` (two exit 2) and `cli.run(..., cell=)` passes it to the
+  `Session` geometry and `Viewer(cell_size=)`; `grid_size` keeps the
+  160 × 120 pixel minimum window whatever the cell. The frame array and
+  the texture are per cell, so `--1` in the default window is a 1200 × 800
+  frame per refresh, still cheap on the numpy side; the GPU scale is
+  nearest at every size.
 - **Window** (R-U2, R-U8): `pygame._sdl2.video.Window(resizable=True)`;
   on `VIDEORESIZE` / `WINDOWSIZECHANGED` the viewer calls `Session.resize` with as many whole
   cells as fit (never below 40 × 30: a smaller window crops the grid,

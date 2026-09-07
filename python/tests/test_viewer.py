@@ -16,7 +16,7 @@ from pygame._sdl2.video import Renderer, Window
 from odca.search import CandidateSearch
 from odca.session import Session
 from odca.store import Store
-from odca.viewer import MIN_COLS, MIN_ROWS, Viewer, grid_rect, grid_size
+from odca.viewer import Viewer, grid_rect, grid_size
 
 
 @pytest.fixture
@@ -48,7 +48,10 @@ def renderer(viewer):
 def test_grid_follows_the_window_in_whole_cells():
     assert grid_size(1200, 800, 4) == (300, 200)
     assert grid_size(1203, 807, 4) == (300, 201)  # the remainder becomes margins
-    assert grid_size(10, 10, 4) == (MIN_COLS, MIN_ROWS)  # never below the minimum
+    assert grid_size(10, 10, 4) == (40, 30)  # never below the minimum window, 160 x 120
+    assert grid_size(10, 10, 2) == (80, 60)
+    assert grid_size(1200, 800, 2) == (600, 400) and grid_size(1200, 800, 1) == (1200, 800)  # --2, --1
+    assert grid_rect(1201, 801, 1200, 800, 1) == (0, 0, 1200, 800)
     assert grid_rect(1203, 807, 300, 201, 4) == (1, 1, 1200, 804)
     assert grid_rect(1200, 800, 300, 200, 4) == (0, 0, 1200, 800)
 

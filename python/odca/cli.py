@@ -3,6 +3,8 @@
 import sys
 from pathlib import Path
 
+CELL_FLAGS = ("--4", "--2", "--1")  # pixels per cell for the run, both programs (R-U2)
+
 
 def parse(argv, program, help_text, flags=()):
     """Return (file, set of flags given). --help prints and exits 0 first.
@@ -30,10 +32,19 @@ def parse(argv, program, help_text, flags=()):
     return Path(files[0]), given
 
 
-def run(session_kwargs, fullscreen=False):
+def cell_size(program, flags):
+    """Pixels per cell: 4 unless one cell flag says otherwise; two is a usage error."""
+    chosen = [f for f in CELL_FLAGS if f in flags]
+    if len(chosen) > 1:
+        print(f"{program}: choose one of {', '.join(CELL_FLAGS)}")
+        sys.exit(2)
+    return int(chosen[0][2:]) if chosen else 4
+
+
+def run(session_kwargs, fullscreen=False, cell=4):
     """Open the pygame viewer on a Session built with the given keyword arguments."""
     from .session import Session  # deferred: pygame prints a banner on import
     from .viewer import Viewer
-    width, height, cell = 1200, 800, 4
+    width, height = 1200, 800
     session = Session(width // cell, height // cell, **session_kwargs)
     Viewer(width, height, cell, session=session, fullscreen=fullscreen).run()

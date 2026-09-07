@@ -29,7 +29,7 @@ def test_help_prints_and_exits_zero(main, text, capsys, tmp_path, monkeypatch): 
 def test_usage_errors(capsys, tmp_path):  # R-W1, R-X1
     with pytest.raises(SystemExit) as e:
         play_main([])
-    assert e.value.code == 2 and "usage: odca <file.odca> [--shuffle] [--fullscreen]" in capsys.readouterr().out
+    assert e.value.code == 2 and "usage: odca <file.odca> [--shuffle] [--fullscreen] [--4] [--2] [--1]" in capsys.readouterr().out
     with pytest.raises(SystemExit) as e:
         play_main([str(tmp_path / "nope.odca")])
     assert e.value.code == 1 and "does not exist" in capsys.readouterr().out
@@ -46,8 +46,23 @@ def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
     file = tmp_path / "show.odca"
     file.write_text('{"looks": []}')
     calls = []
-    monkeypatch.setattr(play, "run", lambda kwargs, fullscreen=False: calls.append((kwargs, fullscreen)))
+    monkeypatch.setattr(play, "run", lambda kwargs, fullscreen=False, cell=4: calls.append((kwargs, fullscreen, cell)))
     play.main([str(file), "--fullscreen"])
     play.main(["--shuffle", str(file)])
-    assert calls == [({"play_file": file, "shuffle": False}, True),
-                     ({"play_file": file, "shuffle": True}, False)]
+    play.main([str(file), "--1"])
+    assert calls == [({"play_file": file, "shuffle": False}, True, 4),
+                     ({"play_file": file, "shuffle": True}, False, 4),
+                     ({"play_file": file, "shuffle": False}, False, 1)]
+
+
+def test_cell_size_flags(monkeypatch, tmp_path, capsys):  # R-U2
+    from odca import select
+    calls = []
+    monkeypatch.setattr(select, "run", lambda kwargs, fullscreen=False, cell=4: calls.append(cell))
+    select.main(["--2", "x.odca"])
+    select.main(["x.odca", "--4"])
+    select.main(["x.odca"])
+    assert calls == [2, 4, 4]
+    with pytest.raises(SystemExit) as e:
+        select.main(["x.odca", "--2", "--1"])  # at most one
+    assert e.value.code == 2 and "choose one of --4, --2, --1" in capsys.readouterr().out
