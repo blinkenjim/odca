@@ -846,6 +846,26 @@ def test_play_watchdog_and_grace_period(make_store, odca_file, capsys):  # PT-31
     assert s.look_index == 0
 
 
+def test_watchdog_and_grace_are_construction_parameters(make_store, odca_file, capsys):  # PT-31, R-X2, R-X3
+    store = review_store(make_store)
+    file = odca_file(name="saver.odca")
+    save_odca_file([{"rule": ALL_PRODUCIBLE.id, "colorset": "A", "colors": grey(10)},
+                    {"rule": ALL_PRODUCIBLE.id, "colorset": "B", "colors": grey(20)}], file)
+    s = make_session(store, play_file=file, play_timeout=20, play_grace=10)
+    s.handle_key("a")  # only the clocks transition
+    s.tick(19)
+    assert s.look_index == 0
+    s.tick(1.5)  # 20.5 s: the watchdog has expired and the grace period is long satisfied
+    assert s.look_index == 1
+    assert "look 2/2 B (timeout)" in capsys.readouterr().out
+    s.tick(15)
+    s.handle_key("i")  # 15 s in: the grace period restarts, the watchdog does not
+    s.tick(6)  # 21 s: expired, but only 6 s since the re-seed
+    assert s.look_index == 1
+    s.tick(4.5)  # 25.5 s: 10.5 s since the re-seed
+    assert s.look_index == 0
+
+
 def test_play_shuffle_is_a_fresh_pass_without_repeats(make_store, odca_file):  # PT-36
     store = review_store(make_store)
     file = odca_file(name="saver.odca")

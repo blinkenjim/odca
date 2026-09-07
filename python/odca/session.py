@@ -93,9 +93,13 @@ def _rgb(c):
 class Session:
     def __init__(self, cols, rows, store=None, search=None, rng=None,
                  review_mode=False, select_file=None, play_file=None, shuffle=False,
-                 initial_delay=INITIAL_DELAY):
+                 initial_delay=INITIAL_DELAY, play_timeout=PLAY_TIMEOUT, play_grace=PLAY_GRACE):
         self.cols = cols
         self.rows = rows
+        # odca's clocks (R-X2, R-X3), whole seconds from --watchdog / --grace
+        # or the defaults above.
+        self.play_timeout = float(play_timeout)
+        self.play_grace = float(play_grace)
         # R-U5: the starting delay, 1/60 s at the default cell size and halved
         # per halving of the cell, so the picture moves at the same speed in
         # points; the continuous-scrolling threshold is twice it (R-U3).
@@ -495,7 +499,7 @@ class Session:
                 print(f"screen {self.screen_counter}")  # R-O7
         if self.auto_init and self._boring_streak >= self.rows:
             reason = self._boring_reason
-            if self.play_mode and self.looks and self.play_elapsed >= PLAY_TIMEOUT:
+            if self.play_mode and self.looks and self.play_elapsed >= self.play_timeout:
                 self._next_play_look(reason)  # R-X3: watchdog expired, a re-init transitions
             else:
                 self.init_cells()
@@ -601,7 +605,7 @@ class Session:
         for _ in range(min(steps, STEP_CAP)):
             self._advance()
         if (self.play_mode and self.looks  # R-X3: watchdog expired and the grace period observed
-                and self.play_elapsed >= PLAY_TIMEOUT and self.since_init >= PLAY_GRACE):
+                and self.play_elapsed >= self.play_timeout and self.since_init >= self.play_grace):
             self._next_play_look("timeout")
 
     def _drain_search(self):

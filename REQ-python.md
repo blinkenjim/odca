@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.13.0 — 2026-09-06 (shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.15.0 — 2026-09-06 (`--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -72,6 +72,13 @@ copy these choices, but they are known to work.
   software renderer where none exists. The renderer API is marked
   experimental in pygame 2.6 but has been stable for years and is
   official in pygame-ce.
+- **`--watchdog` / `--grace`** (R-X2, R-X3): `cli.parse(options=)`
+  collects options that take the next argument as a value and returns
+  them as a dict; `cli.whole_seconds` validates a positive whole number
+  (exit 2 otherwise) and `Session(play_timeout=, play_grace=)` takes the
+  seconds, defaulting to `PLAY_TIMEOUT` / `PLAY_GRACE` (120 / 60) in
+  `session.py`. To change the defaults: those two constants, the help
+  text's prose and flag descriptions, R-X2 / R-X3, the README bullet.
 - **Cell size** (R-U2): `cli.cell_size(program, flags)` reads `--4` /
   `--2` / `--1` (two exit 2) and `cli.run(..., cell=)` passes it to the
   `Session` geometry and `Viewer(cell_size=)`; `grid_size` keeps the
