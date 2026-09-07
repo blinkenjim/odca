@@ -43,6 +43,7 @@ public final class Session {
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
     public static let playTimeout = 120.0  // odca: a look's screen time before it may advance (R-X3)
     public static let playGrace = 60.0  // odca: no transition within this long of an initialization (R-X3)
+    public static let shuffleTries = 100  // odca --shuffle: draws tried for an order without repeats (R-X1)
     public static let flashSeconds = 0.25  // the screen inverts this long as a mode cue (R-U10)
     public static let historyDepth = 2048  // rows remembered beyond the screen (R-U8)
     public static let paletteLimit = 64  // odca: prune the per-row palette table past this (R-X5)
@@ -610,15 +611,29 @@ public final class Session {
         }
     }
 
-    /// File order, or a fresh shuffle per pass that never opens on the look just played (R-X1).
+    /// File order, or a fresh shuffle per pass (R-X1): a permutation in which
+    /// no rule and no color set follows itself, the seam from the look just
+    /// played included; a file that allows no such order plays the last draw.
     private func newPass() {
         var order = Array(looks.indices)
         if shuffle && looks.count > 1 {
-            order.shuffle(using: &rng)
-            if order[0] == lookIndex { order.swapAt(0, order.count - 1) }
+            for _ in 0..<Session.shuffleTries {
+                order.shuffle(using: &rng)
+                if noRepeats(order, after: lookIndex) { break }
+            }
         }
         playOrder = order
         playPosition = 0
+    }
+
+    private func noRepeats(_ order: [Int], after previous: Int?) -> Bool {
+        let chain = (previous.map { [$0] } ?? []) + order
+        return zip(chain, chain.dropFirst()).allSatisfy { !clash($0, $1) }
+    }
+
+    /// Two looks repeat if they share the rule or the color set (in any arrangement).
+    private func clash(_ a: Int, _ b: Int) -> Bool {
+        looks[a].rule == looks[b].rule || looks[a].colors.sorted() == looks[b].colors.sorted()
     }
 
     /// Activate a look for play: its rule and colors, then a fresh seed (R-X4).

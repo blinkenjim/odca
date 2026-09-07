@@ -1,6 +1,8 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-06):** Spec 3.10.0, Swift 3.10.0, Python
+**YOU ARE HERE (2026-09-06):** Spec 3.12.0, Swift 3.12.0, Python
+3.13.0: the shuffle constraints (no rule or color set follows itself,
+seams included; a hundred draws then a plain shuffle). Before that, 3.10.0 /
 3.11.0: cell size flags `--4` / `--2` / `--1` on both programs (the
 user's "fun side path"), with the starting speed doubling per halving of
 the cell; the user thinks `--2` "might end up being the sweet spot" but
@@ -125,10 +127,12 @@ script design.
       consider fewer workers, or none, in play mode on small machines.
 - [ ] Window size and position memory for pygame (R-U2 "may"): SDL has no
       frame autosave; would be a file under `~/.odca/`.
-- [ ] Shuffle constraints for `odca --shuffle` (user, 2026-09-05: "subject
-      to certain constraints which I'll describe later"). 3.0.0 ships the
-      minimum: a fresh permutation per pass that never opens on the look
-      that closed the previous pass. Spec R-X1 marks the rest as pending.
+- [x] (3.12.0/3.13.0, 2026-09-06: no rule or color set, in any
+      arrangement, follows itself, seams included; a hundred draws then a
+      plain shuffle) Shuffle constraints for `odca --shuffle` (user,
+      2026-09-05: "subject to certain constraints which I'll describe
+      later"). 3.0.0 shipped the minimum: a fresh permutation per pass that
+      never opens on the look that closed the previous pass.
 - [ ] Color set tool: color set review (REQTS 4b, on hold, no program binds
       it in 3.0.0) returns as its own executable (`odca-colors`?) once the
       color set workflow is taken up again; baking an arrangement into the

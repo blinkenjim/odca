@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.10.0 — 2026-09-06
+Version 3.12.0 — 2026-09-06
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -112,7 +112,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
 | PT-35 | R-U9 | Each program's embedded help text equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1; `odca` accepts `--shuffle` and `--fullscreen` in either position and `odca-select` rejects both as unknown; both accept one of `--4` / `--2` / `--1` in either position, and two of them exit 2 with a one-line message (R-U2). |
 | PT-37 | R-U4, R-P4 | The digit-bound sets of the shipped `library.json` equal the R-U4 table of `REQTS.md`: same slots, names, and colors in state order. |
-| PT-36 | R-X1 | With six looks and `--shuffle`: six steps play every look exactly once; the next six form a fresh permutation whose first look differs from the previous pass's last; `P` steps back within the pass; without the flag the order is file order. |
+| PT-36 | R-X1 | With six looks on three rules, two each, and three color sets, two each (one of them arranged differently in its second look), `--shuffle`: over ten passes every pass plays each look exactly once, and no two consecutive looks in the whole sequence, pass seams included, share a rule or a color set in any arrangement; `P` steps back within the pass; without the flag the order is file order. With two looks on one rule, every pass is still a permutation and play continues (the requirement is dropped after a hundred draws). |
 
 ---
 

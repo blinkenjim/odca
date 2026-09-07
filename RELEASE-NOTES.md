@@ -5,6 +5,22 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.12.0 (Swift) and 3.13.0 (Python) — 2026-09-06
+
+The shuffle constraints you described. `odca --shuffle` still plays
+every look once per pass in a fresh random order; now no rule and no
+color set (the same four colors in any arrangement) ever follows itself,
+across the seam between passes too. Each pass is drawn and tested, and
+redrawn whole on a failure, up to a hundred times; a file that allows
+no such order, like two looks on one rule, then plays the draw as it is.
+Nothing is printed when that happens. You said ten draws; the test file
+of six looks, every rule and color set twice over, passes a draw one
+time in twelve (60 of the 720 orders), so ten would have let a repeat
+through on two passes in five. A hundred costs nothing and misses one
+pass in six thousand. `--shuffle` had existed since 3.0.0 with
+only the weakest rule, never reopening on the look just played; that is
+now covered by the stronger one.
+
 ## 3.10.0 (Swift) and 3.11.0 (Python) — 2026-09-06
 
 The tweak: the starting speed follows the cell size. `--2` starts at

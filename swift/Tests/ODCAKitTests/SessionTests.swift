@@ -899,21 +899,34 @@ final class SessionTests: XCTestCase {
     func testShuffleIsAFreshPassWithoutRepeats() throws {  // PT-36
         let store = try reviewStore()
         let file = odcaFile(store, name: "saver.odca")
-        Store.saveOdcaFile((0..<6).map { Look(rule: allProducible.id, colorset: "S\($0)", colors: grey($0 * 10)) }, to: file)
+        let a = allProducible, b = try Rule(id: String(repeating: "1", count: 20)), c = try Rule(id: String(repeating: "2", count: 20))
+        let x = grey(10), y = grey(20), z = grey(30)
+        let looks = [Look(rule: a.id, colorset: "X", colors: x), Look(rule: a.id, colorset: "Y", colors: y),
+                     Look(rule: b.id, colorset: "X'", colors: x.reversed()), Look(rule: b.id, colorset: "Z", colors: z),
+                     Look(rule: c.id, colorset: "Y", colors: y), Look(rule: c.id, colorset: "Z", colors: z)]
+        Store.saveOdcaFile(looks, to: file)
         let session = makeSession(store, play: file, shuffle: true)
         XCTAssertTrue(session.shuffle)
         var played = [session.lookIndex!]
-        for _ in 0..<5 { _ = session.handleKey(.N); played.append(session.lookIndex!) }
-        XCTAssertEqual(played.sorted(), Array(0..<6))  // one pass: every look once
-        let last = played.last!
-        for _ in 0..<6 { _ = session.handleKey(.N); played.append(session.lookIndex!) }  // a second, fresh pass
-        XCTAssertNotEqual(played[6], last)  // never opening on the look just played
-        XCTAssertEqual(Array(played[6...]).sorted(), Array(0..<6))
+        for _ in 0..<59 { _ = session.handleKey(.N); played.append(session.lookIndex!) }  // ten passes
+        for p in 0..<10 {
+            XCTAssertEqual(Array(played[(6 * p)..<(6 * p + 6)]).sorted(), Array(0..<6))  // every pass: every look once
+        }
+        for (i, j) in zip(played, played.dropFirst()) {  // never the same rule or color set in a row, seams included
+            XCTAssertNotEqual(looks[i].rule, looks[j].rule, "\(i) then \(j)")
+            XCTAssertNotEqual(looks[i].colors.sorted(), looks[j].colors.sorted(), "\(i) then \(j)")
+        }
         _ = session.handleKey(.P)  // back one within the pass
         XCTAssertEqual(session.lookIndex, played[played.count - 2])
         let plain = makeSession(store, play: file)
         XCTAssertEqual(plain.playOrder, Array(0..<6))
         XCTAssertFalse(plain.shuffle)
+        // No order can avoid a repeat: the requirement is dropped and the show goes on.
+        Store.saveOdcaFile([Look(rule: a.id, colorset: "X", colors: x), Look(rule: a.id, colorset: "Y", colors: y)], to: file)
+        let small = makeSession(store, play: file, shuffle: true)
+        var pair = [small.lookIndex!]
+        for _ in 0..<5 { _ = small.handleKey(.N); pair.append(small.lookIndex!) }
+        for i in stride(from: 0, to: 6, by: 2) { XCTAssertEqual(Array(pair[i..<(i + 2)]).sorted(), [0, 1]) }
     }
 
     func testRowsKeepTheirColorsThroughQuickTransitions() throws {  // PT-31, R-X5

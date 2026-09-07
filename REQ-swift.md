@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.10.0 — 2026-09-06 (initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.12.0 — 2026-09-06 (shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -84,9 +84,10 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   `Session.playTimeout`, otherwise re-seeds in place; `tick` accumulates
   `playElapsed` (the look's screen time) and `sinceInit` (the grace clock,
   zeroed by `initCells`) while unpaused and advances when both have run
-  out. `playOrder` is the current pass — `Array.shuffle(using:)` on the
-  session RNG under `--shuffle`, its first entry swapped away from the
-  look just played. Program precedence in `Session.init`: play, then
+  out. `playOrder` is the current pass — under `--shuffle`,
+  `Array.shuffle(using:)` on the session RNG, redrawn up to
+  `shuffleTries` (100) times until `noRepeats` holds: no two consecutive
+  looks, the one just played included, share a rule or sorted colors. Program precedence in `Session.init`: play, then
   select, then review. Colors per row (R-X5): `Session.rowPalettes` tags
   each history row with an index into `paletteTable`, the color sets rows
   have been painted with, four `RGB` per entry; in play mode `pushRow`

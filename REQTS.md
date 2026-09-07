@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.10.0 — 2026-09-06
+Version 3.12.0 — 2026-09-06
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -46,7 +46,8 @@ good, however many color changes share a screenful — R-X5, the two-bank
 limitation withdrawn. 3.4.0: `odca --fullscreen` — R-U2, section 10.
 3.6.0: `F` toggles full screen — R-K18, R-K10. 3.8.0: cell size flags
 `--4` / `--2` / `--1` on both programs — R-U2, section 10. 3.10.0: the
-initial delay halves with the cell size — R-U5, R-U3.)
+initial delay halves with the cell size — R-U5, R-U3. 3.12.0: the
+shuffle constraints — R-X1.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -632,10 +633,18 @@ program prints `odca <file>: <n> looks` (R-O13) and, if the list is
 non-empty, plays look 1. Without `--shuffle` the looks are played in file
 order, looping from the last back to the first indefinitely. With
 `--shuffle` each *pass* through the looks is a fresh uniformly random
-permutation of all of them, and a pass never opens on the look that
-closed the previous pass (when there are at least two). *Further shuffle
-constraints are to be specified.* An empty file leaves the program
-running as usual; the file is never written.
+permutation of all of them — every look plays once before the next pass
+— in which no two consecutive looks share a rule or a color set (the
+same four colors in any arrangement), the seam included: the first look
+of a pass may share neither with the look that closed the previous one.
+The program draws a permutation and tests it, redrawing the whole
+sequence on a failure, up to a hundred times (six looks with every rule
+and every color set appearing twice pass a draw one time in twelve, so
+ten draws would miss two passes in five; a hundred, one in six thousand,
+at no measurable cost); a file that allows no such order (one look, or every
+look on one rule, for instance) then plays the last draw as it is, so
+the show never stalls. An empty file leaves the
+program running as usual; the file is never written.
 
 **R-X2 (equal screen time).** Every look gets the same screen time: a
 *watchdog* of 120 unpaused seconds, counted from the moment the look
