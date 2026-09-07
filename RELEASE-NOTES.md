@@ -5,6 +5,21 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.14.0 (Swift) and 3.15.0 (Python) — 2026-09-06
+
+`odca --watchdog SECONDS --grace SECONDS`, whole seconds, either or
+both, on `odca` only. The defaults stay 120 and 60, so nothing changes
+until you pass them:
+
+```
+python/run odca interesting.odca --watchdog 20 --grace 10
+```
+
+A missing value, a fraction, or zero is a usage error. When you settle
+on new defaults, the places that hold the old numbers are listed in
+`REQ-swift.md` and `REQ-python.md`: two constants per side, the help
+text, the spec, the README bullet.
+
 ## 3.12.0 (Swift) and 3.13.0 (Python) — 2026-09-06
 
 The shuffle constraints you described. `odca --shuffle` still plays

@@ -31,12 +31,34 @@ final class SessionTests: XCTestCase {
     /// A session whose terminal output is captured into `lines`.
     func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil,
                      review: Bool = false, select: URL? = nil, play: URL? = nil, shuffle: Bool = false,
-                     initialDelay: Double = Session.initialDelay) -> Session {
+                     initialDelay: Double = Session.initialDelay,
+                     playTimeout: Double = Session.playTimeout, playGrace: Double = Session.playGrace) -> Session {
         let sink: (String) -> Void = lines.map { l in { l.all.append($0) } } ?? { print($0) }
         return Session(cols: 32, rows: 16, store: store,
                        search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed),
                        reviewMode: review, selectFile: select, playFile: play, shuffle: shuffle,
-                       initialDelay: initialDelay, output: sink)
+                       initialDelay: initialDelay, playTimeout: playTimeout, playGrace: playGrace, output: sink)
+    }
+
+    func testWatchdogAndGraceAreConstructionParameters() throws {  // PT-31, R-X2, R-X3
+        let lines = Lines()
+        let store = try reviewStore()
+        let file = odcaFile(store, name: "saver.odca")
+        Store.saveOdcaFile([Look(rule: allProducible.id, colorset: "A", colors: grey(10)),
+                            Look(rule: allProducible.id, colorset: "B", colors: grey(20))], to: file)
+        let session = makeSession(store, lines: lines, play: file, playTimeout: 20, playGrace: 10)
+        _ = session.handleKey(.a)  // only the clocks transition
+        session.tick(19)
+        XCTAssertEqual(session.lookIndex, 0)
+        session.tick(1.5)  // 20.5 s: the watchdog has expired and the grace period is long satisfied
+        XCTAssertEqual(session.lookIndex, 1)
+        XCTAssertTrue(lines.take().contains("look 2/2 B (timeout)"))
+        session.tick(15)
+        _ = session.handleKey(.i)  // 15 s in: the grace period restarts, the watchdog does not
+        session.tick(6)  // 21 s: expired, but only 6 s since the re-seed
+        XCTAssertEqual(session.lookIndex, 1)
+        session.tick(4.5)  // 25.5 s: 10.5 s since the re-seed
+        XCTAssertEqual(session.lookIndex, 0)
     }
 
     func testInitialDelayScalesTheSpeedAndTheThreshold() throws {  // PT-25, R-U5, R-U3

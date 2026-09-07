@@ -65,14 +65,16 @@ git-tagged (`v2.0.0`, `v2.1.0`, …).
 
 There are two programs, sharing the engine and most of the keyboard:
 
-- **`odca <file.odca> [--shuffle] [--fullscreen] [--4 | --2 | --1]`** plays the *looks* in an odca file,
+- **`odca <file.odca> [--shuffle] [--fullscreen] [--4 | --2 | --1] [--watchdog N] [--grace N]`** plays the *looks* in an odca file,
   one after another, looping. A look is a rule with a color set. Every look
   gets two minutes of screen time, re-seeding in place whenever it goes
   boring; then it hands over after a quiet minute or at the next re-seed,
   and the next look grows in from a fresh field below the old rows, which
   keep their colors. `--shuffle` plays each pass in a fresh random order
   in which no rule or color set follows itself, pass seams included;
-  `--fullscreen` opens full screen at once, for unattended runs.
+  `--fullscreen` opens full screen at once, for unattended runs;
+  `--watchdog` and `--grace` set the two clocks in whole seconds (120 and
+  60 by default).
   `N`/`P` (or `n`/`p`) step by hand. The file is never written.
 - **`odca-select <file.odca> [--4 | --2 | --1]`** is the workbench that composes them: it
   shows screened random rules, you dress each in a color set, and `s`/`S`

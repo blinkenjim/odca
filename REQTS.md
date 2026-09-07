@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.12.0 — 2026-09-06
+Version 3.14.0 — 2026-09-06
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -47,7 +47,8 @@ limitation withdrawn. 3.4.0: `odca --fullscreen` — R-U2, section 10.
 3.6.0: `F` toggles full screen — R-K18, R-K10. 3.8.0: cell size flags
 `--4` / `--2` / `--1` on both programs — R-U2, section 10. 3.10.0: the
 initial delay halves with the cell size — R-U5, R-U3. 3.12.0: the
-shuffle constraints — R-X1.)
+shuffle constraints — R-X1. 3.14.0: `--watchdog` and `--grace` — R-X2,
+R-X3, R-U9, section 10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -287,7 +288,9 @@ every other argument is ignored. The texts are the files
 reproduced byte for byte (each ends with a single newline); they name
 every flag and key. Changing a text is a spec change made in that file.
 Other command-line errors: a missing or extra positional argument or an
-unknown option prints a one-line usage message and exits with status 2;
+unknown option prints a one-line usage message and exits with status 2,
+as does an option that takes a value (`--watchdog`, `--grace`) given
+none, or one that is not a positive whole number;
 `odca` on a file that does not exist prints `error: <file> does not exist`
 and exits with status 1.
 
@@ -647,14 +650,16 @@ the show never stalls. An empty file leaves the
 program running as usual; the file is never written.
 
 **R-X2 (equal screen time).** Every look gets the same screen time: a
-*watchdog* of 120 unpaused seconds, counted from the moment the look
-starts and unaffected by re-initializations. Until it expires,
+*watchdog* of 120 unpaused seconds by default, or the whole number of
+seconds given by `odca --watchdog SECONDS`, counted from the moment the
+look starts and unaffected by re-initializations. Until it expires,
 auto-initialization behaves as everywhere else (R-A2): the look is
 re-seeded in place, as often as it takes, and stays on screen.
 
 **R-X3 (transition).** Once the watchdog has expired, the program advances
 to the next look of the pass at the first of: (a) the *grace period*
-being satisfied — 60 unpaused seconds since the look's last
+being satisfied — 60 unpaused seconds by default, or the whole number of
+seconds given by `odca --grace SECONDS`, since the look's last
 initialization, automatic or manual — or (b) the boring detector firing,
 which then transitions (with its reason) instead of re-seeding in place.
 A manual `i` (R-K6) never transitions; it restarts the grace period only,
@@ -884,8 +889,8 @@ loses one update (loaders already tolerate malformed content, R-P).
 
 - The command line is one positional argument, the odca file, plus
   `--help` (R-U9), the cell size flags `--4` / `--2` / `--1` (R-U2), and,
-  for `odca`, `--shuffle` (R-X1) and `--fullscreen` (R-U2); no
-  configuration files or menus. No other flags exist (the 2.x developer flags
+  for `odca`, `--shuffle` (R-X1), `--fullscreen` (R-U2), `--watchdog`
+  (R-X2), and `--grace` (R-X3); no configuration files or menus. No other flags exist (the 2.x developer flags
   `--colorset-review`, `--screensaver-review`, `--consistency-check`, and
   `--screensaver` are gone: the last two became `odca-select` and `odca`,
   the consistency check became `R`, and color set review is on hold).

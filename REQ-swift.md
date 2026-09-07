@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.12.0 — 2026-09-06 (shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.14.0 — 2026-09-06 (`--watchdog`, `--grace`; 3.12.0: shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -99,6 +99,13 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   `AppDelegate.fullScreenAtLaunch`; once the window exists the delegate
   calls `toggleFullScreen(nil)`, the same path as the green button, so the
   pointer hiding and the frame autosave behave as for a manual entry.
+- **`--watchdog` / `--grace`** (R-X2, R-X3): `parseArguments(options:)`
+  collects options that take the next argument as a value;
+  `wholeSeconds(program:options:_:default:)` validates a positive whole
+  number (exit 2 otherwise) and `Session.init(playTimeout:playGrace:)`
+  takes the seconds, defaulting to the statics `Session.playTimeout` /
+  `playGrace` (120 / 60). To change the defaults: those two statics, the
+  help text's prose and flag descriptions, R-X2 / R-X3, the README bullet.
 - **Cell size** (R-U2): `chooseCellSize(program:flags:)` in `Launch.swift`
   reads `--4` / `--2` / `--1` (two exit 2) and `launch(cellSize:)` stores
   it in `ViewerModel.cellSize`, a static set once before the window

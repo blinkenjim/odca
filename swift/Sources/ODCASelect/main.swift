@@ -3,7 +3,7 @@ import Foundation
 import ODCAKit
 import ODCAUI
 
-let (file, flags) = parseArguments(program: "odca-select", help: helpOdcaSelect, flags: cellFlags)
+let (file, flags, _) = parseArguments(program: "odca-select", help: helpOdcaSelect, flags: cellFlags)
 let cellSize = chooseCellSize(program: "odca-select", flags: flags)  // R-U2
 MainActor.assumeIsolated {  // top-level code of an executable runs on the main thread
     launch(cellSize: cellSize) { cols, rows in

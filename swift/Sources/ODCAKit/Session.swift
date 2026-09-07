@@ -94,6 +94,9 @@ public final class Session {
     /// per halving of the cell, so the picture moves at the same speed in
     /// points; the continuous-scrolling threshold is twice it (R-U3).
     public let initialDelay: Double
+    /// odca's clocks (R-X2, R-X3): whole seconds from --watchdog / --grace, or the defaults.
+    public let playTimeout: Double
+    public let playGrace: Double
     public var smoothScrollDelay: Double { 2 * initialDelay }
     public private(set) var delay: Double
     public private(set) var paused = false
@@ -162,10 +165,13 @@ public final class Session {
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
         reviewMode: Bool = false, selectFile: URL? = nil, playFile: URL? = nil, shuffle: Bool = false,
         initialDelay: Double = Session.initialDelay,
+        playTimeout: Double = Session.playTimeout, playGrace: Double = Session.playGrace,
         output: @escaping (String) -> Void = { print($0) }
     ) {
         self.cols = cols
         self.rows = rows
+        self.playTimeout = playTimeout
+        self.playGrace = playGrace
         self.initialDelay = initialDelay
         self.delay = initialDelay
         self.store = store
@@ -735,7 +741,7 @@ public final class Session {
         }
         if autoInit && boringStreak >= rows {
             let reason = boringReason ?? "boring"
-            if playMode && !looks.isEmpty && playElapsed >= Session.playTimeout {
+            if playMode && !looks.isEmpty && playElapsed >= playTimeout {
                 nextPlayLook(reason: reason)  // R-X3: watchdog expired, a re-init transitions
             } else {
                 initCells()
@@ -848,7 +854,7 @@ public final class Session {
         accumulated -= Double(steps) * delay
         for _ in 0..<min(steps, Session.stepCap) { advance() }
         if playMode && !looks.isEmpty  // R-X3: watchdog expired and the grace period observed
-            && playElapsed >= Session.playTimeout && sinceInit >= Session.playGrace {
+            && playElapsed >= playTimeout && sinceInit >= playGrace {
             nextPlayLook(reason: "timeout")
         }
     }

@@ -5,6 +5,7 @@ public let helpOdca = """
 odca: one-dimensional cellular automata as art
 
 usage: odca <file.odca> [--shuffle] [--fullscreen] [--4 | --2 | --1]
+            [--watchdog SECONDS] [--grace SECONDS]
        odca --help
 
 Plays the looks in an odca file, one at a time, looping. A look is a rule
@@ -22,6 +23,12 @@ in from a fresh field below the old rows, which keep their colors.
   --4 / --2 / --1
                 cells 4 (the default), 2, or 1 points on a side (pixels,
                 in the Python version)
+  --watchdog SECONDS
+                a look's screen time before it may hand over: whole
+                seconds, 120 by default
+  --grace SECONDS
+                no hand-over within this long of a re-seed: whole seconds,
+                60 by default
 
 Keys:
   q     quit                            space   pause / resume

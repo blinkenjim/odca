@@ -1,7 +1,10 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-06):** Spec 3.12.0, Swift 3.12.0, Python
-3.13.0: the shuffle constraints (no rule or color set follows itself,
+**YOU ARE HERE (2026-09-06):** Spec 3.14.0, Swift 3.14.0, Python
+3.15.0: `odca --watchdog SECONDS --grace SECONDS` (defaults still 120 /
+60; the user will change them later, and REQ-swift / REQ-python list the
+places that hold the numbers). Before that, 3.12.0 / 3.13.0: the shuffle
+constraints (no rule or color set follows itself,
 seams included; a hundred draws then a plain shuffle). Before that, 3.10.0 /
 3.11.0: cell size flags `--4` / `--2` / `--1` on both programs (the
 user's "fun side path"), with the starting speed doubling per halving of
@@ -125,6 +128,12 @@ script design.
       workers (three of the Pi's four cores) until the stash fills, and
       each worker process carries a numpy import, which on 1 GB matters —
       consider fewer workers, or none, in play mode on small machines.
+- [ ] New watchdog / grace defaults (user, 2026-09-06: 20 and 10 were
+      the first values named; "we will be changing them later"). Places:
+      `Session.playTimeout` / `playGrace` (Swift), `PLAY_TIMEOUT` /
+      `PLAY_GRACE` (Python), the help text prose ("two minutes", "a quiet
+      minute") and the flag descriptions, R-X2 / R-X3, the README bullet,
+      PT-31's literal seconds in TESTS.md and both PT-31 tests.
 - [ ] Window size and position memory for pygame (R-U2 "may"): SDL has no
       frame autosave; would be a file under `~/.odca/`.
 - [x] (3.12.0/3.13.0, 2026-09-06: no rule or color set, in any

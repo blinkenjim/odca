@@ -4,8 +4,10 @@ import ODCAKit
 /// Shared command-line handling for odca and odca-select (R-U9, R-W1, R-X1):
 /// `--help` prints and exits before anything else; the one positional
 /// argument is the odca file; unknown options and a missing file argument
-/// are usage errors (exit 2).
-public func parseArguments(program: String, help: String, flags: [String] = []) -> (file: URL, flags: Set<String>) {
+/// are usage errors (exit 2). `options` take the next argument as their
+/// value; one without a value is a usage error.
+public func parseArguments(program: String, help: String, flags: [String] = [], options: [String] = [])
+    -> (file: URL, flags: Set<String>, options: [String: String]) {
     setlinebuf(stdout)  // status lines (R-O) arrive promptly even when piped or logged
     let args = Array(CommandLine.arguments.dropFirst())
     if args.contains("--help") {
@@ -13,23 +15,44 @@ public func parseArguments(program: String, help: String, flags: [String] = []) 
         exit(0)
     }
     var given = Set<String>()
+    var values: [String: String] = [:]
     var files: [String] = []
-    for a in args {
+    var i = 0
+    while i < args.count {
+        let a = args[i]
         if flags.contains(a) {
             given.insert(a)
+        } else if options.contains(a) {
+            guard i + 1 < args.count, !args[i + 1].hasPrefix("-") else {
+                print("\(program): \(a) needs a value")
+                exit(2)
+            }
+            values[a] = args[i + 1]
+            i += 1
         } else if a.hasPrefix("-") {
             print("\(program): unknown option \(a)")
             exit(2)
         } else {
             files.append(a)
         }
+        i += 1
     }
     guard files.count == 1 else {
-        let usage = flags.isEmpty ? "" : " [" + flags.joined(separator: "] [") + "]"
+        let usage = flags.map { " [\($0)]" }.joined() + options.map { " [\($0) N]" }.joined()
         print("usage: \(program) <file.odca>\(usage)")
         exit(2)
     }
-    return (URL(fileURLWithPath: files[0]), given)
+    return (URL(fileURLWithPath: files[0]), given, values)
+}
+
+/// A positive whole number of seconds given to `option`, or `default` (R-X2, R-X3).
+public func wholeSeconds(program: String, options: [String: String], _ option: String, default value: Double) -> Double {
+    guard let text = options[option] else { return value }
+    guard let n = Int(text), n >= 1, text.allSatisfy(\.isNumber) else {
+        print("\(program): \(option) needs a whole number of seconds")
+        exit(2)
+    }
+    return Double(n)
 }
 
 /// The cell size flags (R-U2), accepted by both programs.
