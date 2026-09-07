@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.16.0 — 2026-09-06
+Version 3.18.0 — 2026-09-06
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -49,7 +49,8 @@ limitation withdrawn. 3.4.0: `odca --fullscreen` — R-U2, section 10.
 initial delay halves with the cell size — R-U5, R-U3. 3.12.0: the
 shuffle constraints — R-X1. 3.14.0: `--watchdog` and `--grace` — R-X2,
 R-X3, R-U9, section 10. 3.16.0: `m` on a look is an edit of it, recorded
-in place by `s` — R-K3, R-K5, R-B3, R-W4.)
+in place by `s` — R-K3, R-K5, R-B3, R-W4. 3.18.0: `U` undoes every change
+since the position last moved — R-K19, R-K4.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -327,7 +328,7 @@ occupies the unsaved slot (R-B3). Cells are not reinitialized.
 the outgoing rule onto an unbounded undo stack; `u` pops the stack and
 makes that rule current per R-B1. With an empty stack, `u` is a silent
 no-op. Undo does not alter the interesting-rule cycle position or the
-unsaved slot.
+unsaved slot. `U` undoes many at once (R-K19).
 
 **R-K5 (`s` / `S` — save a look).** In `odca-select` (section 4c) only.
 A *look* is a rule with the active color set's name and arranged colors
@@ -416,6 +417,16 @@ window is not in it, by whatever route it got there, and leave it if it
 is (R-U2). A window key, not a session key: nothing about the automaton,
 the undo stack, or the look cycle changes, and it is live while paused
 (R-K10). The platform's own controls keep working alongside it.
+
+**R-K19 (`U` — undo all).** Undo, in one step, every rule change made
+since the last *arrival*: the look under review being selected (R-B2),
+`r` bringing a fresh rule to the unsaved slot (R-B3), or, in `odca`, the
+look starting to play (R-X4); before any arrival, since startup. A
+mutation is an edit, never an arrival, on the unsaved slot as on a look. The stack
+(R-K4) is unwound to that depth and the rule beneath becomes current per
+R-B1; the position, the unsaved slot, and the colors are untouched, so on
+a look under review `U` returns the look to its recorded rule. With
+nothing to unwind, a silent no-op. Not live while paused, like `u`.
 
 **R-K12 (`a` — auto-initialization).** Toggles auto-initialization mode
 (section 4a) and prints its new state (R-O6). The mode is on at startup

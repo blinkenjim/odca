@@ -1031,6 +1031,42 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.unsavedRule, session.automaton.rule)
     }
 
+    func testUUndoesEveryChangeSinceThePositionMoved() throws {  // PT-9, R-K19
+        let store = try reviewStore()
+        let one = allZero, two = try Rule(id: String(repeating: "1", count: 20))
+        let session = makeSession(store, select: odcaFile(store, rules: [one, two], name: "saver.odca"))
+        let depth = session.undoStack.count
+        for _ in 0..<3 { _ = session.handleKey(.m) }
+        XCTAssertNotEqual(session.automaton.rule, one)
+        XCTAssertEqual(session.undoStack.count, depth + 3)
+        _ = session.handleKey(.U)  // all three at once, still on look 1
+        XCTAssertEqual(session.automaton.rule, one)
+        XCTAssertEqual(session.lookIndex, 0)
+        XCTAssertEqual(session.undoStack.count, depth)
+        _ = session.handleKey(.U)  // nothing left since arriving here: a no-op
+        XCTAssertEqual(session.automaton.rule, one)
+        XCTAssertEqual(session.undoStack.count, depth)
+        _ = session.handleKey(.n)  // look 2 (one push); edits here unwind to look 2, not further
+        _ = session.handleKey(.m)
+        _ = session.handleKey(.m)
+        _ = session.handleKey(.U)
+        XCTAssertEqual(session.automaton.rule, two)
+        XCTAssertEqual(session.lookIndex, 1)
+        XCTAssertEqual(session.undoStack.count, depth + 1)
+        _ = session.handleKey(.r)  // the unsaved slot: U unwinds to the rule r brought
+        let fresh = session.automaton.rule
+        _ = session.handleKey(.m)
+        _ = session.handleKey(.m)
+        XCTAssertNotEqual(session.automaton.rule, fresh)
+        _ = session.handleKey(.U)
+        XCTAssertEqual(session.automaton.rule, fresh)
+        XCTAssertNil(session.lookIndex)
+        XCTAssertEqual(session.unsavedRule, fresh)
+        _ = session.handleKey(.space)  // paused: U is not live, like u
+        _ = session.handleKey(.m)
+        XCTAssertEqual(session.automaton.rule, fresh)
+    }
+
     // MARK: PT-32 resizing (R-U8)
 
     func testResizePreservesCenterAndUncoversHistory() throws {

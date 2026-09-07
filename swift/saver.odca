@@ -51,16 +51,6 @@
    ]
   },
   {
-   "rule": "10323213122100120233",
-   "colorset": "Earthy Coral Harmony",
-   "colors": [
-    "#D27F65",
-    "#F3F1E0",
-    "#8BB19C",
-    "#3E4059"
-   ]
-  },
-  {
    "rule": "02320201313001213222",
    "colorset": "Ocean Pearl Blossom",
    "colors": [
@@ -172,22 +162,22 @@
   },
   {
    "rule": "10323213123100120233",
-   "colorset": "Earthy Coral Harmony",
+   "colorset": "Midnight Jungle Gold",
    "colors": [
-    "#D27F65",
-    "#F3F1E0",
-    "#8BB19C",
-    "#3E4059"
+    "#0E1618",
+    "#F9F4D6",
+    "#1B4543",
+    "#CBAD39"
    ]
   },
   {
-   "rule": "10323213120100120233",
-   "colorset": "Earthy Coral Harmony",
+   "rule": "20032011222231322011",
+   "colorset": "Vibrant Rainbow Burst",
    "colors": [
-    "#D27F65",
-    "#F3F1E0",
-    "#8BB19C",
-    "#3E4059"
+    "#F8D45D",
+    "#6BCBAE",
+    "#DC5068",
+    "#4D146A"
    ]
   }
  ]

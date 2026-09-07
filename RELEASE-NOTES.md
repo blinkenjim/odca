@@ -5,6 +5,14 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.18.0 (Swift) and 3.19.0 (Python) — 2026-09-06
+
+`U` undoes every rule change since you arrived where you are: on a look
+under review, back to the look as recorded; on the unsaved slot, back to
+the rule `r` brought; in `odca`, back to the look as it started playing.
+One key, however many `m` presses it took. `u` still walks back one at a
+time, and `U` after `u` unwinds what is left. Both help texts list it.
+
 ## 3.16.0 (Swift) and 3.17.0 (Python) — 2026-09-06
 
 Your `s` report. It was the spec, not a bug: `m` used to move you to

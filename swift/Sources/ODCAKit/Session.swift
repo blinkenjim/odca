@@ -69,6 +69,7 @@ public final class Session {
 
     public enum Key: Equatable {
         case q, r, m, u, s, i, n, p, a
+        case U  // undo every change since the cycle position last moved (R-K19)
         case c, C, S  // arrange colors forward / backward; S appends a look (R-W4)
         case N, P, X  // odca: next / previous look; odca-select: X deletes; review: next / previous / drop
         case R  // odca-select: toggle the n/p order, file order or grouped by rule (R-W7)
@@ -138,6 +139,7 @@ public final class Session {
     private var activeName: String { activeSet?.name ?? colorSets[colorSet]!.name }
     private var pool: [ColorSetEntry] = []  // whole pool in review order for [ / ]
     public private(set) var undoStack: [Rule] = []
+    private var undoMark = 0  // stack depth when the cycle position last moved; U unwinds to it (R-K19)
     public private(set) var candidates: [Rule]
     /// Terminal output sink (R-O); the UI leaves it as print, tests capture it.
     public var output: (String) -> Void = { print($0) }
@@ -517,6 +519,7 @@ public final class Session {
             setRule(rule)
         }
         showColors(name: look.colorset, colors: look.colors)
+        undoMark = undoStack.count
         output("look \(position + 1)/\(looks.count) \(look.colorset)")  // R-O4
         fillScreen()  // R-W8: every navigation shows a screenful of the selection
     }
@@ -648,6 +651,7 @@ public final class Session {
         let look = looks[index]
         lookIndex = index
         if let rule = try? Rule(id: look.rule), rule != automaton.rule { setRule(rule) }
+        undoMark = undoStack.count  // R-K19: U returns to the look as played
         showColors(name: look.colorset, colors: look.colors)
         initCells()
         playElapsed = 0  // the look's screen time starts now
@@ -882,12 +886,16 @@ public final class Session {
     }
 
     /// Make `rule` current and the occupant of the cycle's unsaved slot (R-B3).
-    private func setUnsavedRule(_ rule: Rule) {
+    /// Make `rule` current and the occupant of the unsaved slot (R-B3). An
+    /// arrival (r, or entering the slot) is where U unwinds to (R-K19); a
+    /// mutation made on the slot is an edit, and U undoes it too.
+    private func setUnsavedRule(_ rule: Rule, arrival: Bool = true) {
         unsavedRule = rule
         unsavedSet = activeSet
         lookIndex = nil
         viewPosition = nil
         setRule(rule)
+        if arrival { undoMark = undoStack.count }
     }
 
     private func newRule() {  // R-K2
@@ -913,12 +921,21 @@ public final class Session {
         if selectMode && lookIndex != nil {
             setRule(mutant)  // an edit of the look under review: the position stays; 's' records it
         } else {
-            setUnsavedRule(mutant)
+            setUnsavedRule(mutant, arrival: false)
         }
     }
 
     private func undo() {  // R-K4
         if let rule = undoStack.popLast() { setRule(rule) }
+    }
+
+    private func undoAll() {  // R-K19: every change since the cycle position last moved, at once
+        let mark = min(undoMark, undoStack.count)
+        guard undoStack.count > mark else { return }
+        let rule = undoStack[mark]
+        undoStack.removeSubrange(mark...)
+        setRule(rule)
+        if selectMode && lookIndex == nil { unsavedRule = rule }  // the slot's mutations are undone with it
     }
 
     private func initCells() {  // R-K6
@@ -962,6 +979,8 @@ public final class Session {
             mutateRule()
         case .u:
             undo()
+        case .U:
+            undoAll()  // R-K19
         case .s:
             if selectMode { saveLook() }  // R-W4; otherwise nothing to save into
         case .i:

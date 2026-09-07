@@ -1,8 +1,10 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-06):** Spec 3.16.0, Swift 3.16.0, Python
-3.17.0: `m` on a look under review is an edit of it, recorded in place by
-`s` (the user found `s` appending after `m`). Before that, 3.14.0 /
+**YOU ARE HERE (2026-09-06):** Spec 3.18.0, Swift 3.18.0, Python
+3.19.0: `U` undoes every rule change since the position last moved
+(R-K19). Before that, 3.16.0 / 3.17.0: `m` on a look under review is an
+edit of it, recorded in place by `s` (the user found `s` appending after
+`m`). Before that, 3.14.0 /
 3.15.0: `odca --watchdog SECONDS --grace SECONDS` (defaults still 120 /
 60; the user will change them later, and REQ-swift / REQ-python list the
 places that hold the numbers). Before that, 3.12.0 / 3.13.0: the shuffle

@@ -105,6 +105,7 @@ consume candidates.
 | r   | new random rule, screened for maybe-Class-IV behavior (ID printed) |
 | m   | mutate the rule: one entry changes to a new state (in odca-select on a look: an edit of it, kept by `s`, dropped by `n`/`p`) |
 | u   | undo the last rule change (repeatable)       |
+| U   | undo every rule change since arriving on the current look or rule, at once |
 | i   | initialize all cells to random contents      |
 | n / p | odca-select: next / previous look, or the unsaved rule, with its colors (every step fills the screen); odca: as N / P |
 | s   | odca-select: rewrite the look under review with what is on screen (its rule, mutated or not, and its colors), or append the screen as a new look when on the unsaved rule; while paused (both programs): run one screenful at 8× speed, then stay paused (press again to queue more) |

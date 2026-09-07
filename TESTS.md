@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.16.0 — 2026-09-06
+Version 3.18.0 — 2026-09-06
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -82,7 +82,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-6 | R-P1 | Current-rule save/load round-trips; a missing or corrupt file loads as absent (triggering the random-rule fallback), never an error. |
 | PT-7 | R-P2 | Candidate stash save/load round-trips in order; invalid lines are skipped. |
 | PT-8 | R-P3 | The odca file round-trips looks (rule, color set name, arranged colors) in order; the loader skips malformed looks, reads an unparseable file as empty and a missing one as absent, and no longer reads the 2.x `pairs` key. Re-saving the shipped `interesting.odca` is byte-identical. |
-| PT-9 | R-K4 | Undo restores rules in LIFO order; undo on an empty stack is a no-op. |
+| PT-9 | R-K4, R-K19 | Undo restores rules in LIFO order; undo on an empty stack is a no-op. In `odca-select` on look 1 of a two-look file, three `m` then `U` restore look 1's rule at once with the position unchanged and the stack at its depth on arrival, and a second `U` is a no-op; after `n` two `m` and `U` restore look 2's rule, unwinding only to that arrival; after `r` two `m` and `U` restore the rule `r` brought, on the unsaved slot; `U` is not live while paused. |
 | PT-10 | R-B2, R-B3, R-W1 | `odca-select` on a file of k looks opens on look 1 with the unsaved slot empty; after `r` the unsaved slot holds the new rule and the position is on it; `n` selects look 1; `p` returns to the unsaved slot; a further `p` wraps to look k; stepping past the last returns to the unsaved slot; `m` there replaces the unsaved rule and stays on the slot. |
 | PT-10a | R-U1, R-B3 | Opening on look 1 with the unsaved slot empty, `n` selects look 2 and `p` twice wraps to look k with no unsaved stop; the unsaved slot reappears holding the new rule after `r` (`m` on a look edits the look instead, PT-34). |
 | PT-11 | R-S5 | Stopping a background search that was started terminates all workers; stopping one never started is safe. |

@@ -141,6 +141,7 @@ public final class ViewerModel: ObservableObject {
         case "r": return .r
         case "m": return .m
         case "u": return .u
+        case "U": return .U  // shift-u: undo all (R-K19)
         case "s": return .s
         case "i": return .i
         case "n": return .n

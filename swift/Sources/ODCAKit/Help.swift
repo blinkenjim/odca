@@ -37,6 +37,7 @@ Keys:
   a     toggle auto-init (on at start)  + / -   faster / slower
   r     new screened random rule        m       mutate one rule entry
   u     undo the last rule change       n / p   as N / P
+  U     undo every change since arriving on this look or rule
   0-9   color set (the hot ten)         [ / ]   walk the whole color set pool
   c / C arrange colors forward / back
   F     toggle full screen (also while paused)
@@ -69,6 +70,7 @@ Keys:
   r     new screened random rule        return  single step while paused
   m     mutate one rule entry           s       while paused: one screenful
   u     undo the last rule change       a       toggle auto-init (on at start)
+  U     undo every change since arriving on this look or rule
   i     re-seed the cells               + / -   faster / slower
   n / p next / previous look, or the unsaved rule
   s     rewrite the look under review with what is on screen, its rule

@@ -33,6 +33,7 @@ Keys:
   a     toggle auto-init (on at start)  + / -   faster / slower
   r     new screened random rule        m       mutate one rule entry
   u     undo the last rule change       n / p   as N / P
+  U     undo every change since arriving on this look or rule
   0-9   color set (the hot ten)         [ / ]   walk the whole color set pool
   c / C arrange colors forward / back
   F     toggle full screen (also while paused)
