@@ -125,7 +125,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.lookIndex, 0)
         XCTAssertNil(session.unsavedRule)
         XCTAssertEqual(session.automaton.rule, saved[0])
-        _ = session.handleKey(.m)  // ... until r or m fills it
+        _ = session.handleKey(.r)  // ... until r fills it (m on a look is an edit of it, 3.16.0)
         let first = session.automaton.rule
         XCTAssertNil(session.lookIndex)
         XCTAssertEqual(session.unsavedRule, first)
@@ -137,7 +137,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.automaton.rule, saved[3])
         XCTAssertTrue(session.handleKey(.n))
         XCTAssertEqual(session.automaton.rule, first)
-        _ = session.handleKey(.m)
+        _ = session.handleKey(.m)  // on the slot, a mutation replaces the unsaved rule and stays there
         let mutant = session.automaton.rule
         XCTAssertNil(session.lookIndex)
         XCTAssertEqual(session.unsavedRule, mutant)
@@ -158,13 +158,13 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(session.handleKey(.p))
         XCTAssertTrue(session.handleKey(.p))  // wraps with no unsaved stop
         XCTAssertEqual(session.automaton.rule, saved[3])
-        _ = session.handleKey(.m)
-        let mutant = session.automaton.rule
-        XCTAssertEqual(session.unsavedRule, mutant)
+        _ = session.handleKey(.r)  // a fresh rule: the unsaved slot reappears holding it
+        let fresh = session.automaton.rule
+        XCTAssertEqual(session.unsavedRule, fresh)
         XCTAssertTrue(session.handleKey(.n))
         XCTAssertEqual(session.automaton.rule, saved[0])
         XCTAssertTrue(session.handleKey(.p))
-        XCTAssertEqual(session.automaton.rule, mutant)
+        XCTAssertEqual(session.automaton.rule, fresh)
     }
 
     func testCycleEmptyFileAndNoFile() throws {  // R-B4
@@ -990,6 +990,45 @@ final class SessionTests: XCTestCase {
         painted(rowsA..<rowsAB, grey(20))
         XCTAssertGreaterThan(session.paletteTable.count, 4 * Session.paletteLimit)
         XCTAssertLessThanOrEqual(session.paletteTable.count, 4 * session.history.count)
+    }
+
+    func testMutatingALookEditsItInPlace() throws {  // PT-34, R-K3, R-W4
+        let lines = Lines()
+        let store = try reviewStore()
+        let one = allZero, two = try Rule(id: String(repeating: "1", count: 20))
+        let file = odcaFile(store, rules: [one, two], name: "saver.odca")
+        let session = makeSession(store, lines: lines, select: file)
+        XCTAssertEqual(session.lookIndex, 0)
+        XCTAssertNil(session.unsavedRule)
+        _ = session.handleKey(.m)  // an edit of look 1: the position stays, the unsaved slot stays empty
+        XCTAssertNotEqual(session.automaton.rule, one)
+        XCTAssertEqual(session.lookIndex, 0)
+        XCTAssertEqual(session.viewPosition, 0)
+        XCTAssertNil(session.unsavedRule)
+        _ = session.handleKey(.u)  // walked back, still on look 1
+        XCTAssertEqual(session.automaton.rule, one)
+        XCTAssertEqual(session.lookIndex, 0)
+        _ = session.handleKey(.m)
+        let mutant = session.automaton.rule
+        _ = session.handleKey(.digit(3))
+        _ = lines.take()
+        _ = session.handleKey(.s)  // rewrites look 1 in place: rule and colors
+        XCTAssertTrue(lines.take().contains("saved look 1/2"))
+        let looks = Store.loadOdcaFile(file)!
+        XCTAssertEqual(looks.count, 2)
+        XCTAssertEqual(looks[0].rule, mutant.id)
+        XCTAssertEqual(looks[0].colorset, "S3")
+        _ = session.handleKey(.m)  // a further edit, discarded by leaving the look
+        _ = session.handleKey(.n)
+        _ = session.handleKey(.p)
+        XCTAssertEqual(session.automaton.rule, mutant)
+        XCTAssertEqual(session.lookIndex, 0)
+        _ = session.handleKey(.r)  // a fresh rule is a new exploration: the unsaved slot, as before
+        XCTAssertNil(session.lookIndex)
+        XCTAssertEqual(session.unsavedRule, session.automaton.rule)
+        _ = session.handleKey(.m)  // on the unsaved slot the mutant stays there
+        XCTAssertNil(session.lookIndex)
+        XCTAssertEqual(session.unsavedRule, session.automaton.rule)
     }
 
     // MARK: PT-32 resizing (R-U8)

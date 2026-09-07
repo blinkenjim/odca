@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.14.0 — 2026-09-06
+Version 3.16.0 — 2026-09-06
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -48,7 +48,8 @@ limitation withdrawn. 3.4.0: `odca --fullscreen` — R-U2, section 10.
 `--4` / `--2` / `--1` on both programs — R-U2, section 10. 3.10.0: the
 initial delay halves with the cell size — R-U5, R-U3. 3.12.0: the
 shuffle constraints — R-X1. 3.14.0: `--watchdog` and `--grace` — R-X2,
-R-X3, R-U9, section 10.)
+R-X3, R-U9, section 10. 3.16.0: `m` on a look is an edit of it, recorded
+in place by `s` — R-K3, R-K5, R-B3, R-W4.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -316,8 +317,11 @@ The new rule becomes current per R-B1 and occupies the unsaved slot
 (R-B3). Cell contents are *not* reinitialized.
 
 **R-K3 (`m` — mutate).** Replace the current rule with a mutation of it
-(R-M10), becoming current per R-B1 and occupying the unsaved slot (R-B3).
-Cells are not reinitialized.
+(R-M10), becoming current per R-B1. In `odca-select` on a look under
+review, this is an edit of that look: the cycle position stays, the
+mutated rule shows in the look's colors, `s` records it in place (R-W4),
+`u` walks it back, and `n`/`p` discard it. Otherwise the mutation
+occupies the unsaved slot (R-B3). Cells are not reinitialized.
 
 **R-K4 (`u` — undo).** Rule changes (from `r`, `m`, `n`, `p`, `u`) push
 the outgoing rule onto an unbounded undo stack; `u` pops the stack and
@@ -331,9 +335,9 @@ A *look* is a rule with the active color set's name and arranged colors
 it exists, so the two are saved together, and the same rule may be saved
 again with other colors. `S` appends a copy of what is on screen — the
 current rule and the active set, arranged — as a new look at the end of
-the file. `s` on a look under review (R-B2) rewrites that look's color set
-to the active set, arranged, keeping the look's rule; `s` on the unsaved
-slot appends, exactly as `S`. Both write the file at once (R-W4) and print
+the file. `s` on a look under review (R-B2) rewrites that look with what
+is on screen — its rule, mutated with `m` or not, and the active set,
+arranged; `s` on the unsaved slot appends, exactly as `S`. Both write the file at once (R-W4) and print
 confirmation (R-O12). Neither moves the cycle position. In `odca` the
 file is read-only and both keys do nothing.
 
@@ -438,11 +442,13 @@ reached in turn.
 
 **R-B3 (the unsaved slot).** The unsaved slot holds the most recent rule
 that arrived from outside the file: the startup rule (unless the file
-opened on look 1, R-W1), or the last rule produced by `r` or `m` —
-together with the color set that was active when it arrived, which is
-restored with it. When `r` or `m` fires, its new rule occupies the
-unsaved slot and the cycle position moves to that slot. While the unsaved
-slot is empty — the file opened on look 1 and no `r`/`m` has fired yet —
+opened on look 1, R-W1), the last rule produced by `r`, or the last
+mutation made while on the slot — together with the color set that was
+active when it arrived, which is restored with it. When `r` fires, or `m`
+fires on the unsaved slot, the new rule occupies the slot and the cycle
+position moves to (or stays on) it; `m` on a look is an edit of that look
+and moves nothing (R-K3). While the unsaved slot is empty — the file
+opened on look 1 and no `r` has fired yet —
 the cycle consists of the n looks only. When the cycle position is on the
 unsaved slot, the first `n` selects the first look and the first `p` the
 last. Deleting the last remaining look (R-W5) puts the rule on screen into
@@ -589,8 +595,9 @@ with `r`, `m`, `n`, `p`, and `u`, this composes what `s` and `S` record
 (R-K5).
 
 **R-W4 (`s` / `S` — record; autosave).** As R-K5: `S` appends a copy of the
-screen; `s` rewrites the look under review's color set, or appends when
-on the unsaved slot. Every `s`, `S`, and `X` writes the whole file at
+screen; `s` rewrites the look under review with the screen's rule and
+colors (in the grouped order the look then joins its rule's group), or
+appends when on the unsaved slot. Every `s`, `S`, and `X` writes the whole file at
 once, in file order, and prints `saved <n> looks to <file>`; program exit
 writes it again (creating a missing file, empty if need be).
 

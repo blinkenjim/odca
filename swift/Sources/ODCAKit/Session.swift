@@ -565,12 +565,13 @@ public final class Session {
         output("saved \(looks.count) look\(looks.count == 1 ? "" : "s") to \(url.lastPathComponent)")  // R-O12
     }
 
-    private func saveLook() {  // R-W4: 's' rewrites the look under review's color set, or appends
+    private func saveLook() {  // R-W4: 's' rewrites the look under review with the screen, or appends
         guard let i = lookIndex else {
             appendLook()
             return
         }
-        looks[i] = Look(rule: looks[i].rule, colorset: activeName, colors: arrangedActiveColors())
+        looks[i] = Look(rule: automaton.rule.id, colorset: activeName, colors: arrangedActiveColors())
+        rebuildViewOrder()  // a mutated rule may move the look between groups (R-W7)
         saveLooks()
         output("saved look \((viewPosition ?? i) + 1)/\(looks.count)")  // R-O12
     }
@@ -908,7 +909,12 @@ public final class Session {
 
     private func mutateRule() {  // R-K3
         undoStack.append(automaton.rule)
-        setUnsavedRule(automaton.rule.mutated(using: &rng))
+        let mutant = automaton.rule.mutated(using: &rng)
+        if selectMode && lookIndex != nil {
+            setRule(mutant)  // an edit of the look under review: the position stays; 's' records it
+        } else {
+            setUnsavedRule(mutant)
+        }
     }
 
     private func undo() {  // R-K4

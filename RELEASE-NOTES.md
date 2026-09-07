@@ -5,6 +5,18 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.16.0 (Swift) and 3.17.0 (Python) — 2026-09-06
+
+Your `s` report. It was the spec, not a bug: `m` used to move you to
+the unsaved slot, where `s` appends. Now `m` on a look under review is
+an edit of that look: you stay on it, the mutation shows in its colors,
+`s` rewrites the look in place with the mutated rule and whatever colors
+are on screen, `u` walks the mutation back, and `n` or `p` drop it.
+`r` still moves to the unsaved slot, since a fresh rule is a new
+exploration rather than an edit; `m` on the unsaved slot stays there.
+In the grouped order a look whose rule changed joins its new rule's
+group on `s`. The `u` wrinkle on the list now only concerns `r`.
+
 ## 3.14.0 (Swift) and 3.15.0 (Python) — 2026-09-06
 
 `odca --watchdog SECONDS --grace SECONDS`, whole seconds, either or

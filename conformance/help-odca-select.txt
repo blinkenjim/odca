@@ -21,8 +21,9 @@ Keys:
   u     undo the last rule change       a       toggle auto-init (on at start)
   i     re-seed the cells               + / -   faster / slower
   n / p next / previous look, or the unsaved rule
-  s     rewrite the look under review with the color set on screen;
-        on the unsaved rule, append the screen as a new look (as S)
+  s     rewrite the look under review with what is on screen, its rule
+        (mutated with m or not) and its colors; on the unsaved rule,
+        append the screen as a new look (as S)
   S     append a copy of what is on screen as a new look
   X     delete the look under review
   R     toggle the order of n / p: file order, or grouped by rule

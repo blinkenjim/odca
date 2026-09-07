@@ -1,6 +1,8 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-06):** Spec 3.14.0, Swift 3.14.0, Python
+**YOU ARE HERE (2026-09-06):** Spec 3.16.0, Swift 3.16.0, Python
+3.17.0: `m` on a look under review is an edit of it, recorded in place by
+`s` (the user found `s` appending after `m`). Before that, 3.14.0 /
 3.15.0: `odca --watchdog SECONDS --grace SECONDS` (defaults still 120 /
 60; the user will change them later, and REQ-swift / REQ-python list the
 places that hold the numbers). Before that, 3.12.0 / 3.13.0: the shuffle
@@ -150,7 +152,9 @@ script design.
 - [ ] `u` restores the rule only: the color set on screen and the n/p
       position stay where they were, so after an undo the screen can show a
       look's rule while the cycle points elsewhere (noted 2026-09-05; the
-      user agreed to leave it). Revisit with the key-binding rethink.
+      user agreed to leave it). Since 3.16.0 this only arises after `r`:
+      `m` on a look keeps the position, so `u` there is clean. Revisit
+      with the key-binding rethink.
 - [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
       or expose a reduced, safe set of keys (no quitting, nothing that can
       leave the app in a messed-up state) for installations where the
