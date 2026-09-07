@@ -109,7 +109,7 @@ consume candidates.
 | X   | odca-select: delete the look under review |
 | R   | odca-select: toggle the n / p order between file order and grouped by rule (the screen inverts for a quarter second) |
 | N / P | odca: next / previous look by hand, with a fresh seed |
-| +   | speed up (halve the delay between generations); below 30 generations/s the scroll is continuous |
+| +   | speed up (halve the delay between generations); slower than twice the starting delay (30 generations/s at the default cell size) the scroll is continuous |
 | -   | slow down (double the delay between generations) |
 | 0-9 | select a color set                           |
 | [ / ] | step backward / forward through the whole color set pool (the digits reach only the "hot ten") |
@@ -124,7 +124,8 @@ consume candidates.
 The window is resizable, with full screen available through the platform's
 own control (the green button on macOS); the grid holds as many whole
 cells as fit (4 points on a side by default; `--2` and `--1` on either
-program choose smaller cells for the run), centered, and the automaton's width follows the
+program choose smaller cells for the run, and the automaton runs two and
+four times as fast so the picture moves at the same speed), centered, and the automaton's width follows the
 window, keeping the picture centered while cells appear or vanish at the
 edges. A taller window uncovers remembered rows. Swift snaps the window to
 whole cells; pygame paints the remainder as thin margins.

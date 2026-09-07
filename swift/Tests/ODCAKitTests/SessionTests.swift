@@ -30,11 +30,29 @@ final class SessionTests: XCTestCase {
 
     /// A session whose terminal output is captured into `lines`.
     func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil,
-                     review: Bool = false, select: URL? = nil, play: URL? = nil, shuffle: Bool = false) -> Session {
+                     review: Bool = false, select: URL? = nil, play: URL? = nil, shuffle: Bool = false,
+                     initialDelay: Double = Session.initialDelay) -> Session {
         let sink: (String) -> Void = lines.map { l in { l.all.append($0) } } ?? { print($0) }
         return Session(cols: 32, rows: 16, store: store,
                        search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed),
-                       reviewMode: review, selectFile: select, playFile: play, shuffle: shuffle, output: sink)
+                       reviewMode: review, selectFile: select, playFile: play, shuffle: shuffle,
+                       initialDelay: initialDelay, output: sink)
+    }
+
+    func testInitialDelayScalesTheSpeedAndTheThreshold() throws {  // PT-25, R-U5, R-U3
+        let session = makeSession(try makeStore(), initialDelay: Session.initialDelay / 4)  // --1
+        _ = session.handleKey(.a)
+        XCTAssertEqual(session.delay, Session.initialDelay / 4)
+        session.tick(session.delay * 16)  // a screenful in a quarter of the default time
+        XCTAssertEqual(session.history.count, 17)
+        XCTAssertEqual(session.scrollOffset, 1)  // fast: discrete
+        _ = session.handleKey(.minus)  // twice the initial delay: still discrete
+        XCTAssertEqual(session.delay, Session.initialDelay / 2)
+        XCTAssertEqual(session.scrollOffset, 1)
+        _ = session.handleKey(.minus)  // four times: continuous, though discrete at the default size
+        XCTAssertEqual(session.delay, Session.initialDelay)
+        session.tick(session.delay / 4)
+        XCTAssertEqual(session.scrollOffset, 0.25, accuracy: 1e-9)
     }
 
     final class Lines { var all: [String] = []; func take() -> String { defer { all.removeAll() }; return all.joined(separator: "\n") } }

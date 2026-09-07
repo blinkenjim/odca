@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.8.0 — 2026-09-06 (cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.10.0 — 2026-09-06 (initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -104,7 +104,10 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   exists; `defaultCols` / `defaultRows` derive from it, and the view,
   the resize increments, and the image scale read it. The pixel loop in
   `renderImage` is per cell, so smaller cells cost proportionally more per
-  frame (1200 × 800 cells at `--1` in the default window).
+  frame (1200 × 800 cells at `--1` in the default window). The
+  executables pass `initialDelay: Session.initialDelay * cellSize / 4`
+  to `Session.init` (R-U5); the continuous-scrolling threshold is the
+  instance's `smoothScrollDelay`, twice that.
 - **`F`** (R-K18): handled in `ViewerModel`'s key monitor before the
   session mapping — `toggleFullScreen(nil)` on the event's window — so
   the session never sees it and the pause rule needs no case for it.

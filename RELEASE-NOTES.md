@@ -5,6 +5,14 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.10.0 (Swift) and 3.11.0 (Python) — 2026-09-06
+
+The tweak: the starting speed follows the cell size. `--2` starts at
+twice the generations per second of `--4`, `--1` at four times, so the
+picture moves at about the same speed in points whatever the cell. `+`
+and `-` work from there, and the point where the scroll turns continuous
+moves with it (twice the starting delay). `--4` is unchanged.
+
 ## 3.8.0 (Swift) and 3.9.0 (Python) — 2026-09-06
 
 The side path: `--4`, `--2`, `--1` on both programs, both sides, choose

@@ -7,6 +7,7 @@ let (file, flags) = parseArguments(program: "odca-select", help: helpOdcaSelect,
 let cellSize = chooseCellSize(program: "odca-select", flags: flags)  // R-U2
 MainActor.assumeIsolated {  // top-level code of an executable runs on the main thread
     launch(cellSize: cellSize) { cols, rows in
-        Session(cols: cols, rows: rows, selectFile: file)  // R-W1: a missing file is created on the first save
+        Session(cols: cols, rows: rows, selectFile: file,  // R-W1: a missing file is created on the first save
+                initialDelay: Session.initialDelay * Double(cellSize) / 4)  // R-U5
     }
 }

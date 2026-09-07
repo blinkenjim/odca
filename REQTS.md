@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.8.0 — 2026-09-06
+Version 3.10.0 — 2026-09-06
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -45,7 +45,8 @@ R-P4, R-P5 merged, R-O3–R-O5, R-O12, R-O13, section 10; color set review
 good, however many color changes share a screenful — R-X5, the two-bank
 limitation withdrawn. 3.4.0: `odca --fullscreen` — R-U2, section 10.
 3.6.0: `F` toggles full screen — R-K18, R-K10. 3.8.0: cell size flags
-`--4` / `--2` / `--1` on both programs — R-U2, section 10.)
+`--4` / `--2` / `--1` on both programs — R-U2, section 10. 3.10.0: the
+initial delay halves with the cell size — R-U5, R-U3.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -201,7 +202,7 @@ The window shows `rows` rows of the buffer, scrolled into its top row by
 a *scroll offset* of 0 to 1 cell:
 - while the buffer is still filling: 0 (rows appear from the top down);
 - when paused, or when the delay is at most twice the initial delay
-  (30 generations per second or faster): 1 — the newest generation is
+  (30 generations per second or faster at the default cell size): 1 — the newest generation is
   fully visible and each generation advances the picture by one whole
   row (discrete scrolling);
 - otherwise (*continuous scrolling*): the fraction of the current delay
@@ -241,7 +242,9 @@ recorded in the looks that `s`/`S` save (R-K5).
 **R-U5 (timing).** Generation pacing is governed by a *delay* — the
 nominal time between generations — independent of the display refresh:
 
-- Initial delay: 1/60 s.
+- Initial delay: 1/60 s at the default cell size, halved for `--2` and
+  halved again for `--1` (R-U2), so the picture moves at about the same
+  speed in points whatever the cell; `+` and `-` (R-K8) work from there.
 - The display refreshes at the screen's refresh rate (typically 60 or
   120 Hz), and implementations should pace refreshes from the display
   itself rather than a free-running timer; each refresh advances the

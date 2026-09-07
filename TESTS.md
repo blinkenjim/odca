@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.8.0 — 2026-09-06
+Version 3.10.0 — 2026-09-06
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -100,7 +100,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-23 | R-K15, R-K9 | With a stubbed color sets file: `c` yields the next lexicographic arrangement (first press swaps states 2 and 3), 24 presses return to the original, `C` steps back and wraps from 1 to 24, the arrangement is remembered per set across set switches, an undefined slot's digit is a no-op, and without a file only slot 1 exists. |
 | PT-24 | R-K16, R-P4 | Baking (reachable only without a program) writes the active set's arranged colors into its library entry (reloading shows them) and resets its arrangement to 1; the library loader tolerates malformed entries, out-of-range slots, and unparseable files, always supplying slot 1. |
 | PT-33 | R-K17 | Without a program `]` steps from slot 1 through the hot ten in key order into the pool-only sets and wraps, `[` steps back, a slotted set becomes the digit position, digits still select the hot ten, and baking (R-K16) on a pool-only set writes its arrangement into that entry without giving it a slot; in color set review `[`/`]` act as `P`/`N`. |
-| PT-25 | R-U3, R-K10 | The history holds `rows` + 1 rows; the scroll offset is 0 while filling, 1 at the default speed once full, the elapsed fraction of the delay (wrapping when a generation is computed) once the delay exceeds twice the initial delay, and 1 while paused; resuming computes exactly one generation on the first tick and returns the offset to 0. |
+| PT-25 | R-U3, R-K10 | The history holds `rows` + 1 rows; the scroll offset is 0 while filling, 1 at the default speed once full, the elapsed fraction of the delay (wrapping when a generation is computed) once the delay exceeds twice the initial delay, and 1 while paused; resuming computes exactly one generation on the first tick and returns the offset to 0. The initial delay is a construction parameter (1/60 s at the default cell size, halved per halving of the cell, R-U5): with 1/240 s the session starts at that delay, two `-` presses reach 1/60 s, and that delay scrolls continuously though it is discrete at the default. |
 | PT-26 | R-V1–R-V6, R-P4 | With a stubbed pool file (slots 0–9, one pool-only set, one dropped name) and a stubbed candidates file (one duplicate, one dropped, two new): the review order is slots 1–9, 0, the pool set, then the new candidates; `N`/`P` step and wrap with the wrap message, each step computing exactly `rows` generations at once; digits are inert; `X` drops, advances, and wraps when the last set is dropped; each drop writes the first ten kept sets to keys 1–9, 0 (rotating slots down over the drop), the rest pool-only, arrangements not baked in, and the dropped list including the new drops; `S` does nothing; a second review run reloads that order without resurrecting drops; exit saves; outside review mode `N`/`P`/`X` do nothing and exit writes nothing. |
 | PT-27 | R-P4 | The pool file round-trips sets with and without slots plus the dropped list; a JSON `null` slot reads as pool-only; the digit-bound save keeps the pool and the dropped list; the candidates file loads by name and colors and skips malformed palettes. |
 | PT-28 | R-W1–R-W6, R-P3, R-K5 | `odca-select` on a missing file: nothing is written at entry and no look is under review; `n` reports no looks; on the unsaved slot `s` appends (as `S`) the composed look (current rule, active set name, arranged colors) without changing the position; `S` appends another; `n` activates look 1 (rule and colors restored, exactly `rows` generations computed at once); `s` on a look rewrites only its color set, keeping its rule; `n` past the last look reaches the unsaved slot, where `X` does nothing; `X` on a look deletes it and activates the neighbor, emptying the list makes the rule on screen the unsaved rule; exit writes the file (empty if need be); startup on a non-empty file activates look 1 and exit rewrites it; `[`/`]` walk the pool. Outside `odca-select` the look keys are inert. |
@@ -150,8 +150,9 @@ from `REQTS.md`.
   different order each pass (R-X).
 - **M-13** `--2` and `--1` open the same 1200×800 window holding four and
   sixteen times the cells, crisp at every size and in full screen (no
-  smoothing); resizing and the margins behave as at the default size
-  (R-U2).
+  smoothing); resizing and the margins behave as at the default size,
+  and the picture moves at about the same speed in points, so `--1` runs
+  four times the generations per second (R-U2, R-U5).
 - **M-10** Dragging the window edge resizes in cell-size steps; the picture
   stays centered while cells appear or vanish at the edges; growing
   taller uncovers older rows; the animation freezes during the drag and

@@ -1,8 +1,10 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-06):** Spec 3.8.0, Swift 3.8.0, Python 3.9.0:
-cell size flags `--4` / `--2` / `--1` on both programs (the user's "fun
-side path"). The user reports the Python version "almost
+**YOU ARE HERE (2026-09-06):** Spec 3.10.0, Swift 3.10.0, Python
+3.11.0: cell size flags `--4` / `--2` / `--1` on both programs (the
+user's "fun side path"), with the starting speed doubling per halving of
+the cell; the user thinks `--2` "might end up being the sweet spot" but
+`--4` stays the default for now. The user reports the Python version "almost
 indistinguishable" from Swift on the M5 MacBook Pro; Pi testing on hold.
 Before that, 3.6.0 / 3.7.0: `F` toggles full screen (R-K18), and
 `python/run` / `swift/run` run either program straight out of a fresh

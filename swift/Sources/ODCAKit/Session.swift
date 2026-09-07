@@ -89,7 +89,12 @@ public final class Session {
     /// odca (R-X5): the color sets rows were painted with; other modes use one entry, index 0.
     private var palettes: [[RGB]] = []
     private var paletteIndex = 0
-    public private(set) var delay = Session.initialDelay
+    /// R-U5: the starting delay, 1/60 s at the default cell size and halved
+    /// per halving of the cell, so the picture moves at the same speed in
+    /// points; the continuous-scrolling threshold is twice it (R-U3).
+    public let initialDelay: Double
+    public var smoothScrollDelay: Double { 2 * initialDelay }
+    public private(set) var delay: Double
     public private(set) var paused = false
     public private(set) var screenRemaining = 0  // generations still to zip (R-K13)
     public private(set) var screenCounter: Int?  // screenfuls since last resume (R-K14)
@@ -155,10 +160,13 @@ public final class Session {
         cols: Int, rows: Int, store: Store = Store(),
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
         reviewMode: Bool = false, selectFile: URL? = nil, playFile: URL? = nil, shuffle: Bool = false,
+        initialDelay: Double = Session.initialDelay,
         output: @escaping (String) -> Void = { print($0) }
     ) {
         self.cols = cols
         self.rows = rows
+        self.initialDelay = initialDelay
+        self.delay = initialDelay
         self.store = store
         self.search = search
         // Program precedence: odca (play), then odca-select, then color set review.
@@ -299,7 +307,7 @@ public final class Session {
     /// delay, so the picture slides up one cell per delay.
     public var scrollOffset: Double {
         if history.count <= rows { return 0 }
-        if paused || delay <= Session.smoothScrollDelay { return 1 }
+        if paused || delay <= smoothScrollDelay { return 1 }
         return min(accumulated / delay, 1)
     }
 
