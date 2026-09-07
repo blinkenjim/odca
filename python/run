@@ -1,0 +1,25 @@
+#!/bin/bash
+# Run odca or odca-select straight out of a fresh clone: makes the venv and
+# installs the package (editable, with the test extras) on first use, then
+# runs the program with the remaining arguments. File paths are relative to
+# where you run this from, not to this script.
+#
+#   python/run odca interesting.odca [--shuffle] [--fullscreen]
+#   python/run odca-select my-looks.odca
+#   python/run pytest            # the test suite
+set -e
+dir="$(cd "$(dirname "$0")" && pwd)"
+prog="$1"
+case "$prog" in
+  odca|odca-select|pytest) shift ;;
+  *) echo "usage: python/run odca|odca-select|pytest [arguments]"; exit 2 ;;
+esac
+if [ ! -x "$dir/.venv/bin/$prog" ]; then
+  python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' \
+    || { echo "python/run: needs python3 >= 3.9 on PATH"; exit 1; }
+  echo "python/run: first use, creating $dir/.venv and installing (about a minute)" >&2
+  python3 -m venv "$dir/.venv"
+  "$dir/.venv/bin/pip" install --quiet --upgrade pip setuptools
+  "$dir/.venv/bin/pip" install --quiet -e "$dir[test]"
+fi
+exec "$dir/.venv/bin/$prog" "$@"

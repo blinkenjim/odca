@@ -96,3 +96,26 @@ def test_fit_resizes_the_session_to_the_window(viewer, capsys):
     assert "resized 300x201" in capsys.readouterr().out
     viewer.fit(1203, 807)  # unchanged: nothing printed
     assert capsys.readouterr().out == ""
+
+
+def test_F_toggles_full_screen_by_window_size(viewer, monkeypatch):  # R-K18, R-U2
+    monkeypatch.setattr(pygame.display, "get_desktop_sizes", lambda: [(1512, 982)])
+    calls = []
+
+    class FakeWindow:
+        size = (1200, 800)
+
+        def set_fullscreen(self, desktop=False):
+            calls.append(("full", desktop))
+            self.size = (1512, 945)  # a notched display's Space: shorter than the desktop
+
+        def set_windowed(self):
+            calls.append(("windowed",))
+            self.size = (1200, 800)
+
+    window = FakeWindow()
+    viewer.toggle_full_screen(window)
+    assert viewer.is_full_screen(*window.size)
+    viewer.toggle_full_screen(window)  # and back, judged by the size, not by memory
+    assert not viewer.is_full_screen(*window.size)
+    assert calls == [("full", True), ("windowed",)]

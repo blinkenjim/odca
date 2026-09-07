@@ -4,7 +4,10 @@ See the repository root `README.md` for what ODCA is and how to use it,
 `../REQTS.md` for the specification, and `../REQ-python.md` for
 implementation notes.
 
-All commands below run from this `python/` directory.
+All commands below run from this `python/` directory. The shortcut is
+`./run odca <file.odca>` (or `run odca-select`, `run pytest`), which does
+the setup below on first use and then runs the program; it can be called
+from anywhere, as `python/run` from the repository root.
 
 ## Setup
 

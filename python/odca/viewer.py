@@ -118,6 +118,14 @@ class Viewer:
         self._texture.draw(dstrect=pygame.Rect(0, -int(round(session.scroll_offset * cell)), w, h + cell))
         renderer.set_viewport(None)
 
+    def toggle_full_screen(self, window):
+        """`F` (R-K18): leave full screen if in it, by either route, else enter
+        it at the desktop's size; the size change that follows refits the grid."""
+        if self.is_full_screen(*window.size):
+            window.set_windowed()
+        else:
+            window.set_fullscreen(desktop=True)
+
     def fit(self, width, height):
         """Follow the window: as many whole cells as fit (R-U8)."""
         self.width, self.height = width, height
@@ -152,6 +160,9 @@ class Viewer:
                 if event.type in (pygame.QUIT, pygame.WINDOWCLOSE):
                     running = False
                 elif event.type == pygame.KEYDOWN:
+                    if event.unicode == "F":  # R-K18 (shift-f): a window key, live in every mode and while paused
+                        self.toggle_full_screen(window)
+                        continue
                     key = map_key(event.key, event.unicode)
                     if key is not None:
                         running = session.handle_key(key)

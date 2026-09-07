@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.5.0 — 2026-09-06 (`--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.7.0 — 2026-09-06 (`F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -15,7 +15,8 @@ copy these choices, but they are known to work.
   .venv/bin/pip install --upgrade pip setuptools && .venv/bin/pip install
   -e '.[test]'`, which installs the console scripts `odca` and
   `odca-select` into the venv (`[project.scripts]`; the stock macOS pip
-  21.2 cannot do a PEP 660 editable install, hence the upgrade). Run with
+  21.2 cannot do a PEP 660 editable install, hence the upgrade); the
+  `python/run` script does exactly this on first use. Run with
   `.venv/bin/odca <file.odca>` / `.venv/bin/odca-select <file.odca>`, or
   `python -m odca` / `python -m odca.select` without installing.
 
@@ -90,7 +91,12 @@ copy these choices, but they are known to work.
   the `Window` with `fullscreen_desktop=True` — the desktop's own size,
   no mode change, which on macOS is a full screen Space and on the Pi the
   whole panel — and fits the grid and hides the pointer at once, before
-  the first frame.
+  the first frame. `F` (R-K18) is handled in `Viewer.run` before the
+  session mapping: `toggle_full_screen` judges the current state by the
+  window's size (`is_full_screen`, so a Space entered with the green
+  button is left too) and calls `Window.set_windowed()` or
+  `set_fullscreen(desktop=True)`; the size event that follows refits the
+  grid and the pointer.
 - **`Session.resize`** (R-U8): crops or zero-pads every history row about
   its center with numpy slicing, pads the live row with `rng` cells,
   rebuilds the history buffers at the new width, sets the automaton's
