@@ -59,7 +59,7 @@ def cell_size(program, flags):
     if len(chosen) > 1:
         print(f"{program}: choose one of {', '.join(CELL_FLAGS)}")
         sys.exit(2)
-    return int(chosen[0][2:]) if chosen else 4
+    return int(chosen[0][2:]) if chosen else 2  # R-U2: 2-point cells by default
 
 
 def initial_delay(cell):
@@ -68,7 +68,7 @@ def initial_delay(cell):
     return INITIAL_DELAY * cell / 4
 
 
-def run(session_kwargs, fullscreen=False, cell=4):
+def run(session_kwargs, fullscreen=False, cell=2):
     """Open the pygame viewer on a Session built with the given keyword arguments."""
     from .session import Session  # deferred: pygame prints a banner on import
     from .viewer import Viewer

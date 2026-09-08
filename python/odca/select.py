@@ -1,4 +1,4 @@
-"""odca-select: compose looks in an odca file (REQTS section 4c)."""
+"""odca-select: compose pairs in an odca file (REQTS section 4c)."""
 
 from .cli import CELL_FLAGS, cell_size, parse, run
 from .help import HELP_ODCA_SELECT

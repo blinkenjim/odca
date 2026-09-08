@@ -37,35 +37,53 @@ def _valid_color(c):
 
 
 def load_odca_file(path):
-    """Return an odca file's looks [{'rule', 'colorset', 'colors'}] (R-P3),
-    None if the file is missing, [] if unparseable; malformed looks are skipped.
+    """Return an odca file's pairs [{'name'?, 'rule', 'colorset', 'colors'}] (R-P3),
+    None if the file is missing, [] if unparseable; malformed pairs are skipped.
+    A pair's 'name' is present only when the file gives one. The 3.0.0
+    key `looks` is still read.
     """
     try:
         text = Path(path).read_text()
     except OSError:
         return None
     try:
-        entries = json.loads(text).get("looks", [])
+        root = json.loads(text)
+        entries = root.get("pairs", root.get("looks", []))
     except (ValueError, AttributeError):
         return []
-    looks = []
+    pairs = []
     for e in entries if isinstance(entries, list) else []:
         try:
             rule = Rule.from_id(str(e["rule"]))
-            name, colors = str(e["colorset"]), list(e["colors"])
+            set_name, colors = str(e["colorset"]), list(e["colors"])
         except (KeyError, TypeError, ValueError):
             continue
         if len(colors) == 4 and all(_valid_color(c) for c in colors):
-            looks.append({"rule": rule.id, "colorset": name, "colors": [c.upper() for c in colors]})
-    return looks
+            pair = {"rule": rule.id, "colorset": set_name, "colors": [c.upper() for c in colors]}
+            if isinstance(e.get("name"), str):
+                pair = {"name": e["name"], **pair}
+            pairs.append(pair)
+    return pairs
 
 
-def save_odca_file(looks, path):
-    """Write an odca file (R-P3) in the shared layout."""
+def save_odca_file(pairs, path):
+    """Write an odca file (R-P3) in the shared layout: name (when the pair has one), rule, colorset, colors."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    entries = [{"rule": p["rule"], "colorset": p["colorset"], "colors": list(p["colors"])} for p in looks]
-    path.write_text(json.dumps({"looks": entries}, indent=1) + "\n")
+    entries = []
+    for p in pairs:
+        e = {"name": p["name"]} if p.get("name") is not None else {}
+        e.update({"rule": p["rule"], "colorset": p["colorset"], "colors": list(p["colors"])})
+        entries.append(e)
+    path.write_text(json.dumps({"pairs": entries}, indent=1) + "\n")
+
+
+def next_pair_name(pairs):
+    """The next generated name, `pair-NNNN` (R-P3): one past the highest number
+    in use in the file, four digits, more once they are needed."""
+    used = [int(p["name"][5:]) for p in pairs
+            if isinstance(p.get("name"), str) and p["name"].startswith("pair-") and p["name"][5:].isdigit()]
+    return f"pair-{max(used, default=-1) + 1:04d}"
 
 
 def load_color_set_file(path=LIBRARY_PATH):

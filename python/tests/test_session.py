@@ -32,7 +32,7 @@ def make_store(tmp_path):
     return _make
 
 
-def default_look(rule):
+def default_pair(rule):
     d = DEFAULT_COLOR_SETS[1]
     return {"rule": rule.id, "colorset": d["name"], "colors": list(d["colors"])}
 
@@ -40,10 +40,10 @@ def default_look(rule):
 @pytest.fixture
 def odca_file(tmp_path):
     """Write an odca file of the given rules (default colors) and return its path."""
-    def _make(rules=(), name="looks.odca"):
+    def _make(rules=(), name="pairs.odca"):
         path = tmp_path / name
         if rules:
-            save_odca_file([default_look(r) for r in rules], path)
+            save_odca_file([default_pair(r) for r in rules], path)
         return path
 
     return _make
@@ -80,25 +80,25 @@ def test_undo_lifo(make_store):  # PT-9
 
 def test_cycle_with_unsaved_slot(make_store, odca_file):  # PT-10
     s = make_session(make_store(current=OUTSIDE), select_file=odca_file(FOUR))
-    # A non-empty file opens on look 1 with the unsaved slot empty (R-W1) ...
-    assert s.look_index == 0 and s.unsaved_rule is None and s.rule == FOUR[0]
-    s.handle_key("r")  # ... until r fills it (m on a look is an edit of it, 3.16.0)
+    # A non-empty file opens on pair 1 with the unsaved slot empty (R-W1) ...
+    assert s.pair_index == 0 and s.unsaved_rule is None and s.rule == FOUR[0]
+    s.handle_key("r")  # ... until r fills it (m on a pair is an edit of it, 3.16.0)
     outside = s.rule
-    assert s.look_index is None and s.unsaved_rule == outside
-    s.handle_key("n"); assert s.rule == FOUR[0]  # first n -> look 1
+    assert s.pair_index is None and s.unsaved_rule == outside
+    s.handle_key("n"); assert s.rule == FOUR[0]  # first n -> pair 1
     s.handle_key("p"); assert s.rule == outside  # back to unsaved
-    s.handle_key("p"); assert s.rule == FOUR[3]  # wraps to look n
+    s.handle_key("p"); assert s.rule == FOUR[3]  # wraps to pair n
     s.handle_key("n"); assert s.rule == outside  # past last -> unsaved
     s.handle_key("m")  # on the slot, a mutation replaces the unsaved rule and stays there
     mutant = s.rule
-    assert s.look_index is None and s.unsaved_rule == mutant
+    assert s.pair_index is None and s.unsaved_rule == mutant
     s.handle_key("n"); assert s.rule == FOUR[0]
     s.handle_key("p"); assert s.rule == mutant
 
 
-def test_cycle_startup_on_first_look(make_store, odca_file):  # PT-10a
+def test_cycle_startup_on_first_pair(make_store, odca_file):  # PT-10a
     s = make_session(make_store(current=FOUR[2]), select_file=odca_file(FOUR))
-    assert s.look_index == 0 and s.unsaved_rule is None
+    assert s.pair_index == 0 and s.unsaved_rule is None
     s.handle_key("n"); assert s.rule == FOUR[1]
     s.handle_key("p"); s.handle_key("p"); assert s.rule == FOUR[3]  # wraps with no unsaved stop
     s.handle_key("n"); assert s.rule == FOUR[0]
@@ -111,24 +111,24 @@ def test_cycle_startup_on_first_look(make_store, odca_file):  # PT-10a
 
 def test_cycle_empty_file_and_no_file(make_store, odca_file, capsys):  # R-B4
     s = make_session(make_store(current=OUTSIDE), select_file=odca_file())
-    assert s.unsaved_rule == OUTSIDE and s.looks == []
+    assert s.unsaved_rule == OUTSIDE and s.pairs == []
     capsys.readouterr()
     s.handle_key("n")
-    assert s.rule == OUTSIDE and "no looks" in capsys.readouterr().out
+    assert s.rule == OUTSIDE and "no pairs" in capsys.readouterr().out
     base = make_session(make_store())  # no program: n/p have nothing to cycle
     rule = base.rule
     base.handle_key("n")
-    assert base.rule == rule and base.look_index is None
+    assert base.rule == rule and base.pair_index is None
 
 
 def test_pause_modality(make_store):  # PT-13
     s = make_session(make_store())
     s.handle_key(" ")
     assert s.paused
-    state = (s.rule, s.delay, s.color_set, s.palette, s.look_index, list(s.automaton.cells))
+    state = (s.rule, s.delay, s.color_set, s.palette, s.pair_index, list(s.automaton.cells))
     for key in "rmuinp+-":
         assert s.handle_key(key) is True
-    assert (s.rule, s.delay, s.color_set, s.palette, s.look_index, list(s.automaton.cells)) == state
+    assert (s.rule, s.delay, s.color_set, s.palette, s.pair_index, list(s.automaton.cells)) == state
     s.handle_key("7")  # undefined slot: still a no-op while paused
     assert s.color_set == 1
     palette = s.palette
@@ -627,7 +627,7 @@ def test_review_keys_inert_outside_review_mode(make_store):  # PT-26
     assert store.load_color_set_file()["dropped"] == ["Rejected"]
     s.finish()
     assert len(store.load_color_set_file()["sets"]) == 11
-    assert s.looks == []
+    assert s.pairs == []
 
 
 def test_select_lifecycle(make_store, odca_file, capsys):  # PT-28
@@ -636,64 +636,64 @@ def test_select_lifecycle(make_store, odca_file, capsys):  # PT-28
     s = make_session(store, select_file=file)
     assert s.select_mode and not s.review_mode and not s.play_mode
     assert not file.exists()  # a missing file is created by the first save or at exit
-    assert s.look_index is None and s.unsaved_rule == s.rule
-    assert "odca saver.odca: 0 looks" in capsys.readouterr().out
+    assert s.pair_index is None and s.unsaved_rule == s.rule
+    assert "odca saver.odca: 0 pairs" in capsys.readouterr().out
     rule0 = s.rule
     s.handle_key("n")
-    assert "no looks" in capsys.readouterr().out
+    assert "no pairs" in capsys.readouterr().out
 
     s.handle_key("3")  # S3 = grey(30)
     s.handle_key("c")  # arranged (0,1,3,2)
     s.handle_key("s")  # on the unsaved slot: s appends, as S would (R-W4)
     out = capsys.readouterr().out
-    assert "added look 1/1" in out and "saved 1 look to saver.odca" in out
-    assert s.look_index is None  # the position is unchanged
+    assert "added pair 1/1" in out and "saved 1 pair to saver.odca" in out
+    assert s.pair_index is None  # the position is unchanged
     assert load_odca_file(file) == [
-        {"rule": rule0.id, "colorset": "S3", "colors": ["#1E1E1E", "#1F1F1F", "#212121", "#202020"]}]
+        {"name": "pair-0000", "rule": rule0.id, "colorset": "S3", "colors": ["#1E1E1E", "#1F1F1F", "#212121", "#202020"]}]
 
     s.handle_key("m")
     rule1 = s.rule
     s.handle_key("]")  # from S3 to S4
     assert "color set S4" in capsys.readouterr().out
     s.handle_key("S")  # append a copy of the screen
-    assert len(load_odca_file(file)) == 2 and s.look_index is None
+    assert len(load_odca_file(file)) == 2 and s.pair_index is None
 
     g_before = s.automaton.generation
-    s.handle_key("n")  # look 1: rule0, S3 arranged, and a screenful at once
-    assert s.look_index == 0 and s.rule == rule0
+    s.handle_key("n")  # pair 1: rule0, S3 arranged, and a screenful at once
+    assert s.pair_index == 0 and s.rule == rule0
     assert s.automaton.generation == 0  # R-W8: a fresh field, scrolled in
     assert [c[0] for c in s.palette] == [0x1E, 0x1F, 0x21, 0x20]
-    assert "look 1/2 S3" in capsys.readouterr().out
+    assert "pair 1/2 pair-0000 S3" in capsys.readouterr().out
 
     s.handle_key("5")
-    s.handle_key("s")  # on a look: rewrite its color set in place, rule kept
+    s.handle_key("s")  # on a pair: rewrite its color set in place, rule kept
     out = capsys.readouterr().out
-    assert "saved look 1/2" in out and "saved 2 looks to saver.odca" in out
+    assert "saved pair 1/2" in out and "saved 2 pairs to saver.odca" in out
     saved = load_odca_file(file)
     assert saved[0]["rule"] == rule0.id and saved[0]["colorset"] == "S5" and saved[0]["colors"] == grey(50)
     assert saved[1]["rule"] == rule1.id
 
-    s.handle_key("n")  # look 2
-    assert s.rule == rule1 and s.look_index == 1
+    s.handle_key("n")  # pair 2
+    assert s.rule == rule1 and s.pair_index == 1
     s.handle_key("n")  # the unsaved slot: the mutant with the set it arrived with
     out = capsys.readouterr().out
-    assert "unsaved rule" in out and s.look_index is None and s.rule == rule1
+    assert "unsaved rule" in out and s.pair_index is None and s.rule == rule1
     s.handle_key("X")  # nothing under review: no-op
     assert len(load_odca_file(file)) == 2
-    s.handle_key("p")  # back to look 2
+    s.handle_key("p")  # back to pair 2
     s.handle_key("X")  # delete the last: shows the previous
     out = capsys.readouterr().out
-    assert "deleted look 2/2" in out and "saved 1 look to saver.odca" in out
-    assert s.look_index == 0 and len(load_odca_file(file)) == 1
+    assert "deleted pair 2/2" in out and "saved 1 pair to saver.odca" in out
+    assert s.pair_index == 0 and len(load_odca_file(file)) == 1
     s.handle_key("X")
-    assert s.look_index is None and load_odca_file(file) == []
+    assert s.pair_index is None and load_odca_file(file) == []
     assert s.unsaved_rule == s.rule  # the rule on screen keeps running as the unsaved rule
 
     s.finish()  # exit writes the file
     assert load_odca_file(file) == []
     save_odca_file([{"rule": rule1.id, "colorset": "S7", "colors": grey(70)}], file)
     again = make_session(store, select_file=file)
-    assert again.look_index == 0 and again.rule == rule1
+    assert again.pair_index == 0 and again.rule == rule1
     assert again.palette[0] == rgb("#464646")
     again.handle_key("[")  # walks the pool backward from S7
     assert again.palette[0] == rgb("#3C3C3C")  # S6
@@ -705,7 +705,7 @@ def test_select_keys_inert_elsewhere(make_store):  # PT-28
     s = make_session(review_store(make_store))
     for k in "NPXRsS":
         s.handle_key(k)
-    assert s.looks == [] and not s.grouped
+    assert s.pairs == [] and not s.grouped
 
 
 def test_grouped_order_toggle(make_store, odca_file, capsys):  # PT-30
@@ -720,9 +720,9 @@ def test_grouped_order_toggle(make_store, odca_file, capsys):  # PT-30
     capsys.readouterr()
     s.handle_key("R")  # grouped by rule: A A B B C
     out = capsys.readouterr().out
-    assert "look order grouped by rule" in out and s.grouped
+    assert "pair order grouped by rule" in out and s.grouped
     assert s.view_order == [0, 2, 1, 4, 3]
-    assert s.look_index == 0 and s.view_position == 0  # the look under review is kept
+    assert s.pair_index == 0 and s.view_position == 0  # the pair under review is kept
     assert s.inverted and s.flash_remaining == 0.25  # R-U10
     s.tick(0.1)
     assert s.inverted
@@ -732,29 +732,29 @@ def test_grouped_order_toggle(make_store, odca_file, capsys):  # PT-30
     s.handle_key(" ")
     s.handle_key("n")
     out = capsys.readouterr().out
-    assert "look 2/5 S3" in out and "rule group" not in out
+    assert "pair 2/5 pair-0002 S3" in out and "rule group" not in out
     s.handle_key("n")
     out = capsys.readouterr().out
-    assert "--- rule group 2/3 ---" in out and "look 3/5 S2" in out
-    assert s.look_index == 1
-    s.handle_key("S")  # append a B look: end of file, grouped with B in the view
-    assert len(s.looks) == 6 and s.view_order == [0, 2, 1, 4, 5, 3] and s.view_position == 2
+    assert "--- rule group 2/3 ---" in out and "pair 3/5 pair-0001 S2" in out
+    assert s.pair_index == 1
+    s.handle_key("S")  # append a B pair: end of file, grouped with B in the view
+    assert len(s.pairs) == 6 and s.view_order == [0, 2, 1, 4, 5, 3] and s.view_position == 2
     s.handle_key("n")
-    s.handle_key("n")  # the appended look, same group: no marker
+    s.handle_key("n")  # the appended pair, same group: no marker
     out = capsys.readouterr().out
-    assert "look 5/6" in out and "rule group" not in out and s.look_index == 5
+    assert "pair 5/6" in out and "rule group" not in out and s.pair_index == 5
     s.handle_key("n")
-    assert "--- rule group 3/3 ---" in capsys.readouterr().out and s.look_index == 3
+    assert "--- rule group 3/3 ---" in capsys.readouterr().out and s.pair_index == 3
     s.handle_key("7")
     s.handle_key("s")
     saved = load_odca_file(file)
     assert [p["colorset"] for p in saved] == ["S1", "S2", "S3", "S7", "S5", "S2"]  # file order kept
     s.handle_key("p")
-    s.handle_key("X")  # delete the appended look: file loses its last entry
+    s.handle_key("X")  # delete the appended pair: file loses its last entry
     assert [p["colorset"] for p in load_odca_file(file)] == ["S1", "S2", "S3", "S7", "S5"]
-    assert s.view_position == 4 and s.look_index == 3
+    assert s.view_position == 4 and s.pair_index == 3
     s.handle_key("R")  # back to file order, still on S7
-    assert "look order file order" in capsys.readouterr().out
+    assert "pair order file order" in capsys.readouterr().out
     assert s.view_order == [0, 1, 2, 3, 4] and s.view_position == 3
 
 
@@ -766,20 +766,20 @@ def test_play_in_order_and_loops(make_store, odca_file, capsys):  # PT-31
                     {"rule": ALL_ZERO.id, "colorset": "B", "colors": grey(20)}], file)
     s = make_session(store, play_file=file)
     assert s.play_mode and not s.select_mode and not s.review_mode
-    assert s.look_index == 0 and s.rule == ALL_ZERO
+    assert s.pair_index == 0 and s.rule == ALL_ZERO
     assert s.palette[0] == rgb("#0A0A0A")
     assert s.automaton.generation == 0
     out = capsys.readouterr().out
-    assert "odca saver.odca: 2 looks" in out and "look 1/2 A" in out
-    assert "(" not in out.split("look 1/2 A")[1]
+    assert "odca saver.odca: 2 pairs" in out and "pair 1/2 A" in out
+    assert "(" not in out.split("pair 1/2 A")[1]
     for _ in range(17):
         s.tick(1 / 60)
-    assert s.look_index == 0 and s.automaton.generation == 0  # re-seeded in place
+    assert s.pair_index == 0 and s.automaton.generation == 0  # re-seeded in place
     out = capsys.readouterr().out
-    assert "auto-init (repeating (period 1))" in out and "look 2/2" not in out
+    assert "auto-init (repeating (period 1))" in out and "pair 2/2" not in out
     s.handle_key("a")
     s.tick(110)
-    assert s.look_index == 0
+    assert s.pair_index == 0
     s.handle_key("i")  # grace restarts; the watchdog does not
     assert abs(s.play_elapsed - 110) < 1
     s.handle_key("a")
@@ -787,7 +787,7 @@ def test_play_in_order_and_loops(make_store, odca_file, capsys):  # PT-31
         s.handle_key("-")  # ~18 generations in the next tick: the transition leaves old rows on screen
     capsys.readouterr()
     s.tick(10)  # the watchdog expires during this tick; boredom fires within it
-    assert s.look_index == 1
+    assert s.pair_index == 1
     assert s.play_elapsed < 1
     assert s.palette[0] == rgb("#141414")
     palettes = list(s.row_palettes)
@@ -795,21 +795,21 @@ def test_play_in_order_and_loops(make_store, odca_file, capsys):  # PT-31
     assert palettes[first_b - 1] == 0 and palettes[-1] == 1  # R-X5
     assert s.color(first_b - 1, 0) == rgb("#0A0A0A")
     assert s.palette_table[0] == rgb("#0A0A0A") and s.palette_table[4] == rgb("#141414")
-    assert "look 2/2 B (repeating (period 1))" in capsys.readouterr().out
-    s.tick(PLAY_TIMEOUT)  # loops back to look 1
-    assert s.look_index == 0
+    assert "pair 2/2 B (repeating (period 1))" in capsys.readouterr().out
+    s.tick(PLAY_TIMEOUT)  # loops back to pair 1
+    assert s.pair_index == 0
     out = capsys.readouterr().out
-    assert "look 1/2 A (repeating (period 1))" in out and "look 2/2" not in out
+    assert "pair 1/2 A (repeating (period 1))" in out and "pair 2/2" not in out
     s.tick(1 / 60)
     s.handle_key("N")
-    assert s.look_index == 1 and s.automaton.generation == 0
-    assert "look 2/2 B (next)" in capsys.readouterr().out
+    assert s.pair_index == 1 and s.automaton.generation == 0
+    assert "pair 2/2 B (next)" in capsys.readouterr().out
     s.handle_key("n")  # n/p are N/P here; wraps
-    assert s.look_index == 0
+    assert s.pair_index == 0
     s.handle_key(" ")
     s.handle_key("P")  # live while paused; wraps backward
-    assert s.look_index == 1
-    assert "look 2/2 B (previous)" in capsys.readouterr().out
+    assert s.pair_index == 1
+    assert "pair 2/2 B (previous)" in capsys.readouterr().out
     s.handle_key("s")  # the file is never written by odca
     s.handle_key("S")
     s.handle_key("X")
@@ -833,17 +833,17 @@ def test_play_watchdog_and_grace_period(make_store, odca_file, capsys):  # PT-31
     s.handle_key("i")  # at 100 s: restarts the grace period, not the watchdog
     assert s.since_init == 0 and abs(s.play_elapsed - 100) < 1e-6
     s.tick(20)
-    assert s.look_index == 0
+    assert s.pair_index == 0
     s.tick(39.5)
-    assert s.look_index == 0
+    assert s.pair_index == 0
     s.tick(1.0)  # 60 s since the re-seed: transition
-    assert s.look_index == 1
-    assert "look 2/2 B (timeout)" in capsys.readouterr().out
+    assert s.pair_index == 1
+    assert "pair 2/2 B (timeout)" in capsys.readouterr().out
     assert s.play_elapsed == 0
     s.tick(119.5)
-    assert s.look_index == 1
+    assert s.pair_index == 1
     s.tick(1.0)
-    assert s.look_index == 0
+    assert s.pair_index == 0
 
 
 def test_watchdog_and_grace_are_construction_parameters(make_store, odca_file, capsys):  # PT-31, R-X2, R-X3
@@ -854,16 +854,16 @@ def test_watchdog_and_grace_are_construction_parameters(make_store, odca_file, c
     s = make_session(store, play_file=file, play_timeout=20, play_grace=10)
     s.handle_key("a")  # only the clocks transition
     s.tick(19)
-    assert s.look_index == 0
+    assert s.pair_index == 0
     s.tick(1.5)  # 20.5 s: the watchdog has expired and the grace period is long satisfied
-    assert s.look_index == 1
-    assert "look 2/2 B (timeout)" in capsys.readouterr().out
+    assert s.pair_index == 1
+    assert "pair 2/2 B (timeout)" in capsys.readouterr().out
     s.tick(15)
     s.handle_key("i")  # 15 s in: the grace period restarts, the watchdog does not
     s.tick(6)  # 21 s: expired, but only 6 s since the re-seed
-    assert s.look_index == 1
+    assert s.pair_index == 1
     s.tick(4.5)  # 25.5 s: 10.5 s since the re-seed
-    assert s.look_index == 0
+    assert s.pair_index == 0
 
 
 def test_play_shuffle_is_a_fresh_pass_without_repeats(make_store, odca_file):  # PT-36
@@ -871,30 +871,30 @@ def test_play_shuffle_is_a_fresh_pass_without_repeats(make_store, odca_file):  #
     file = odca_file(name="saver.odca")
     a, b, c = ALL_PRODUCIBLE, FOUR[1], FOUR[2]  # three distinct rules
     x, y, z = grey(10), grey(20), grey(30)
-    looks = [(a, "X", x), (a, "Y", y), (b, "X'", list(reversed(x))), (b, "Z", z), (c, "Y", y), (c, "Z", z)]
-    save_odca_file([{"rule": r.id, "colorset": n, "colors": cs} for r, n, cs in looks], file)
+    pairs = [(a, "X", x), (a, "Y", y), (b, "X'", list(reversed(x))), (b, "Z", z), (c, "Y", y), (c, "Z", z)]
+    save_odca_file([{"rule": r.id, "colorset": n, "colors": cs} for r, n, cs in pairs], file)
     s = make_session(store, play_file=file, shuffle=True)
     assert s.shuffle
-    played = [s.look_index]
+    played = [s.pair_index]
     for _ in range(59):  # ten passes
         s.handle_key("N")
-        played.append(s.look_index)
+        played.append(s.pair_index)
     for p in range(10):
-        assert sorted(played[6 * p:6 * p + 6]) == list(range(6))  # every pass: every look once
+        assert sorted(played[6 * p:6 * p + 6]) == list(range(6))  # every pass: every pair once
     for i, j in zip(played, played[1:]):  # never the same rule or color set in a row, seams included
-        assert looks[i][0] != looks[j][0], (i, j)
-        assert sorted(looks[i][2]) != sorted(looks[j][2]), (i, j)
+        assert pairs[i][0] != pairs[j][0], (i, j)
+        assert sorted(pairs[i][2]) != sorted(pairs[j][2]), (i, j)
     s.handle_key("P")  # back one within the pass
-    assert s.look_index == played[-2]
+    assert s.pair_index == played[-2]
     plain = make_session(store, play_file=file)
     assert plain.play_order == list(range(6)) and not plain.shuffle
     # No order can avoid a repeat: the requirement is dropped and the show goes on.
     save_odca_file([{"rule": a.id, "colorset": "X", "colors": x}, {"rule": a.id, "colorset": "Y", "colors": y}], file)
     s = make_session(store, play_file=file, shuffle=True)
-    played = [s.look_index]
+    played = [s.pair_index]
     for _ in range(5):
         s.handle_key("N")
-        played.append(s.look_index)
+        played.append(s.pair_index)
     assert all(sorted(played[i:i + 2]) == [0, 1] for i in (0, 2, 4))
 
 
@@ -932,7 +932,7 @@ def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33
     assert s.palette[0] == rgb("#0A0A0A")
 
 
-def test_look_carries_its_color_set_and_cycle_applies_it(make_store, odca_file, capsys):  # PT-34
+def test_pair_carries_its_color_set_and_cycle_applies_it(make_store, odca_file, capsys):  # PT-34
     store = review_store(make_store)
     s = make_session(store, select_file=odca_file(name="saver.odca"))
     s.handle_key("3")
@@ -940,10 +940,10 @@ def test_look_carries_its_color_set_and_cycle_applies_it(make_store, odca_file, 
     rule = s.rule
     capsys.readouterr()
     s.handle_key("S")
-    assert "added look 1/1" in capsys.readouterr().out
-    looks = load_odca_file(s.select_file)
-    assert len(looks) == 1 and looks[0]["colorset"] == "S3"
-    assert looks[0]["colors"] == ["#1E1E1E", "#1F1F1F", "#212121", "#202020"]
+    assert "added pair 1/1" in capsys.readouterr().out
+    pairs = load_odca_file(s.select_file)
+    assert len(pairs) == 1 and pairs[0]["colorset"] == "S3"
+    assert pairs[0]["colors"] == ["#1E1E1E", "#1F1F1F", "#212121", "#202020"]
     s.handle_key("m")
     mutant = s.rule
     s.handle_key("7")  # S7 showing with the unsaved (mutant) rule
@@ -951,50 +951,50 @@ def test_look_carries_its_color_set_and_cycle_applies_it(make_store, odca_file, 
     s.handle_key("n")
     assert s.rule == rule
     assert [c[0] for c in s.palette] == [0x1E, 0x1F, 0x21, 0x20]
-    assert "look 1/1 S3" in capsys.readouterr().out
+    assert "pair 1/1 pair-0000 S3" in capsys.readouterr().out
     s.handle_key("n")  # back to the unsaved slot: mutant with S3
     assert s.rule == mutant
     assert s.palette[0] == rgb("#1E1E1E")
 
 
-def test_mutating_a_look_saves_it_as_a_new_look(make_store, odca_file, capsys):  # PT-34, R-K3, R-W4
+def test_mutating_a_pair_saves_it_as_a_new_pair(make_store, odca_file, capsys):  # PT-34, R-K3, R-W4
     store = review_store(make_store)
     file = odca_file(rules=[FOUR[0], FOUR[1]], name="saver.odca")
     s = make_session(store, select_file=file)
-    assert s.look_index == 0 and s.unsaved_rule is None
+    assert s.pair_index == 0 and s.unsaved_rule is None
     s.handle_key("3")
     capsys.readouterr()
-    s.handle_key("s")  # colors only: the look is rewritten in place
-    assert "saved look 1/2" in capsys.readouterr().out
-    assert load_odca_file(file)[0] == {"rule": FOUR[0].id, "colorset": "S3", "colors": grey(30)}
-    s.handle_key("m")  # look 1 is now changed: the position stays, the unsaved slot stays empty
-    assert s.rule != FOUR[0] and s.look_index == 0 and s.view_position == 0 and s.unsaved_rule is None
-    s.handle_key("u")  # walked back, still on look 1
-    assert s.rule == FOUR[0] and s.look_index == 0
+    s.handle_key("s")  # colors only: the pair is rewritten in place
+    assert "saved pair 1/2" in capsys.readouterr().out
+    assert load_odca_file(file)[0] == {"name": "pair-0000", "rule": FOUR[0].id, "colorset": "S3", "colors": grey(30)}
+    s.handle_key("m")  # pair 1 is now changed: the position stays, the unsaved slot stays empty
+    assert s.rule != FOUR[0] and s.pair_index == 0 and s.view_position == 0 and s.unsaved_rule is None
+    s.handle_key("u")  # walked back, still on pair 1
+    assert s.rule == FOUR[0] and s.pair_index == 0
     s.handle_key("m")
     mutant = s.rule
     s.handle_key("5")
     capsys.readouterr()
-    s.handle_key("s")  # a changed look is saved as a new look at the end; the kept rule survives
-    assert "added look 3/3" in capsys.readouterr().out
-    looks = load_odca_file(file)
-    assert [l["rule"] for l in looks] == [FOUR[0].id, FOUR[1].id, mutant.id]
-    assert looks[0]["colorset"] == "S3" and looks[2]["colorset"] == "S5"
-    assert s.look_index == 2 and s.view_position == 2  # and the position moved onto it
-    s.handle_key("U")  # nothing to unwind on the new look
+    s.handle_key("s")  # a changed pair is saved as a new pair at the end; the kept rule survives
+    assert "added pair 3/3" in capsys.readouterr().out
+    pairs = load_odca_file(file)
+    assert [l["rule"] for l in pairs] == [FOUR[0].id, FOUR[1].id, mutant.id]
+    assert pairs[0]["colorset"] == "S3" and pairs[2]["colorset"] == "S5"
+    assert s.pair_index == 2 and s.view_position == 2  # and the position moved onto it
+    s.handle_key("U")  # nothing to unwind on the new pair
     assert s.rule == mutant
     s.handle_key("7")
-    s.handle_key("s")  # colors again: refines the new look in place
-    assert "saved look 3/3" in capsys.readouterr().out
+    s.handle_key("s")  # colors again: refines the new pair in place
+    assert "saved pair 3/3" in capsys.readouterr().out
     assert [l["colorset"] for l in load_odca_file(file)] == ["S3", "ODCA default", "S7"]
-    s.handle_key("m")  # a further mutation, discarded by leaving the look
+    s.handle_key("m")  # a further mutation, discarded by leaving the pair
     s.handle_key("n")
     s.handle_key("p")
-    assert s.rule == mutant and s.look_index == 2
+    assert s.rule == mutant and s.pair_index == 2
     s.handle_key("r")  # a fresh rule is a new exploration: the unsaved slot, as before
-    assert s.look_index is None and s.unsaved_rule == s.rule
+    assert s.pair_index is None and s.unsaved_rule == s.rule
     s.handle_key("m")  # on the unsaved slot the mutant stays there
-    assert s.look_index is None and s.unsaved_rule == s.rule
+    assert s.pair_index is None and s.unsaved_rule == s.rule
 
 
 def test_U_undoes_every_change_since_the_position_moved(make_store, odca_file):  # PT-9, R-K19
@@ -1004,22 +1004,22 @@ def test_U_undoes_every_change_since_the_position_moved(make_store, odca_file): 
     for _ in range(3):
         s.handle_key("m")
     assert s.rule != FOUR[0] and len(s.undo_stack) == depth + 3
-    s.handle_key("U")  # all three at once, still on look 1
-    assert s.rule == FOUR[0] and s.look_index == 0 and len(s.undo_stack) == depth
+    s.handle_key("U")  # all three at once, still on pair 1
+    assert s.rule == FOUR[0] and s.pair_index == 0 and len(s.undo_stack) == depth
     s.handle_key("U")  # nothing left since arriving here: a no-op
     assert s.rule == FOUR[0] and len(s.undo_stack) == depth
-    s.handle_key("n")  # look 2 (one push); edits here unwind to look 2, not further
+    s.handle_key("n")  # pair 2 (one push); edits here unwind to pair 2, not further
     s.handle_key("m")
     s.handle_key("m")
     s.handle_key("U")
-    assert s.rule == FOUR[1] and s.look_index == 1 and len(s.undo_stack) == depth + 1
+    assert s.rule == FOUR[1] and s.pair_index == 1 and len(s.undo_stack) == depth + 1
     s.handle_key("r")  # the unsaved slot: U unwinds to the rule r brought
     fresh = s.rule
     s.handle_key("m")
     s.handle_key("m")
     assert s.rule != fresh
     s.handle_key("U")
-    assert s.rule == fresh and s.look_index is None and s.unsaved_rule == fresh
+    assert s.rule == fresh and s.pair_index is None and s.unsaved_rule == fresh
     s.handle_key(" ")  # paused: U is not live, like u
     s.handle_key("m")
     assert s.rule == fresh
@@ -1095,24 +1095,24 @@ def test_rows_keep_their_colors_through_quick_transitions(make_store, odca_file,
     for _ in range(3):
         s.tick(s.delay)
     rows_a = s.filled
-    s.handle_key("N")  # look 2, well within the screenful
+    s.handle_key("N")  # pair 2, well within the screenful
     for _ in range(3):
         s.tick(s.delay)
     rows_ab = s.filled
-    s.handle_key("N")  # look 3: a third color set on one screen
+    s.handle_key("N")  # pair 3: a third color set on one screen
     for _ in range(3):
         s.tick(s.delay)
     painted(0, rows_a, grey(10))
     painted(rows_a, rows_ab, grey(20))
     painted(rows_ab, s.filled, grey(30))
     assert len(s.palette_table) == 12  # three palettes
-    s.handle_key("N")  # back to look 1: its palette is shared, not duplicated
+    s.handle_key("N")  # back to pair 1: its palette is shared, not duplicated
     s.tick(s.delay)
     assert len(s.palette_table) == 12
     # Many distinct palettes (arrangements of each set) pass the table's limit:
     # it is pruned to what remembered rows still use, and no row changes color.
     for i in range(PALETTE_LIMIT + 10):
-        s.handle_key("N")  # the look shows its baked colors, arrangement 1
+        s.handle_key("N")  # the pair shows its baked colors, arrangement 1
         for _ in range(i % 23 + 1):
             s.handle_key("c")  # then a different arrangement each time round
         s.tick(s.delay)

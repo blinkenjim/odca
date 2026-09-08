@@ -44,7 +44,7 @@ def test_usage_errors(capsys, tmp_path):  # R-W1, R-X1
 def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
     from odca import play
     file = tmp_path / "show.odca"
-    file.write_text('{"looks": []}')
+    file.write_text('{"pairs": []}')
     calls = []
     monkeypatch.setattr(play, "run", lambda kwargs, fullscreen=False, cell=4: calls.append((kwargs, fullscreen, cell)))
     play.main([str(file), "--fullscreen"])
@@ -52,16 +52,16 @@ def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
     play.main([str(file), "--1"])
     play.main(["--watchdog", "20", str(file), "--grace", "10"])
     clocks = {"play_timeout": 120.0, "play_grace": 60.0}  # the defaults (R-X2, R-X3)
-    assert calls == [({"play_file": file, "shuffle": False, **clocks}, True, 4),
-                     ({"play_file": file, "shuffle": True, **clocks}, False, 4),
+    assert calls == [({"play_file": file, "shuffle": False, **clocks}, True, 2),  # 2-point cells by default
+                     ({"play_file": file, "shuffle": True, **clocks}, False, 2),
                      ({"play_file": file, "shuffle": False, **clocks}, False, 1),
-                     ({"play_file": file, "shuffle": False, "play_timeout": 20, "play_grace": 10}, False, 4)]
+                     ({"play_file": file, "shuffle": False, "play_timeout": 20, "play_grace": 10}, False, 2)]
 
 
 def test_watchdog_and_grace_need_whole_seconds(tmp_path, capsys):  # R-X2, R-X3, R-U9
     from odca import play, select
     file = tmp_path / "show.odca"
-    file.write_text('{"looks": []}')
+    file.write_text('{"pairs": []}')
     for args in (["--watchdog"], ["--watchdog", "--grace", "5"], ["--grace", "x"], ["--watchdog", "0"], ["--grace", "1.5"]):
         with pytest.raises(SystemExit) as e:
             play.main([str(file)] + args)
@@ -88,7 +88,7 @@ def test_cell_size_flags(monkeypatch, tmp_path, capsys):  # R-U2
     select.main(["x.odca", "--4"])
     select.main(["x.odca"])
     select.main(["x.odca", "--3"])
-    assert calls == [2, 4, 4, 3]
+    assert calls == [2, 4, 2, 3]
     with pytest.raises(SystemExit) as e:
         select.main(["x.odca", "--2", "--1"])  # at most one
     assert e.value.code == 2 and "choose one of --4, --3, --2, --1" in capsys.readouterr().out

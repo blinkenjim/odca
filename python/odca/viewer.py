@@ -71,7 +71,7 @@ def grid_rect(width, height, cols, rows, cell):
 
 
 class Viewer:
-    def __init__(self, width=1200, height=800, cell_size=4, session=None, fullscreen=False):
+    def __init__(self, width=1200, height=800, cell_size=2, session=None, fullscreen=False):
         self.cell_size = cell_size
         self.width, self.height = width, height
         self.fullscreen = fullscreen  # open full screen at launch (--fullscreen, R-U2)

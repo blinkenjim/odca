@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.25.0 — 2026-09-07 (navigation scrolls the look in; 3.23.0: a mutated look saves as a new look; 3.21.0: `--3`; 3.19.0: `U` undoes all; 3.17.0: `m` edits the look under review; 3.15.0: `--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.27.0 — 2026-09-08 (pairs, named; 2-point default; 3.25.0: navigation scrolls the pair in; 3.23.0: a mutated pair saves as a new pair; 3.21.0: `--3`; 3.19.0: `U` undoes all; 3.17.0: `m` edits the pair under review; 3.15.0: `--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -28,7 +28,7 @@ copy these choices, but they are known to work.
 | `odca/classify.py` | screening: `evaluate`, `find_candidate` (R-C) |
 | `odca/search.py` | background workers: `CandidateSearch` (R-S) |
 | `odca/store.py` | persistence: path functions and the injectable `Store` (R-P) |
-| `odca/session.py` | toolkit-free orchestration `Session`: keys, undo, the look cycle, odca-select and odca behavior, pause, stash, timing (R-U/K/B/W/X/O) |
+| `odca/session.py` | toolkit-free orchestration `Session`: keys, undo, the pair cycle, odca-select and odca behavior, pause, stash, timing (R-U/K/B/W/X/O) |
 | `odca/viewer.py` | pygame display layer: resizable window, key translation, pacing, blit, flash (R-U2/3/5/6/8/10) |
 | `odca/cli.py` | shared argument handling and the viewer launch (R-U9) |
 | `odca/play.py`, `odca/select.py` | the `odca` and `odca-select` entry points (sections 4d, 4c) |
@@ -57,7 +57,7 @@ copy these choices, but they are known to work.
   oldest row first, of a buffer twice `HISTORY_DEPTH` (2048) rows deep
   that is compacted once it runs out, so a push is one row write and the
   view is never copied; `Session.visible_start` indexes the last
-  `rows + 1` rows (R-U8). `Viewer.frame` looks those up through the
+  `rows + 1` rows (R-U8). `Viewer.frame` pairs those up through the
   per-row palette table (background below them until the buffer fills) as a
   `(rows + 1, cols, 3)` array. `Viewer.draw` uploads it into one
   streaming `Texture` of SDL's renderer (`pygame._sdl2.video`; one texel
@@ -166,15 +166,15 @@ copy these choices, but they are known to work.
   import time and R-U9 allows no other output.
 - **Programs** (sections 4c, 4d): `Session(select_file=...)` is
   odca-select, `Session(play_file=..., shuffle=...)` is odca; `review_mode`
-  (section 4b) survives for tests and the future color set tool. The look
-  cycle keeps `looks` in file order, `view_order` (file indices in n/p
-  order, regrouped by `R`) and `look_index`/`view_position`; `unsaved_rule`
+  (section 4b) survives for tests and the future color set tool. The pair
+  cycle keeps `pairs` in file order, `view_order` (file indices in n/p
+  order, regrouped by `R`) and `pair_index`/`view_position`; `unsaved_rule`
   and `unsaved_set` are the extra slot. `finish()` writes the odca file at
   exit. Play mode clocks (`play_elapsed`, `since_init`) advance in `tick`
   before the generations, so a re-seed inside a tick restarts the grace
   period from that tick; `play_order` is the current pass (under
   `--shuffle`, a numpy permutation redrawn up to `SHUFFLE_TRIES` (100)
-  times until `_no_repeats` holds: no two consecutive looks, the one just
+  times until `_no_repeats` holds: no two consecutive pairs, the one just
   played included, share a rule or sorted colors). `flash_remaining` counts down in `tick` even while
   paused; `viewer.draw` inverts the frame while `inverted` (R-U10).
   Display-link pacing stays Swift-only; the window, resizing, and pointer

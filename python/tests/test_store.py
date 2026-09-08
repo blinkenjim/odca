@@ -22,23 +22,37 @@ def test_load_corrupt_file_returns_none(tmp_path):
 
 
 def test_odca_file_round_trip_and_layout(tmp_path):  # PT-8
-    path = tmp_path / "looks.odca"
+    path = tmp_path / "pairs.odca"
     rng = np.random.default_rng(6)
-    looks = [{"rule": Rule.random(rng).id, "colorset": "Mine", "colors": ["#000000", "#111111", "#222222", "#333333"]}
+    pairs = [{"rule": Rule.random(rng).id, "colorset": "Mine", "colors": ["#000000", "#111111", "#222222", "#333333"]}
              for _ in range(3)]
-    save_odca_file(looks, path)
-    assert load_odca_file(path) == looks
-    assert path.read_text().startswith('{\n "looks": [\n  {\n   "rule": "')
+    save_odca_file(pairs, path)
+    assert load_odca_file(path) == pairs
+    assert path.read_text().startswith('{\n "pairs": [\n  {\n   "rule": "')
+    named = [{"name": "pair-0007", **pairs[0]}, pairs[1]]  # a name is kept, and written first
+    save_odca_file(named, path)
+    assert load_odca_file(path) == named
+    assert path.read_text().startswith('{\n "pairs": [\n  {\n   "name": "pair-0007",\n   "rule": "')
+    path.write_text(path.read_text().replace('"pairs"', '"looks"'))  # the 3.0.0 key is still read
+    assert load_odca_file(path) == named
 
 
-def test_odca_file_skips_invalid_looks(tmp_path):  # PT-8
-    path = tmp_path / "looks.odca"
+def test_next_pair_name_is_one_past_the_highest_in_use():  # PT-8, R-P3
+    from odca.store import next_pair_name
+    assert next_pair_name([]) == "pair-0000"
+    assert next_pair_name([{"name": "pair-0000"}, {"name": "pair-0002"}, {"rule": "x"}]) == "pair-0003"
+    assert next_pair_name([{"name": "pair-9999"}]) == "pair-10000"  # five digits once they are needed
+    assert next_pair_name([{"name": "sunset"}]) == "pair-0000"  # other names do not count
+
+
+def test_odca_file_skips_invalid_pairs(tmp_path):  # PT-8
+    path = tmp_path / "pairs.odca"
     rule = Rule.random(np.random.default_rng(8))
-    path.write_text('{"looks": [{"rule": "notarule", "colorset": "x", "colors": ["#000000", "#000000", "#000000", "#000000"]}, '
+    path.write_text('{"pairs": [{"rule": "notarule", "colorset": "x", "colors": ["#000000", "#000000", "#000000", "#000000"]}, '
                     f'{{"rule": "{rule.id}", "colorset": "ok", "colors": ["#000000", "#000000", "#000000", "#000000"]}}]}}')
     assert [p["rule"] for p in load_odca_file(path)] == [rule.id]
-    path.write_text(f'{{"pairs": [{{"rule": "{rule.id}", "colorset": "old", "colors": ["#000000", "#000000", "#000000", "#000000"]}}]}}')
-    assert load_odca_file(path) == []  # the 2.x "pairs" key is no longer read
+    path.write_text(f'{{"entries": [{{"rule": "{rule.id}", "colorset": "old", "colors": ["#000000", "#000000", "#000000", "#000000"]}}]}}')
+    assert load_odca_file(path) == []  # an unknown key holds nothing
 
 
 def test_odca_file_missing_reads_as_none(tmp_path):
@@ -104,12 +118,12 @@ def test_candidate_palettes_load_and_skip_malformed(tmp_path):  # PT-27
 def test_odca_file_edge_cases(tmp_path):  # PT-29
     path = tmp_path / "saver.odca"
     save_odca_file([], path)
-    assert path.read_text() == '{\n "looks": []\n}\n'
+    assert path.read_text() == '{\n "pairs": []\n}\n'
     assert load_odca_file(path) == []
     rule = Rule.random(np.random.default_rng(9))
-    looks = [{"rule": rule.id, "colorset": 'Say "hi"', "colors": ["#000000", "#111111", "#222222", "#333333"]}]
-    save_odca_file(looks, path)
-    assert load_odca_file(path) == looks
+    pairs = [{"rule": rule.id, "colorset": 'Say "hi"', "colors": ["#000000", "#111111", "#222222", "#333333"]}]
+    save_odca_file(pairs, path)
+    assert load_odca_file(path) == pairs
     assert '\\"hi\\"' in path.read_text()
     path.write_text("{not json")
     assert load_odca_file(path) == []
