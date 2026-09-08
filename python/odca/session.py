@@ -482,7 +482,7 @@ class Session:
         self._palette_index = int(lut[self._palette_index])
 
     def _fill_screen(self):
-        """Compute a screenful at once so a navigation shows only the new state (R-V7, R-W8)."""
+        """Compute a screenful at once so a review step shows only the new state (R-V7)."""
         for _ in range(self.rows):
             self._advance()
 
@@ -723,7 +723,7 @@ class Session:
         self._show_colors(look["colorset"], look["colors"])
         self._undo_mark = len(self.undo_stack)
         print(f"look {position + 1}/{len(self.looks)} {look['colorset']}")  # R-O4
-        self._fill_screen()  # R-W8
+        self.init_cells()  # R-W8: the look grows in from a fresh field below the old rows
 
     def select_look(self, step):  # R-B2, R-B3: n/p
         """Cycle through the looks in view order plus the unsaved slot, if occupied.
@@ -749,7 +749,7 @@ class Session:
             self._set_rule(self.unsaved_rule)
             if self.unsaved_set is not None:
                 self._show_colors(self.unsaved_set["name"], self.unsaved_set["colors"])
-            self._fill_screen()  # R-W8: every n/p step shows a screenful of the selection
+            self.init_cells()  # R-W8: every n/p step scrolls the selection in from a fresh field
         else:
             self._activate_look(to, push_undo=False)
 

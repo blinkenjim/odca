@@ -661,7 +661,7 @@ def test_select_lifecycle(make_store, odca_file, capsys):  # PT-28
     g_before = s.automaton.generation
     s.handle_key("n")  # look 1: rule0, S3 arranged, and a screenful at once
     assert s.look_index == 0 and s.rule == rule0
-    assert s.automaton.generation == g_before + s.rows  # R-W8
+    assert s.automaton.generation == 0  # R-W8: a fresh field, scrolled in
     assert [c[0] for c in s.palette] == [0x1E, 0x1F, 0x21, 0x20]
     assert "look 1/2 S3" in capsys.readouterr().out
 

@@ -59,7 +59,8 @@ each in a color set, and collects the results as looks in the named odca
 file, which is created if it does not exist. The file is written after
 every change and at exit. Looks already in the file are reached with n and
 p, which cycle through them and one extra slot holding the unsaved rule
-you were exploring; every step fills the screen with the selected look.
+you were exploring; every step re-seeds the cells, and the selected look
+scrolls in from a fresh field below the old rows, as in odca.
 
   --4 / --3 / --2 / --1
                 cells 4 (the default), 3, 2, or 1 points on a side

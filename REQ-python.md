@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.23.0 — 2026-09-07 (a mutated look saves as a new look; 3.21.0: `--3`; 3.19.0: `U` undoes all; 3.17.0: `m` edits the look under review; 3.15.0: `--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.25.0 — 2026-09-07 (navigation scrolls the look in; 3.23.0: a mutated look saves as a new look; 3.21.0: `--3`; 3.19.0: `U` undoes all; 3.17.0: `m` edits the look under review; 3.15.0: `--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
