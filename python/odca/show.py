@@ -48,6 +48,7 @@ def parse_json(text):
 
 def parse(text):
     """A script's statements, [{'line', 'import': name} | {'line', 'play': True}],
+    [{'line', 'import': name} | {'line', 'play': True, 'shuffle': bool}],
     or ShowError('line:column: message') at the first error."""
     result = json.loads(parse_json(text))
     if not result["ok"]:
@@ -64,9 +65,10 @@ def _is_odca_file(path):
 
 
 def load_script(path):
-    """The pairs a script plays (R-X7), in import order: every pair of every
-    imported odca file, or none when the script never says `play`. Imports
-    are relative to the script's directory."""
+    """What a script plays (R-X7): (pairs, shuffle) — every pair of every
+    imported odca file in import order, or none when the script never says
+    `play`, and whether that `play` said `shuffle`. Imports are relative to
+    the script's directory."""
     path = Path(path)
     try:
         text = path.read_text(encoding="utf-8")
@@ -76,7 +78,7 @@ def load_script(path):
         statements = parse(text)
     except ShowError as e:
         raise ShowError(f"{path}:{e}") from None
-    pairs, plays = [], False
+    pairs, plays, shuffle = [], False, False
     for statement in statements:
         if "import" in statement:
             name = statement["import"]
@@ -87,22 +89,23 @@ def load_script(path):
                 raise ShowError(f"{path}:{statement['line']}: {name} is not an odca file")
             pairs.extend(load_odca_file(target))
         else:
-            plays = True
-    return pairs if plays else []
+            plays, shuffle = True, statement["shuffle"]
+    return (pairs, shuffle) if plays else ([], False)
 
 
 def load_show(files):
     """The show for odca's command line (R-X1): one segment per file, in
-    the order given, {'file': name, 'pairs': [...]}. A `.odca` file is its
-    own script: import it, play it. Anything else is a play script."""
+    the order given, {'file': name, 'pairs': [...], 'shuffle': bool}. A
+    `.odca` file is its own script: import it, play it, unshuffled.
+    Anything else is a play script."""
     segments = []
     for file in files:
         file = Path(file)
         if file.suffix == ".odca":
-            pairs = load_odca_file(file)
+            pairs, shuffle = load_odca_file(file), False
             if pairs is None:
                 raise ShowError(f"{file}: cannot read")
         else:
-            pairs = load_script(file)
-        segments.append({"file": file.name, "pairs": pairs})
+            pairs, shuffle = load_script(file)
+        segments.append({"file": file.name, "pairs": pairs, "shuffle": shuffle})
     return segments

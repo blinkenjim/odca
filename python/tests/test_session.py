@@ -915,6 +915,64 @@ def test_play_shuffle_draws_a_fresh_order_of_the_files(make_store, odca_file, ca
     assert "playing" not in out and s.pair_index == 0
 
 
+def test_play_shuffle_draws_a_fresh_order_of_a_script_pairs(make_store, odca_file, tmp_path, capsys):  # PT-39
+    store = review_store(make_store)
+    a, b, c = ALL_PRODUCIBLE, FOUR[1], FOUR[2]  # three distinct rules
+    x, y, z = grey(10), grey(20), grey(30)
+    pairs = [(a, "X", x), (a, "Y", y), (b, "X'", list(reversed(x))), (b, "Z", z), (c, "Y", y), (c, "Z", z)]
+    file = odca_file(name="six.odca")
+    save_odca_file([{"rule": r.id, "colorset": n, "colors": cs} for r, n, cs in pairs], file)
+    script = tmp_path / "six.play"
+    script.write_text("import six.odca\nplay shuffle\n")
+    s = make_session(store, show=load_show([script]))
+    assert not s.shuffle  # the script asked, not the command line
+    assert "odca six.play: 6 pairs, shuffled" in capsys.readouterr().out  # R-O13
+    played = [s.pair_index]
+    for _ in range(59):  # ten passes
+        s.handle_key("N")
+        played.append(s.pair_index)
+    for p in range(10):
+        assert sorted(played[6 * p:6 * p + 6]) == list(range(6))  # every pass: every pair once
+    for i, j in zip(played, played[1:]):  # never the same rule or color set in a row, seams included
+        assert pairs[i][0] != pairs[j][0], (i, j)
+        assert sorted(pairs[i][2]) != sorted(pairs[j][2]), (i, j)
+    s.handle_key("P")  # back one within the pass
+    assert s.pair_index == played[-2]
+    script.write_text("import six.odca\nplay\n")  # plain play: file order
+    plain = make_session(store, show=load_show([script]))
+    assert plain.play_order == [(0, i) for i in range(6)]
+    assert ", shuffled" not in capsys.readouterr().out
+    # No order can avoid a repeat: the requirement is dropped and the show goes on.
+    save_odca_file([{"rule": a.id, "colorset": "X", "colors": x}, {"rule": a.id, "colorset": "Y", "colors": y}], file)
+    script.write_text("import six.odca\nplay shuffle\n")
+    s = make_session(store, show=load_show([script]))
+    played = [s.pair_index]
+    for _ in range(5):
+        s.handle_key("N")
+        played.append(s.pair_index)
+    assert all(sorted(played[i:i + 2]) == [0, 1] for i in (0, 2, 4))
+
+
+def test_a_shuffled_script_keeps_its_seam_with_the_other_files(make_store, odca_file, tmp_path, capsys):  # PT-39
+    store = review_store(make_store)
+    a, b = FOUR[1], FOUR[2]
+    x, y = grey(10), grey(20)
+    # The plain file ends on rule b with colors y; the shuffled file holds one
+    # pair on each, so only b-then-a, y-then-x can open its pass.
+    plain_file = odca_file(name="plain.odca")
+    save_odca_file([{"rule": b.id, "colorset": "Y", "colors": y}], plain_file)
+    shuffled_file = odca_file(name="two.odca")
+    save_odca_file([{"rule": b.id, "colorset": "Y", "colors": y},
+                    {"rule": a.id, "colorset": "X", "colors": x}], shuffled_file)
+    script = tmp_path / "two.play"
+    script.write_text("import two.odca\nplay shuffle\n")
+    s = make_session(store, show=load_show([plain_file, script]))
+    capsys.readouterr()
+    for _ in range(20):
+        assert s.play_order[1:] == [(1, 1), (1, 0)], s.play_order  # the clashing pair never opens the file
+        s.handle_key("N")
+
+
 def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33
     store = review_store(make_store)
     s = make_session(store)

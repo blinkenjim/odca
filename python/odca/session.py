@@ -20,8 +20,10 @@ Programs (spec sections 4c, 4d), selected at construction:
                   watchdog of PLAY_TIMEOUT seconds, then hand over after
                   PLAY_GRACE quiet seconds or at the next re-init; rows
                   keep the colors they were painted with; the files play
-                  in turn, looping, and shuffle=True draws a fresh order of
-                  the files each pass (never the same file twice running);
+                  in turn, looping, shuffle=True draws a fresh order of
+                  the files each pass (never the same file twice running),
+                  and a segment marked shuffle (the script said `play
+                  shuffle`) draws a fresh order of its own pairs;
                   N/P step by hand
     review_mode   color set review (section 4b; on hold, no program binds it)
 
@@ -80,6 +82,7 @@ SMOOTH_SCROLL_DELAY = 2 * INITIAL_DELAY  # slower than this: continuous scrollin
 SCREEN_SPEEDUP = 8  # paused 's' zips a screenful at delay / SCREEN_SPEEDUP (R-K13)
 PLAY_TIMEOUT = 120.0  # odca: a pair's screen time before it may advance (R-X2)
 PLAY_GRACE = 60.0  # odca: no transition within this long of an initialization (R-X3)
+SHUFFLE_TRIES = 100  # `play shuffle`: draws tried for an order without repeats before giving up (R-X7)
 FLASH_SECONDS = 0.25  # the screen inverts this long as a mode cue (R-U10)
 HISTORY_DEPTH = 2048  # rows remembered beyond the screen (R-U8)
 PALETTE_LIMIT = 64  # odca: prune the per-row palette table past this many entries (R-X5)
@@ -834,7 +837,8 @@ class Session:
 
     def _load_play(self):  # R-X1
         for segment in self.show:
-            print(f"odca {segment['file']}: {len(segment['pairs'])} pairs")  # R-O13
+            how = ", shuffled" if segment["shuffle"] else ""  # R-X7: the script said `play shuffle`
+            print(f"odca {segment['file']}: {len(segment['pairs'])} pairs{how}")  # R-O13
         self.pairs = []
         if any(segment["pairs"] for segment in self.show):
             self._new_pass()
@@ -852,8 +856,34 @@ class Session:
                 # just played included (unless it is the only one with pairs).
                 if len(playable) < 2 or first != self.play_segment:
                     break
-        self.play_order = [(seg, i) for seg in order for i in range(len(self.show[seg]["pairs"]))]
+        # Within a file, its pairs in file order, or (R-X7: `play shuffle`) a
+        # fresh permutation in which no rule and no color set follows itself.
+        # The seam is the pair before it in the pass, whatever file that came
+        # from, or the pair still on screen for the pass's first file; a file
+        # that allows no such order plays the last draw as it is.
+        previous = None if self.play_segment is None else (self.play_segment, self.pair_index)
+        play_order = []
+        for seg in order:
+            indices = list(range(len(self.show[seg]["pairs"])))
+            if self.show[seg]["shuffle"] and len(indices) > 1:
+                for _ in range(SHUFFLE_TRIES):
+                    indices = [int(i) for i in self.rng.permutation(len(indices))]
+                    if self._no_repeats(seg, indices, previous):
+                        break
+            play_order += [(seg, i) for i in indices]
+            if play_order:
+                previous = play_order[-1]
+        self.play_order = play_order
         self.play_position = 0
+
+    def _no_repeats(self, segment, indices, previous):
+        chain = ([previous] if previous is not None else []) + [(segment, i) for i in indices]
+        return not any(self._clash(a, b) for a, b in zip(chain, chain[1:]))
+
+    def _clash(self, a, b):
+        """Two pairs repeat if they share the rule or the color set (in any arrangement)."""
+        pa, pb = self.show[a[0]]["pairs"][a[1]], self.show[b[0]]["pairs"][b[1]]
+        return pa["rule"] == pb["rule"] or sorted(pa["colors"]) == sorted(pb["colors"])
 
     def _play_pair(self, position, reason):  # R-X4
         segment, index = self.play_order[position]
