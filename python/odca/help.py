@@ -5,20 +5,21 @@ conformance/help-odca.txt and conformance/help-odca-select.txt.
 HELP_ODCA = """\
 odca: one-dimensional cellular automata as art
 
-usage: odca <file.odca> [--shuffle] [--fullscreen] [--4 | --3 | --2 | --1]
-            [--watchdog SECONDS] [--grace SECONDS]
+usage: odca <file> [<file> ...] [--shuffle] [--fullscreen]
+            [--4 | --3 | --2 | --1] [--watchdog SECONDS] [--grace SECONDS]
        odca --help
 
-Plays the pairs in an odca file, one at a time, looping. A pair is a rule
-with a color set; odca-select composes them. Each pair gets two minutes of
-screen time, re-seeding in place whenever it goes boring; then it hands
-over after a quiet minute or at the next re-seed, and the next pair grows
-in from a fresh field below the old rows, which keep their colors.
+Plays a show. Each file is a play script (below) or an odca file of
+pairs, which plays as a script that imports it and plays it. A pair is a
+rule with a color set; odca-select composes them. Each pair gets two
+minutes of screen time, re-seeding in place whenever it goes boring; then
+it hands over after a quiet minute or at the next re-seed, and the next
+pair grows in from a fresh field below the old rows, which keep their
+colors. The files play in turn, each its pairs in order, looping.
 
-  --shuffle     play the pairs in random order instead of file order: each
-                pass is a fresh shuffle of all of them in which no rule and
-                no color set follows itself, the seam between passes included
-                (a file too small to allow that plays a plain shuffle)
+  --shuffle     play the files in random order instead of command-line
+                order: a fresh draw each pass, never the same file twice
+                running; the pairs within a file keep their order
   --fullscreen  open the window full screen, for unattended runs; the
                 platform's own control leaves it, as it entered it before
   --4 / --3 / --2 / --1
@@ -30,6 +31,12 @@ in from a fresh field below the old rows, which keep their colors.
   --grace SECONDS
                 no hand-over within this long of a re-seed: whole seconds,
                 60 by default
+
+Play scripts (.play): one statement per line; # starts a comment.
+  import <file>   the pairs of an odca file, in order; the name is
+                  relative to the script, quoted if it has spaces
+  play            play every pair imported above, once, in that order
+                  (a script without it plays nothing)
 
 Keys:
   q     quit                            space   pause / resume
@@ -43,9 +50,9 @@ Keys:
   c / C arrange colors forward / back
   F     toggle full screen (also while paused)
 
-Files: the odca file named on the command line is read only; color sets
-come from library.json at the repository root; ~/.odca/ holds the current
-rule and the candidate stash.
+Files: the files named on the command line and the odca files they
+import are read only; color sets come from library.json at the repository
+root; ~/.odca/ holds the current rule and the candidate stash.
 """
 
 HELP_ODCA_SELECT = """\

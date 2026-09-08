@@ -29,10 +29,18 @@ def test_help_prints_and_exits_zero(main, text, capsys, tmp_path, monkeypatch): 
 def test_usage_errors(capsys, tmp_path):  # R-W1, R-X1
     with pytest.raises(SystemExit) as e:
         play_main([])
-    assert e.value.code == 2 and "usage: odca <file.odca> [--shuffle] [--fullscreen] [--4] [--3] [--2] [--1] [--watchdog N] [--grace N]" in capsys.readouterr().out
+    assert e.value.code == 2 and "usage: odca <file> [<file> ...] [--shuffle] [--fullscreen] [--4] [--3] [--2] [--1] [--watchdog N] [--grace N]" in capsys.readouterr().out
     with pytest.raises(SystemExit) as e:
         play_main([str(tmp_path / "nope.odca")])
     assert e.value.code == 1 and "does not exist" in capsys.readouterr().out
+    good = tmp_path / "good.odca"
+    good.write_text('{"pairs": []}')
+    with pytest.raises(SystemExit) as e:
+        play_main([str(good), str(tmp_path / "nope.play")])  # every file must exist
+    assert e.value.code == 1 and "nope.play does not exist" in capsys.readouterr().out
+    with pytest.raises(SystemExit) as e:
+        select_main([str(good), str(good)])  # odca-select takes one file
+    assert e.value.code == 2 and "usage: odca-select <file.odca>" in capsys.readouterr().out
     with pytest.raises(SystemExit) as e:
         select_main(["--shuffle", "x.odca"])
     assert e.value.code == 2 and "unknown option --shuffle" in capsys.readouterr().out
@@ -52,10 +60,37 @@ def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
     play.main([str(file), "--1"])
     play.main(["--watchdog", "20", str(file), "--grace", "10"])
     clocks = {"play_timeout": 120.0, "play_grace": 60.0}  # the defaults (R-X2, R-X3)
-    assert calls == [({"play_file": file, "shuffle": False, **clocks}, True, 2),  # 2-point cells by default
-                     ({"play_file": file, "shuffle": True, **clocks}, False, 2),
-                     ({"play_file": file, "shuffle": False, **clocks}, False, 1),
-                     ({"play_file": file, "shuffle": False, "play_timeout": 20, "play_grace": 10}, False, 2)]
+    show = [{"file": "show.odca", "pairs": []}]
+    assert calls == [({"show": show, "shuffle": False, **clocks}, True, 2),  # 2-point cells by default
+                     ({"show": show, "shuffle": True, **clocks}, False, 2),
+                     ({"show": show, "shuffle": False, **clocks}, False, 1),
+                     ({"show": show, "shuffle": False, "play_timeout": 20, "play_grace": 10}, False, 2)]
+
+
+def test_odca_takes_scripts_and_odca_files_in_order(monkeypatch, tmp_path, capsys):  # R-X1, R-X7
+    from odca import play
+    from odca.store import save_odca_file
+    from odca.automaton import Rule
+    pair = {"rule": Rule.from_id("00000000000000000000").id, "colorset": "ODCA default",
+            "colors": ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]}
+    save_odca_file([pair], tmp_path / "one.odca")
+    save_odca_file([pair, pair], tmp_path / "two.odca")
+    script = tmp_path / "show.play"
+    script.write_text("import one.odca\nimport two.odca\nplay\n")
+    calls = []
+    monkeypatch.setattr(play, "run", lambda kwargs, fullscreen=False, cell=4: calls.append(kwargs["show"]))
+    play.main([str(script), str(tmp_path / "one.odca")])
+    assert [(seg["file"], len(seg["pairs"])) for seg in calls[0]] == [("show.play", 3), ("one.odca", 1)]
+    script.write_text("import one.odca\nimport three.odca\nplay\n")
+    with pytest.raises(SystemExit) as e:
+        play.main([str(script)])  # a script error stops the program before any window
+    assert e.value.code == 1
+    assert capsys.readouterr().out == f"error: {script}:2: cannot read three.odca\n"
+    script.write_text("import one.odca\nplay now\n")
+    with pytest.raises(SystemExit) as e:
+        play.main([str(script)])
+    assert e.value.code == 1
+    assert capsys.readouterr().out == f"error: {script}:2:6: syntax error, unexpected word now, expecting end of line\n"
 
 
 def test_watchdog_and_grace_need_whole_seconds(tmp_path, capsys):  # R-X2, R-X3, R-U9

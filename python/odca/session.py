@@ -14,11 +14,15 @@ Programs (spec sections 4c, 4d), selected at construction:
                   X deletes, R toggles the n/p order between file order and
                   grouped by rule (with a brief inversion of the screen);
                   the file is written after every change and at exit
-    play_file     odca: play the file's pairs one at a time, each for a
+    show          odca: play a show (show.load_show: one segment per
+                  command-line file, each the pairs a play script or odca
+                  file plays, in order) one pair at a time, each for a
                   watchdog of PLAY_TIMEOUT seconds, then hand over after
                   PLAY_GRACE quiet seconds or at the next re-init; rows
-                  keep the colors they were painted with; shuffle=True
-                  plays each pass in a fresh random order; N/P step by hand
+                  keep the colors they were painted with; the files play
+                  in turn, looping, and shuffle=True draws a fresh order of
+                  the files each pass (never the same file twice running);
+                  N/P step by hand
     review_mode   color set review (section 4b; on hold, no program binds it)
 
 Keys (single characters), common to both programs:
@@ -76,7 +80,6 @@ SMOOTH_SCROLL_DELAY = 2 * INITIAL_DELAY  # slower than this: continuous scrollin
 SCREEN_SPEEDUP = 8  # paused 's' zips a screenful at delay / SCREEN_SPEEDUP (R-K13)
 PLAY_TIMEOUT = 120.0  # odca: a pair's screen time before it may advance (R-X2)
 PLAY_GRACE = 60.0  # odca: no transition within this long of an initialization (R-X3)
-SHUFFLE_TRIES = 100  # odca --shuffle: shuffles tried for an order without repeats before giving up (R-X1)
 FLASH_SECONDS = 0.25  # the screen inverts this long as a mode cue (R-U10)
 HISTORY_DEPTH = 2048  # rows remembered beyond the screen (R-U8)
 PALETTE_LIMIT = 64  # odca: prune the per-row palette table past this many entries (R-X5)
@@ -92,7 +95,7 @@ def _rgb(c):
 
 class Session:
     def __init__(self, cols, rows, store=None, search=None, rng=None,
-                 review_mode=False, select_file=None, play_file=None, shuffle=False,
+                 review_mode=False, select_file=None, show=None, shuffle=False,
                  initial_delay=INITIAL_DELAY, play_timeout=PLAY_TIMEOUT, play_grace=PLAY_GRACE):
         self.cols = cols
         self.rows = rows
@@ -108,12 +111,12 @@ class Session:
         self.search = search if search is not None else CandidateSearch()
         self.rng = rng if rng is not None else np.random.default_rng()
         # Program precedence: odca (play), then odca-select, then color set review.
-        self.play_file = Path(play_file) if play_file else None
-        self.shuffle = bool(shuffle) and self.play_file is not None
-        if self.play_file is not None:
+        self.show = [dict(seg) for seg in show] if show is not None else None
+        self.shuffle = bool(shuffle) and self.show is not None
+        if self.show is not None:
             select_file = None
         self.select_file = Path(select_file) if select_file else None
-        self.review_mode = bool(review_mode) and self.select_file is None and self.play_file is None
+        self.review_mode = bool(review_mode) and self.select_file is None and self.show is None
 
         # Startup per R-U1: previous rule (random fallback), random cells.
         rule = self.store.load_rule() or Rule.random(self.rng)
@@ -186,8 +189,9 @@ class Session:
         self.dropped_names = []
         self._review_arrangement = {}
         # odca (R-X)
-        self.play_order = []  # file indices in the order of the current pass
+        self.play_order = []  # (segment, index) pairs in the order of the current pass
         self.play_position = None
+        self.play_segment = None  # the segment (command-line file) of the pair playing
         self.play_elapsed = 0.0  # unpaused seconds on the current pair
         self.since_init = 0.0  # unpaused seconds since the last (re)initialization
 
@@ -198,7 +202,7 @@ class Session:
             self._load_review()
         if self.select_file is not None:
             self._load_select()
-        if self.play_file is not None:
+        if self.show is not None:
             self._load_play()
 
     # ------------------------------------------------------------------ basics
@@ -217,7 +221,7 @@ class Session:
 
     @property
     def play_mode(self):
-        return self.play_file is not None
+        return self.show is not None
 
     @property
     def inverted(self):
@@ -500,7 +504,7 @@ class Session:
                 print(f"screen {self.screen_counter}")  # R-O7
         if self.auto_init and self._boring_streak >= self.rows:
             reason = self._boring_reason
-            if self.play_mode and self.pairs and self.play_elapsed >= self.play_timeout:
+            if self.play_mode and self.play_order and self.play_elapsed >= self.play_timeout:
                 self._next_play_pair(reason)  # R-X3: watchdog expired, a re-init transitions
             else:
                 self.init_cells()
@@ -605,7 +609,7 @@ class Session:
         self._accumulated -= steps * self.delay
         for _ in range(min(steps, STEP_CAP)):
             self._advance()
-        if (self.play_mode and self.pairs  # R-X3: watchdog expired and the grace period observed
+        if (self.play_mode and self.play_order  # R-X3: watchdog expired and the grace period observed
                 and self.play_elapsed >= self.play_timeout and self.since_init >= self.play_grace):
             self._next_play_pair("timeout")
 
@@ -829,36 +833,34 @@ class Session:
     # ------------------------------------------------------------------- odca
 
     def _load_play(self):  # R-X1
-        self.pairs = load_odca_file(self.play_file) or []
-        print(f"odca {self.play_file.name}: {len(self.pairs)} pairs")  # R-O13
-        if self.pairs:
+        for segment in self.show:
+            print(f"odca {segment['file']}: {len(segment['pairs'])} pairs")  # R-O13
+        self.pairs = []
+        if any(segment["pairs"] for segment in self.show):
             self._new_pass()
-            self._play_pair(self.play_order[0], None)
+            self._play_pair(0, None)
 
-    def _new_pass(self):  # R-X1: file order, or a fresh shuffle per pass
-        n = len(self.pairs)
+    def _new_pass(self):  # R-X1: the files in command-line order, or a fresh shuffle of them per pass
+        n = len(self.show)
         order = list(range(n))
         if self.shuffle and n > 1:
-            # A fresh permutation in which no rule and no color set follows
-            # itself, the seam from the pair just played included; a file
-            # that allows no such order plays the last shuffle as it is.
-            for _ in range(SHUFFLE_TRIES):
+            playable = [i for i in order if self.show[i]["pairs"]]
+            while True:
                 order = [int(i) for i in self.rng.permutation(n)]
-                if self._no_repeats(order, self.pair_index):
+                first = next(i for i in order if self.show[i]["pairs"])
+                # Never the same file twice running, the seam from the file
+                # just played included (unless it is the only one with pairs).
+                if len(playable) < 2 or first != self.play_segment:
                     break
-        self.play_order = order
+        self.play_order = [(seg, i) for seg in order for i in range(len(self.show[seg]["pairs"]))]
         self.play_position = 0
 
-    def _no_repeats(self, order, previous):
-        chain = ([previous] if previous is not None else []) + order
-        return not any(self._clash(a, b) for a, b in zip(chain, chain[1:]))
-
-    def _clash(self, a, b):
-        """Two pairs repeat if they share the rule or the color set (in any arrangement)."""
-        la, lb = self.pairs[a], self.pairs[b]
-        return la["rule"] == lb["rule"] or sorted(la["colors"]) == sorted(lb["colors"])
-
-    def _play_pair(self, index, reason):  # R-X4
+    def _play_pair(self, position, reason):  # R-X4
+        segment, index = self.play_order[position]
+        self.play_position = position
+        entered = segment != self.play_segment
+        self.play_segment = segment
+        self.pairs = self.show[segment]["pairs"]
         pair = self.pairs[index]
         self.pair_index = index
         rule = Rule.from_id(pair["rule"])
@@ -868,23 +870,25 @@ class Session:
         self._show_colors(pair["colorset"], pair["colors"])
         self.init_cells()
         self.play_elapsed = 0.0  # the pair's screen time starts now
+        if entered and len(self.show) > 1:
+            print(f"playing {self.show[segment]['file']}")  # R-O13: the show moves to another file
         why = f" ({reason})" if reason else ""
         print(f"pair {index + 1}/{len(self.pairs)} {self._label(pair)}{why}")  # R-O13
 
     def _next_play_pair(self, reason):  # R-X2, R-X3: on through the pass, then a new pass
-        self.play_position += 1
-        if self.play_position >= len(self.play_order):
+        position = self.play_position + 1
+        if position >= len(self.play_order):
             self._new_pass()
-        self._play_pair(self.play_order[self.play_position], reason)
+            position = 0
+        self._play_pair(position, reason)
 
     def play_step(self, step):  # R-X6: N/P move through the pass by hand, wrapping
-        if not self.pairs:
+        if not self.play_order:
             return
         if step > 0:
             self._next_play_pair("next")
         else:
-            self.play_position = (self.play_position - 1) % len(self.play_order)
-            self._play_pair(self.play_order[self.play_position], "previous")
+            self._play_pair((self.play_position - 1) % len(self.play_order), "previous")
 
     # -------------------------------------------------------- color set review
 

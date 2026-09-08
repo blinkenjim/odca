@@ -12,6 +12,7 @@ from odca.automaton import Rule
 from odca.search import CandidateSearch
 from odca.session import HISTORY_DEPTH, INITIAL_DELAY, MAX_DELAY, MIN_COLS, MIN_DELAY, Session
 from odca.store import DEFAULT_COLOR_SETS, Store, load_odca_file, save_odca_file
+from odca.show import load_show
 
 FOUR = [Rule.from_id(d * 20) for d in "0123"]
 OUTSIDE = Rule.from_id("01230123012301230123")
@@ -764,7 +765,7 @@ def test_play_in_order_and_loops(make_store, odca_file, capsys):  # PT-31
     file = odca_file(name="saver.odca")
     save_odca_file([{"rule": ALL_ZERO.id, "colorset": "A", "colors": grey(10)},
                     {"rule": ALL_ZERO.id, "colorset": "B", "colors": grey(20)}], file)
-    s = make_session(store, play_file=file)
+    s = make_session(store, show=load_show([file]))
     assert s.play_mode and not s.select_mode and not s.review_mode
     assert s.pair_index == 0 and s.rule == ALL_ZERO
     assert s.palette[0] == rgb("#0A0A0A")
@@ -821,7 +822,7 @@ def test_play_watchdog_and_grace_period(make_store, odca_file, capsys):  # PT-31
     file = odca_file(name="saver.odca")
     save_odca_file([{"rule": ALL_PRODUCIBLE.id, "colorset": "A", "colors": grey(10)},
                     {"rule": ALL_PRODUCIBLE.id, "colorset": "B", "colors": grey(20)}], file)
-    s = make_session(store, play_file=file)
+    s = make_session(store, show=load_show([file]))
     s.handle_key("a")  # auto-init off: only time sequences now
     for _ in range(50):
         s.handle_key("+")
@@ -851,7 +852,7 @@ def test_watchdog_and_grace_are_construction_parameters(make_store, odca_file, c
     file = odca_file(name="saver.odca")
     save_odca_file([{"rule": ALL_PRODUCIBLE.id, "colorset": "A", "colors": grey(10)},
                     {"rule": ALL_PRODUCIBLE.id, "colorset": "B", "colors": grey(20)}], file)
-    s = make_session(store, play_file=file, play_timeout=20, play_grace=10)
+    s = make_session(store, show=load_show([file]), play_timeout=20, play_grace=10)
     s.handle_key("a")  # only the clocks transition
     s.tick(19)
     assert s.pair_index == 0
@@ -866,36 +867,52 @@ def test_watchdog_and_grace_are_construction_parameters(make_store, odca_file, c
     assert s.pair_index == 0
 
 
-def test_play_shuffle_is_a_fresh_pass_without_repeats(make_store, odca_file):  # PT-36
+def test_play_shuffle_draws_a_fresh_order_of_the_files(make_store, odca_file, capsys):  # PT-36
     store = review_store(make_store)
-    file = odca_file(name="saver.odca")
-    a, b, c = ALL_PRODUCIBLE, FOUR[1], FOUR[2]  # three distinct rules
-    x, y, z = grey(10), grey(20), grey(30)
-    pairs = [(a, "X", x), (a, "Y", y), (b, "X'", list(reversed(x))), (b, "Z", z), (c, "Y", y), (c, "Z", z)]
-    save_odca_file([{"rule": r.id, "colorset": n, "colors": cs} for r, n, cs in pairs], file)
-    s = make_session(store, play_file=file, shuffle=True)
+    files = []
+    for name, rules in (("a.odca", (ALL_PRODUCIBLE, FOUR[1])), ("b.odca", (FOUR[2],)), ("c.odca", (ALL_ZERO, FOUR[1], FOUR[2]))):
+        files.append(odca_file(rules, name=name))
+    show = load_show(files)
+    s = make_session(store, show=show, shuffle=True)
     assert s.shuffle
-    played = [s.pair_index]
-    for _ in range(59):  # ten passes
+    out = capsys.readouterr().out
+    assert "odca a.odca: 2 pairs\nodca b.odca: 1 pairs\nodca c.odca: 3 pairs\n" in out
+    assert "playing " in out and out.index("playing ") < out.index("pair 1/")  # R-O13: the first file is announced
+    played = [(s.play_segment, s.pair_index)]
+    for _ in range(59):  # ten passes of six pairs
         s.handle_key("N")
-        played.append(s.pair_index)
+        played.append((s.play_segment, s.pair_index))
+    sizes = [2, 1, 3]
     for p in range(10):
-        assert sorted(played[6 * p:6 * p + 6]) == list(range(6))  # every pass: every pair once
-    for i, j in zip(played, played[1:]):  # never the same rule or color set in a row, seams included
-        assert pairs[i][0] != pairs[j][0], (i, j)
-        assert sorted(pairs[i][2]) != sorted(pairs[j][2]), (i, j)
+        one_pass = played[6 * p:6 * p + 6]
+        order = [seg for seg, i in one_pass if i == 0]  # the files, in the order the pass plays them
+        assert sorted(order) == [0, 1, 2]  # every file once
+        expected = [(seg, i) for seg in order for i in range(sizes[seg])]
+        assert one_pass == expected  # the pairs of a file in file order, the file played whole
+    seams = [(played[6 * p - 1][0], played[6 * p][0]) for p in range(1, 10)]
+    assert all(a != b for a, b in seams)  # never the same file twice running
+    assert len({tuple(seg for seg, i in played[6 * p:6 * p + 6] if i == 0) for p in range(10)}) > 1  # fresh draws
+    out = capsys.readouterr().out
+    assert out.count("playing ") == 29  # every file entry announced, three per pass (the first read above)
     s.handle_key("P")  # back one within the pass
-    assert s.pair_index == played[-2]
-    plain = make_session(store, play_file=file)
-    assert plain.play_order == list(range(6)) and not plain.shuffle
-    # No order can avoid a repeat: the requirement is dropped and the show goes on.
-    save_odca_file([{"rule": a.id, "colorset": "X", "colors": x}, {"rule": a.id, "colorset": "Y", "colors": y}], file)
-    s = make_session(store, play_file=file, shuffle=True)
-    played = [s.pair_index]
-    for _ in range(5):
+    assert (s.play_segment, s.pair_index) == played[-2]
+    plain = make_session(store, show=show)
+    assert not plain.shuffle
+    assert plain.play_order == [(0, 0), (0, 1), (1, 0), (2, 0), (2, 1), (2, 2)]  # command-line order
+    # One file with pairs among empty ones: it plays on, and shuffling changes nothing that shows.
+    empty = odca_file(name="empty.odca")
+    empty.write_text('{"pairs": []}')
+    s = make_session(store, show=load_show([empty, files[1], empty]), shuffle=True)
+    for _ in range(4):
         s.handle_key("N")
-        played.append(s.pair_index)
-    assert all(sorted(played[i:i + 2]) == [0, 1] for i in (0, 2, 4))
+    assert (s.play_segment, s.pair_index) == (1, 0)
+    # A single file: `playing` is never printed, and every pass is the file's order.
+    s = make_session(store, show=load_show([files[2]]), shuffle=True)
+    capsys.readouterr()
+    for _ in range(6):
+        s.handle_key("N")
+    out = capsys.readouterr().out
+    assert "playing" not in out and s.pair_index == 0
 
 
 def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33
@@ -1085,7 +1102,7 @@ def test_rows_keep_their_colors_through_quick_transitions(make_store, odca_file,
     file = odca_file(name="saver.odca")
     save_odca_file([{"rule": ALL_ZERO.id, "colorset": n, "colors": grey(v)}
                     for n, v in (("A", 10), ("B", 20), ("C", 30))], file)
-    s = make_session(store, play_file=file)
+    s = make_session(store, show=load_show([file]))
     s.handle_key("a")
 
     def painted(lo, hi, colors):

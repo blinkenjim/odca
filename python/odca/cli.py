@@ -6,10 +6,11 @@ from pathlib import Path
 CELL_FLAGS = ("--4", "--3", "--2", "--1")  # pixels per cell for the run, both programs (R-U2)
 
 
-def parse(argv, program, help_text, flags=(), options=()):
+def parse(argv, program, help_text, flags=(), options=(), positional="<file.odca>", many=False):
     """Return (file, set of flags given, {option: value}). --help prints and exits 0 first.
 
-    The odca file is the one positional argument; a missing one is a usage
+    The positional arguments are files: exactly one, or with `many` one or
+    more (returned as a list, in order). None, or too many, is a usage
     error (exit 2), an unknown flag likewise. `options` take the next
     argument as their value; one without a value is a usage error.
     """
@@ -35,11 +36,11 @@ def parse(argv, program, help_text, flags=(), options=()):
         else:
             files.append(a)
         i += 1
-    if len(files) != 1:
+    if not files or (len(files) > 1 and not many):
         usage = "".join(f" [{f}]" for f in flags) + "".join(f" [{o} N]" for o in options)
-        print(f"usage: {program} <file.odca>{usage}")
+        print(f"usage: {program} {positional}{usage}")
         sys.exit(2)
-    return Path(files[0]), given, values
+    return ([Path(f) for f in files] if many else Path(files[0])), given, values
 
 
 def whole_seconds(program, values, option, default):
