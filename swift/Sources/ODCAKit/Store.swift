@@ -145,29 +145,44 @@ public struct Store {
         Store.write(text, to: libraryFile)
     }
 
-    // R-P3: an odca file — an ordered list of looks (rule + color set).
-    /// nil when the file is missing, [] when unparseable; malformed looks skipped.
-    public static func loadOdcaFile(_ url: URL) -> [Look]? {
+    // R-P3: an odca file — an ordered list of pairs (rule + color set), each
+    // named when the file names it. The 3.0.0 key `looks` is still read.
+    /// nil when the file is missing, [] when unparseable; malformed pairs skipped.
+    public static func loadOdcaFile(_ url: URL) -> [Pair]? {
         guard let data = try? Data(contentsOf: url) else { return nil }  // missing
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return [] }
-        var looks: [Look] = []
-        for case let dict as [String: Any] in (root["looks"] as? [Any]) ?? [] {
+        var pairs: [Pair] = []
+        for case let dict as [String: Any] in (root["pairs"] ?? root["looks"]) as? [Any] ?? [] {
             guard let rule = dict["rule"] as? String, (try? Rule(id: rule)) != nil,
-                  let name = dict["colorset"] as? String,
+                  let set = dict["colorset"] as? String,
                   let colors = dict["colors"] as? [String], colors.count == 4,
                   colors.allSatisfy(validColor) else { continue }
-            looks.append(Look(rule: rule, colorset: name, colors: colors.map { $0.uppercased() }))
+            pairs.append(Pair(name: dict["name"] as? String, rule: rule, colorset: set,
+                              colors: colors.map { $0.uppercased() }))
         }
-        return looks
+        return pairs
     }
 
-    public static func saveOdcaFile(_ looks: [Look], to url: URL) {
-        let entries = looks.map { p -> String in
-            "{\n   \"rule\": \(quoted(p.rule)),\n   \"colorset\": \(quoted(p.colorset)),\n"
+    /// Layout: name (when the pair has one), rule, colorset, colors.
+    public static func saveOdcaFile(_ pairs: [Pair], to url: URL) {
+        let entries = pairs.map { p -> String in
+            "{\n" + (p.name.map { "   \"name\": \(quoted($0)),\n" } ?? "")
+            + "   \"rule\": \(quoted(p.rule)),\n   \"colorset\": \(quoted(p.colorset)),\n"
             + "   \"colors\": " + list(p.colors.map(quoted), indent: "   ") + "\n  }"
         }
-        write("{\n \"looks\": " + list(entries, indent: " ") + "\n}\n", to: url)
+        write("{\n \"pairs\": " + list(entries, indent: " ") + "\n}\n", to: url)
+    }
+
+    /// The next generated name, `pair-NNNN` (R-P3): one past the highest number
+    /// in use in the file, four digits, more once they are needed.
+    public static func nextPairName(_ pairs: [Pair]) -> String {
+        let used = pairs.compactMap { p -> Int? in
+            guard let name = p.name, name.hasPrefix("pair-") else { return nil }
+            let digits = name.dropFirst(5)
+            return digits.allSatisfy(\.isNumber) && !digits.isEmpty ? Int(digits) : nil
+        }
+        return String(format: "pair-%04d", (used.max() ?? -1) + 1)
     }
 
     /// {slot: ColorSet} for the digit-bound sets; slot 1 always present (R-U4).
@@ -237,13 +252,16 @@ public struct ColorSetFile: Equatable {
     }
 }
 
-/// One look: a rule with a color set, colors already arranged (R-P3).
-public struct Look: Equatable {
+/// One pair: a rule with a color set, colors already arranged, and its name
+/// when the file gives one (R-P3).
+public struct Pair: Equatable {
+    public var name: String?
     public var rule: String
     public var colorset: String
     public var colors: [String]
 
-    public init(rule: String, colorset: String, colors: [String]) {
+    public init(name: String? = nil, rule: String, colorset: String, colors: [String]) {
+        self.name = name
         self.rule = rule
         self.colorset = colorset
         self.colors = colors

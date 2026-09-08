@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.24.0 — 2026-09-07
+Version 3.26.0 — 2026-09-08
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -36,8 +36,8 @@ mode; the active set model everywhere — R-K17, R-K15, R-K16, R-O9,
 R-O10, R-O15. 2.34.0: saved rules carry their presentation; the keeper
 file is a screensaver-format file — R-K5, R-B2, R-B3, R-P3, R-O3, R-O4.
 2.36.0: `--help` — R-U9, section 10. 3.0.0: one program becomes two —
-`odca` plays an odca file of looks (section 4d, `--shuffle`), `odca-select`
-composes one (section 4c: n/p over the file's looks, s/S/X, R with a
+`odca` plays an odca file of pairs (section 4d, `--shuffle`), `odca-select`
+composes one (section 4c: n/p over the file's pairs, s/S/X, R with a
 screen flash R-U10); the keeper file becomes `interesting.odca` and the
 color sets file `library.json` — R-U1, R-U9, R-K5, R-K16, section 4, R-P3,
 R-P4, R-P5 merged, R-O3–R-O5, R-O12, R-O13, section 10; color set review
@@ -48,12 +48,14 @@ limitation withdrawn. 3.4.0: `odca --fullscreen` — R-U2, section 10.
 `--4` / `--2` / `--1` on both programs — R-U2, section 10. 3.10.0: the
 initial delay halves with the cell size — R-U5, R-U3. 3.12.0: the
 shuffle constraints — R-X1. 3.14.0: `--watchdog` and `--grace` — R-X2,
-R-X3, R-U9, section 10. 3.16.0: `m` on a look is an edit of it, recorded
+R-X3, R-U9, section 10. 3.16.0: `m` on a pair is an edit of it, recorded
 in place by `s` — R-K3, R-K5, R-B3, R-W4. 3.18.0: `U` undoes every change
 since the position last moved — R-K19, R-K4. 3.20.0: `--3` — R-U2, R-U5. 3.22.0: a
-mutated look is saved as a new look, never over the kept rule — R-K3,
-R-K5, R-W4. 3.24.0: navigation re-seeds and scrolls the look in instead
-of filling the screen — R-W8, R-B2, R-K10, R-W1.)
+mutated pair is saved as a new pair, never over the kept rule — R-K3,
+R-K5, R-W4. 3.24.0: navigation re-seeds and scrolls the pair in instead
+of filling the screen — R-W8, R-B2, R-K10, R-W1. 3.26.0: "look" becomes
+"pair" throughout, pairs are named `pair-NNNN` — R-P3, R-O4, R-O12,
+R-O13; 2-point cells by default — R-U2, R-U3, R-U5.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -64,7 +66,7 @@ fixes and clarifications.
 This document specifies ODCA, a four-state, count-based, one-dimensional
 cellular automaton presented as art, in sufficient detail to re-create the
 programs from scratch in any language. There are two programs sharing one
-engine and one keyboard vocabulary: `odca <file.odca>` plays the *looks*
+engine and one keyboard vocabulary: `odca <file.odca>` plays the *pairs*
 (rule + color set) of an odca file (section 4d), and `odca-select
 <file.odca>` composes them (section 4c). "The program" below means either
 unless a section says which. It is
@@ -171,24 +173,25 @@ must:
 6. Set the interesting-rule cycle position: if the loaded rule equals a
    saved rule, on that rule's first occurrence with the unsaved slot
    empty; otherwise on the unsaved slot, which holds the loaded rule
-   (R-B3). In 3.0.0 this reads: `odca-select` on a file with looks opens
-   on look 1 with the unsaved slot empty (R-W1); on an empty or missing
-   file the loaded rule occupies the unsaved slot. `odca` plays look 1
+   (R-B3). In 3.0.0 this reads: `odca-select` on a file with pairs opens
+   on pair 1 with the unsaved slot empty (R-W1); on an empty or missing
+   file the loaded rule occupies the unsaved slot. `odca` plays pair 1
    at once (R-X1).
 
 **R-U2 (display geometry).** The display is a grid of square cells,
-`cell_size` points on a side: 4 by default, or 3, 2, or 1 for the run
-when either program is given `--3`, `--2`, or `--1` (`--4` names the
-default; at most one of the four, more is a usage error, R-U9). Points, never device
+`cell_size` points on a side: 2 by default (since 3.26.0; 4 before), or
+4, 3, or 1 for the run when either program is given `--4`, `--3`, or
+`--1` (`--2` names the default; at most one of the four, more is a usage
+error, R-U9). Points, never device
 pixels: on a high-density display a 1-point cell still covers several
 device pixels, and the picture is scaled without smoothing. (The Python
 implementation counts its window in pixels, the same unit in practice.)
 The window is resizable, including full screen, and the grid holds as
 many whole cells as fit: `cols` = ⌊width / cell_size⌋, `rows` =
 ⌊height / cell_size⌋. The default (and first-launch) window is 1200×800
-points, giving 300 × 200 cells at the default size (400 × 266 with `--3`,
-600 × 400 with `--2`, 1200 × 800 with `--1`); the minimum is 160×120 points (40 × 30 cells at
-the default size). Interactive resizing should snap to whole cells (resize
+points, giving 600 × 400 cells at the default size (300 × 200 with `--4`,
+400 × 266 with `--3`, 1200 × 800 with `--1`); the minimum is 160×120
+points (80 × 60 cells at the default size). Interactive resizing should snap to whole cells (resize
 increments of `cell_size`); where a remainder is unavoidable (full screen)
 the grid is centered and the margins are painted in the state-0 color.
 The window may remember its last size and position through the
@@ -209,7 +212,7 @@ The window shows `rows` rows of the buffer, scrolled into its top row by
 a *scroll offset* of 0 to 1 cell:
 - while the buffer is still filling: 0 (rows appear from the top down);
 - when paused, or when the delay is at most twice the initial delay
-  (30 generations per second or faster at the default cell size): 1 — the newest generation is
+  (60 generations per second or faster at the default 2-point cell): 1 — the newest generation is
   fully visible and each generation advances the picture by one whole
   row (discrete scrolling);
 - otherwise (*continuous scrolling*): the fraction of the current delay
@@ -244,14 +247,14 @@ Slots 0 and 2–9 are palettes from coolors.co, recorded with their
 sources in `colorsets/`, some already arranged by earlier sessions. The set active in a slot may be *arranged* — its
 four colors assigned to the states in any of the 4! = 24 orders — with
 `c` (R-K15); the arrangement is per set, kept for the session, and
-recorded in the looks that `s`/`S` save (R-K5).
+recorded in the pairs that `s`/`S` save (R-K5).
 
 **R-U5 (timing).** Generation pacing is governed by a *delay* — the
 nominal time between generations — independent of the display refresh:
 
-- Initial delay: 1/60 s at the default cell size, scaled in proportion to
-  the cell (three quarters of it for `--3`, half for `--2`, a quarter for
-  `--1`, R-U2), so the picture moves at about the same speed in points
+- Initial delay: in proportion to the cell size (R-U2), 1/60 s at 4
+  points: 1/120 s at the default 2-point cell, 1/80 s for `--3`, 1/240 s
+  for `--1`, so the picture moves at about the same speed in points
   whatever the cell; `+` and `-` (R-K8) work from there.
 - The display refreshes at the screen's refresh rate (typically 60 or
   120 Hz), and implementations should pace refreshes from the display
@@ -322,10 +325,10 @@ The new rule becomes current per R-B1 and occupies the unsaved slot
 (R-B3). Cell contents are *not* reinitialized.
 
 **R-K3 (`m` — mutate).** Replace the current rule with a mutation of it
-(R-M10), becoming current per R-B1. In `odca-select` on a look under
-review, the look is thereby *changed*: the cycle position stays, the
-mutated rule shows in the look's colors, `u`/`U` walk it back, `n`/`p`
-discard it, and `s` or `S` save the screen as a new look at the end of
+(R-M10), becoming current per R-B1. In `odca-select` on a pair under
+review, the pair is thereby *changed*: the cycle position stays, the
+mutated rule shows in the pair's colors, `u`/`U` walk it back, `n`/`p`
+discard it, and `s` or `S` save the screen as a new pair at the end of
 the file (R-W4) — a kept rule is never overwritten by a mutation, since a
 mutant is a different rule. Otherwise the mutation occupies the unsaved
 slot (R-B3). Cells are not reinitialized.
@@ -336,17 +339,17 @@ makes that rule current per R-B1. With an empty stack, `u` is a silent
 no-op. Undo does not alter the interesting-rule cycle position or the
 unsaved slot. `U` undoes many at once (R-K19).
 
-**R-K5 (`s` / `S` — save a look).** In `odca-select` (section 4c) only.
-A *look* is a rule with the active color set's name and arranged colors
+**R-K5 (`s` / `S` — save a pair).** In `odca-select` (section 4c) only.
+A *pair* is a rule with the active color set's name and arranged colors
 (R-P3): a rule isn't interesting until an interesting way of presenting
 it exists, so the two are saved together, and the same rule may be saved
 again with other colors. `S` appends a copy of what is on screen — the
-current rule and the active set, arranged — as a new look at the end of
-the file. `s` on a look under review (R-B2) whose rule is still the
-look's own rewrites that look's color set to the active set, arranged;
-on a changed look (its rule mutated, R-K3) `s` appends the screen as a
-new look, as `S` does, and moves the position onto it, so a further `s`
-refines the new look; `s` on the unsaved slot appends, exactly as `S`. Both write the file at once (R-W4) and print
+current rule and the active set, arranged — as a new pair at the end of
+the file. `s` on a pair under review (R-B2) whose rule is still the
+pair's own rewrites that pair's color set to the active set, arranged;
+on a changed pair (its rule mutated, R-K3) `s` appends the screen as a
+new pair, as `S` does, and moves the position onto it, so a further `s`
+refines the new pair; `s` on the unsaved slot appends, exactly as `S`. Both write the file at once (R-W4) and print
 confirmation (R-O12). Neither moves the cycle position. In `odca` the
 file is read-only and both keys do nothing.
 
@@ -354,7 +357,7 @@ file is read-only and both keys do nothing.
 random state. The rule, scroll buffer, and all other state are unchanged
 (the new row simply enters the scroll).
 
-**R-K7 (`n` / `p` — cycle looks).** See section 4; in `odca` they act as
+**R-K7 (`n` / `p` — cycle pairs).** See section 4; in `odca` they act as
 `N`/`P` (R-X6).
 
 **R-K8 (`+` / `-` — speed).** `+` halves the delay; `-` doubles it,
@@ -372,7 +375,7 @@ pause time is discarded). Resuming computes exactly one generation on the
 first refresh so that the picture, which showed the newest row fully while
 paused, continues without a jump (R-U3). While paused, every key except
 the spacebar, Return (R-K11), `s` (R-K13), `c`/`C` (R-K15), `[`/`]`
-(R-K17), the digits (R-K9), the look keys `S`, `X`, `R` (section 4c) and
+(R-K17), the digits (R-K9), the pair keys `S`, `X`, `R` (section 4c) and
 `N`/`P` (section 4d), `F` (R-K18), and `q` is ignored; `q` quits normally. Those keys
 touch colors and files, never the running computation (the re-seed that
 navigation makes, R-W8, is the exception, being part of the navigation;
@@ -409,7 +412,7 @@ Each color set keeps its own arrangement (by name) for the session.
 set's colors in its library entry (R-P4) with its current arrangement
 (which becomes arrangement 1 of 24; a set not yet in the file is added,
 keeping its slot if it has one; prints R-O10) was `S` until 3.0.0. No
-program binds it in 3.0.0 — `S` saves a look (R-K5) — and the behavior is
+program binds it in 3.0.0 — `S` saves a pair (R-K5) — and the behavior is
 reserved for the color set tool (section 4b). Implementations may keep
 it reachable only where no program is running (tests).
 
@@ -423,17 +426,17 @@ for `P` / `N`. Live while paused, like the other color keys (R-K10).
 **R-K18 (`F` — full screen).** In every mode, enter full screen if the
 window is not in it, by whatever route it got there, and leave it if it
 is (R-U2). A window key, not a session key: nothing about the automaton,
-the undo stack, or the look cycle changes, and it is live while paused
+the undo stack, or the pair cycle changes, and it is live while paused
 (R-K10). The platform's own controls keep working alongside it.
 
 **R-K19 (`U` — undo all).** Undo, in one step, every rule change made
-since the last *arrival*: the look under review being selected (R-B2),
+since the last *arrival*: the pair under review being selected (R-B2),
 `r` bringing a fresh rule to the unsaved slot (R-B3), or, in `odca`, the
-look starting to play (R-X4); before any arrival, since startup. A
-mutation is an edit, never an arrival, on the unsaved slot as on a look. The stack
+pair starting to play (R-X4); before any arrival, since startup. A
+mutation is an edit, never an arrival, on the unsaved slot as on a pair. The stack
 (R-K4) is unwound to that depth and the rule beneath becomes current per
 R-B1; the position, the unsaved slot, and the colors are untouched, so on
-a look under review `U` returns the look to its recorded rule. With
+a pair under review `U` returns the pair to its recorded rule. With
 nothing to unwind, a silent no-op. Not live while paused, like `u`.
 
 **R-K12 (`a` — auto-initialization).** Toggles auto-initialization mode
@@ -443,37 +446,37 @@ persisted.
 
 ---
 
-## 4. The look cycle (R-B)
+## 4. The pair cycle (R-B)
 
 **R-B1 (rule change).** Whenever the current rule changes — via `r`, `m`,
 `u`, `n`, or `p` — the program must persist it as the current rule (R-P1)
 and print it (R-O1).
 
-**R-B2 (the cycle).** In `odca-select`, the looks of the odca file (R-P3),
+**R-B2 (the cycle).** In `odca-select`, the pairs of the odca file (R-P3),
 in *view order* (file order, or grouped by rule after `R`, R-W7), form a
-cycle of n+1 slots: slots 0…n−1 are the looks and one extra slot holds the
+cycle of n+1 slots: slots 0…n−1 are the pairs and one extra slot holds the
 *unsaved rule*. `n` steps forward one slot (mod n+1) and `p` steps backward
-one slot; a look's rule becomes current per R-B1 (pushing undo per R-K4)
-and its colors become the active color set at arrangement 1 — a look is a
+one slot; a pair's rule becomes current per R-B1 (pushing undo per R-K4)
+and its colors become the active color set at arrangement 1 — a pair is a
 presentation, not just a rule — and the position is printed (R-O4). Every
-step then re-seeds the cells and scrolls the look in (R-W8). Looks appended during the session are
+step then re-seeds the cells and scrolls the pair in (R-W8). Pairs appended during the session are
 reached in turn.
 
 **R-B3 (the unsaved slot).** The unsaved slot holds the most recent rule
 that arrived from outside the file: the startup rule (unless the file
-opened on look 1, R-W1), the last rule produced by `r`, or the last
+opened on pair 1, R-W1), the last rule produced by `r`, or the last
 mutation made while on the slot — together with the color set that was
 active when it arrived, which is restored with it. When `r` fires, or `m`
 fires on the unsaved slot, the new rule occupies the slot and the cycle
-position moves to (or stays on) it; `m` on a look is an edit of that look
+position moves to (or stays on) it; `m` on a pair is an edit of that pair
 and moves nothing (R-K3). While the unsaved slot is empty — the file
-opened on look 1 and no `r` has fired yet —
-the cycle consists of the n looks only. When the cycle position is on the
-unsaved slot, the first `n` selects the first look and the first `p` the
-last. Deleting the last remaining look (R-W5) puts the rule on screen into
+opened on pair 1 and no `r` has fired yet —
+the cycle consists of the n pairs only. When the cycle position is on the
+unsaved slot, the first `n` selects the first pair and the first `p` the
+last. Deleting the last remaining pair (R-W5) puts the rule on screen into
 the unsaved slot so the cycle stays usable.
 
-**R-B4 (no looks).** If the file has no looks — or in `odca`, which has no
+**R-B4 (no pairs).** If the file has no pairs — or in `odca`, which has no
 cycle — `n` and `p` print a notice (R-O5) and change nothing.
 
 ---
@@ -581,7 +584,7 @@ color sets, <d> dropped`. `S` has no binding in this mode.
 
 **R-V6 (arrangement).** `c`/`C` arrange the set under review for preview
 only, remembered per set for the session and never written to the pool;
-arrangements are recorded in looks instead (R-P3).
+arrangements are recorded in pairs instead (R-P3).
 
 **R-V7 (steps fill the screen).** Every `N`/`P` step, and the display of
 the next set after `X`, immediately computes and displays a full
@@ -593,19 +596,19 @@ screenful (`rows` generations) under the newly shown set, paused or not
 ## 4c. odca-select (R-W)
 
 The workbench: show screened random rules, dress each in a color set,
-and collect the results as looks in an odca file (R-P3).
+and collect the results as pairs in an odca file (R-P3).
 
 **R-W1 (entry).** `odca-select <file.odca>` — the file is the one
-required argument (R-U9 for errors). If it exists its looks are loaded;
+required argument (R-U9 for errors). If it exists its pairs are loaded;
 if not, nothing is written until the first save or exit (R-W4). On entry
-the program prints `odca <file>: <n> looks` (R-O12) and, if the list is
-non-empty, activates look 1 (R-B2: its rule and colors, then a fresh
+the program prints `odca <file>: <n> pairs` (R-O12) and, if the list is
+non-empty, activates pair 1 (R-B2: its rule and colors, then a fresh
 field, R-W8) with the unsaved slot empty; otherwise the startup rule occupies the
 unsaved slot (R-U1). Every ordinary key keeps its meaning except as
 redefined here; the pool of color sets is the library loaded at startup
 (R-P4).
 
-**R-W2 (`n` / `p`).** The look cycle of section 4.
+**R-W2 (`n` / `p`).** The pair cycle of section 4.
 
 **R-W3 (choosing colors).** The digit keys select their bound sets as
 usual; `[` and `]` walk the whole pool (R-K17); `c`/`C` arrange the
@@ -614,15 +617,15 @@ with `r`, `m`, `n`, `p`, and `u`, this composes what `s` and `S` record
 (R-K5).
 
 **R-W4 (`s` / `S` — record; autosave).** As R-K5: `S` appends a copy of the
-screen, the position unchanged; `s` rewrites the look under review's
+screen, the position unchanged; `s` rewrites the pair under review's
 colors in place, or, when its rule has been mutated or when on the
-unsaved slot, appends the screen as a new look — moving the position onto
+unsaved slot, appends the screen as a new pair — moving the position onto
 it in the mutated case (an arrival, R-K19). Every `s`, `S`, and `X` writes the whole file at
-once, in file order, and prints `saved <n> looks to <file>`; program exit
+once, in file order, and prints `saved <n> pairs to <file>`; program exit
 writes it again (creating a missing file, empty if need be).
 
-**R-W5 (`X` — delete).** Remove the look under review, write the file, and
-activate the look now at that view position (the previous one if the last
+**R-W5 (`X` — delete).** Remove the pair under review, write the file, and
+activate the pair now at that view position (the previous one if the last
 was removed); if the list becomes empty, the current rule keeps running
 and becomes the unsaved rule (R-B3). On the unsaved slot `X` does nothing.
 
@@ -630,20 +633,20 @@ and becomes the unsaved rule (R-B3). On the unsaved slot `X` does nothing.
 while paused (R-K10); `s` while paused keeps its pause meaning (R-K13).
 
 **R-W7 (`R` — grouped order).** Toggles the view order of the cycle
-(R-B2) between file order and *grouped by rule*: all looks sharing a rule
+(R-B2) between file order and *grouped by rule*: all pairs sharing a rule
 together, groups in order of each rule's first appearance in the file,
-looks within a group in file order — so that a rule's color sets can be
-compared for excessive similarity. Prints `look order grouped by rule` or
-`look order file order` (R-O12) and flashes the display (R-U10). The look
+pairs within a group in file order — so that a rule's color sets can be
+compared for excessive similarity. Prints `pair order grouped by rule` or
+`pair order file order` (R-O12) and flashes the display (R-U10). The pair
 under review stays under review across the toggle. In the grouped order,
 when an activation crosses into a different rule's group,
 `--- rule group <g>/<G> ---` is printed first. The file order is never
-changed by the view: `s` and `X` act on the look at its file position, `S`
-appends to the end of the file (the new look joins its rule's group in the
+changed by the view: `s` and `X` act on the pair at its file position, `S`
+appends to the end of the file (the new pair joins its rule's group in the
 view, at the end of that group or as a new last group).
 
-**R-W8 (navigation scrolls the look in).** Every activation by `n`/`p` —
-a look or the unsaved slot — and the activation after `X` re-seeds the
+**R-W8 (navigation scrolls the pair in).** Every activation by `n`/`p` —
+a pair or the unsaved slot — and the activation after `X` re-seeds the
 cells as `i` does (R-K6) and lets the activated presentation grow in from
 that fresh field below the old rows, exactly as a transition does in
 `odca` (R-X4), so the two programs feel alike. The old rows recolor at
@@ -655,49 +658,49 @@ instead; withdrawn as jarring beside `odca`.)
 
 ## 4d. odca (R-X)
 
-The art: play the looks of an odca file (R-P3), one after another.
+The art: play the pairs of an odca file (R-P3), one after another.
 
 **R-X1 (entry and order).** `odca <file.odca> [--shuffle]` — the file is
 the one required argument and must exist (R-U9 for errors). On entry the
-program prints `odca <file>: <n> looks` (R-O13) and, if the list is
-non-empty, plays look 1. Without `--shuffle` the looks are played in file
+program prints `odca <file>: <n> pairs` (R-O13) and, if the list is
+non-empty, plays pair 1. Without `--shuffle` the pairs are played in file
 order, looping from the last back to the first indefinitely. With
-`--shuffle` each *pass* through the looks is a fresh uniformly random
-permutation of all of them — every look plays once before the next pass
-— in which no two consecutive looks share a rule or a color set (the
-same four colors in any arrangement), the seam included: the first look
-of a pass may share neither with the look that closed the previous one.
+`--shuffle` each *pass* through the pairs is a fresh uniformly random
+permutation of all of them — every pair plays once before the next pass
+— in which no two consecutive pairs share a rule or a color set (the
+same four colors in any arrangement), the seam included: the first pair
+of a pass may share neither with the pair that closed the previous one.
 The program draws a permutation and tests it, redrawing the whole
-sequence on a failure, up to a hundred times (six looks with every rule
+sequence on a failure, up to a hundred times (six pairs with every rule
 and every color set appearing twice pass a draw one time in twelve, so
 ten draws would miss two passes in five; a hundred, one in six thousand,
-at no measurable cost); a file that allows no such order (one look, or every
-look on one rule, for instance) then plays the last draw as it is, so
+at no measurable cost); a file that allows no such order (one pair, or every
+pair on one rule, for instance) then plays the last draw as it is, so
 the show never stalls. An empty file leaves the
 program running as usual; the file is never written.
 
-**R-X2 (equal screen time).** Every look gets the same screen time: a
+**R-X2 (equal screen time).** Every pair gets the same screen time: a
 *watchdog* of 120 unpaused seconds by default, or the whole number of
 seconds given by `odca --watchdog SECONDS`, counted from the moment the
-look starts and unaffected by re-initializations. Until it expires,
-auto-initialization behaves as everywhere else (R-A2): the look is
+pair starts and unaffected by re-initializations. Until it expires,
+auto-initialization behaves as everywhere else (R-A2): the pair is
 re-seeded in place, as often as it takes, and stays on screen.
 
 **R-X3 (transition).** Once the watchdog has expired, the program advances
-to the next look of the pass at the first of: (a) the *grace period*
+to the next pair of the pass at the first of: (a) the *grace period*
 being satisfied — 60 unpaused seconds by default, or the whole number of
-seconds given by `odca --grace SECONDS`, since the look's last
+seconds given by `odca --grace SECONDS`, since the pair's last
 initialization, automatic or manual — or (b) the boring detector firing,
 which then transitions (with its reason) instead of re-seeding in place.
 A manual `i` (R-K6) never transitions; it restarts the grace period only,
 before or after expiry. Neither clock runs while paused. With
 auto-initialization off (R-K12), only (a) applies.
 
-**R-X4 (playing a look).** Playing a look sets its rule (a rule change,
+**R-X4 (playing a pair).** Playing a pair sets its rule (a rule change,
 R-B1, printed and persisted, but not pushed on the undo stack), makes its
 stored colors the active color set at arrangement 1, re-seeds the cells
 as `i` does (R-K6), and starts both clocks. There is no screen fill: the
-previous look scrolls off the top as the new one grows in from its fresh
+previous pair scrolls off the top as the new one grows in from its fresh
 field — the transition, until cross-fades exist. Every ordinary key keeps
 its meaning; `s`, `S`, `X`, and `R` do nothing.
 
@@ -714,7 +717,7 @@ with; a changed active set adds an entry (or reuses an identical one),
 and entries no remembered row uses any more are dropped once the table
 grows past a limit.
 
-**R-X6 (`N` / `P`, `n` / `p`).** Step to the next / previous look of the
+**R-X6 (`N` / `P`, `n` / `p`).** Step to the next / previous pair of the
 pass by hand, exactly as an automatic advance would (R-X4: rule, colors,
 fresh seed, watchdog restarted), wrapping at both ends of the pass (a
 forward step past the end starts a new pass, R-X1); the announcement's
@@ -739,14 +742,21 @@ skipped.
 
 **R-P3 (odca file).** A JSON file, by convention with the extension
 `.odca`, named on the command line of both programs: an object with a
-`looks` array; each look has `rule` (a rule ID, R-M8), `colorset` (the
+`pairs` array; each pair has `rule` (a rule ID, R-M8), `colorset` (the
 color set's name, for reference), and `colors` (four `#RRGGBB` strings,
 states 0–3, already arranged), so a file plays even if the library is
-later edited. Looks are unnamed (a name may be introduced later, look001
-style). Malformed looks are skipped; an unparseable file loads as empty;
+later edited, and `name`, written first. Names are unique within a file
+and generated by `odca-select`: `pair-NNNN`, one past the highest number
+in use in the file, four digits and more once they are needed
+(`pair-10000`), given to every unnamed pair when the file is loaded and
+to every appended pair; the file records them at its next write, at exit
+at the latest. `odca` never writes, so a hand-made file's pairs may be
+nameless there. Until 3.26.0 the array key was `looks` and the pairs were
+called looks; the old key is still read, never written. Malformed pairs
+are skipped; an unparseable file loads as empty;
 a missing file is distinguishable from an empty one (R-W1). Written in the
 layout of R-P4. The repository ships `interesting.odca`, the collection of
-looks kept so far, as an example (until 3.0.0 `interesting-rules.json`
+pairs kept so far, as an example (until 3.0.0 `interesting-rules.json`
 with a `pairs` key, which is no longer read).
 
 ---
@@ -783,11 +793,12 @@ The program prints single-line, human-readable status to standard output:
   rules: `discarded <k> rule` (k = 1) or `discarded <k> rules` (k > 1),
   before the R-O1 line.
 - **R-O3.** Retired in 3.0.0 (`s` reports through R-O12).
-- **R-O4.** On `n`/`p` selecting the look at view position i (0-based) of
-  n: `look <i+1>/<n> <colorset>` (rule IDs are opaque at a glance and are
-  not printed); selecting the unsaved slot: `unsaved rule`. Either
+- **R-O4.** On `n`/`p` selecting the pair at view position i (0-based) of
+  n: `pair <i+1>/<n> <name> <colorset>` (the name omitted when the pair
+  has none; rule IDs are opaque at a glance and are not printed);
+  selecting the unsaved slot: `unsaved rule`. Either
   precedes the R-O1 line.
-- **R-O5.** On `n`/`p` with no looks to cycle: `no looks`.
+- **R-O5.** On `n`/`p` with no pairs to cycle: `no pairs`.
 - **R-O6.** On `a`: `auto-init on` or `auto-init off`. On an automatic
   re-initialization: `auto-init (<reason>)`, where reason is
   `state <k> extinct` (or `states <k>, <l> extinct`, ascending),
@@ -806,16 +817,16 @@ The program prints single-line, human-readable status to standard output:
   empty` when nothing is left; `saved <k> color sets, <d> dropped` on
   save. Arrangement messages (R-O9) name the set instead of a slot.
 - **R-O12.** In `odca-select` (section 4c): on entry `odca <file>: <n>
-  looks`; after every write `saved <n> looks to <file>` (`1 look`); `saved
-  look <i>/<n>` on `s` over a look, `added look <n>/<n>` on an append,
-  `deleted look <i>/<n>` on `X`; `look order grouped by rule` / `look
+  pairs`; after every write `saved <n> pairs to <file>` (`1 pair`); `saved
+  pair <i>/<n>` on `s` over a pair, `added pair <n>/<n>` on an append,
+  `deleted pair <i>/<n>` on `X`; `pair order grouped by rule` / `pair
   order file order` on `R`; in the grouped order, `--- rule group
   <g>/<G> ---` before an activation that enters a different rule's group.
   Arrangement messages (R-O9) name the set.
 - **R-O14.** On a geometry change (R-U8): `resized <cols>x<rows>`.
-- **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> looks`;
-  on playing look i (0-based, file position) of n `look <i+1>/<n>
-  <colorset>`, followed on advances by the reason in parentheses — the
+- **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> pairs`;
+  on playing pair i (0-based, file position) of n `pair <i+1>/<n> <name>
+  <colorset>` (the name omitted when the pair has none), followed on advances by the reason in parentheses — the
   auto-init reason (R-O6) when a re-init transitions, `timeout` when the
   grace period does, `next`, or `previous`. It precedes the R-O1 line when
   the rule changes.

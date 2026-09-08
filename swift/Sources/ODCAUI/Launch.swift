@@ -66,7 +66,7 @@ public func chooseCellSize(program: String, flags: Set<String>) -> Int {
         print("\(program): choose one of \(cellFlags.joined(separator: ", "))")
         exit(2)
     }
-    return chosen.first.map { Int($0.dropFirst(2))! } ?? 4
+    return chosen.first.map { Int($0.dropFirst(2))! } ?? 2  // R-U2: 2-point cells by default
 }
 
 /// Open the window on a session built by `make` (called once, on the main
@@ -74,7 +74,7 @@ public func chooseCellSize(program: String, flags: Set<String>) -> Int {
 /// `fullScreen` opens the window full screen at launch (`--fullscreen`, R-U2);
 /// `cellSize` is the points per cell for the run (`--4` / `--3` / `--2` / `--1`).
 @MainActor
-public func launch(fullScreen: Bool = false, cellSize: Int = 4,
+public func launch(fullScreen: Bool = false, cellSize: Int = 2,
                    _ make: @escaping (_ cols: Int, _ rows: Int) -> Session) {
     ViewerModel.cellSize = cellSize
     ViewerModel.bootstrap { make(ViewerModel.defaultCols, ViewerModel.defaultRows) }

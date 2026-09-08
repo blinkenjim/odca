@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.24.0 — 2026-09-07 (navigation scrolls the look in; 3.22.0: a mutated look saves as a new look; 3.20.0: `--3`; 3.18.0: `U` undoes all; 3.16.0: `m` edits the look under review; 3.14.0: `--watchdog`, `--grace`; 3.12.0: shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.26.0 — 2026-09-08 (pairs, named; 2-point default; 3.24.0: navigation scrolls the pair in; 3.22.0: a mutated pair saves as a new pair; 3.20.0: `--3`; 3.18.0: `U` undoes all; 3.16.0: `m` edits the pair under review; 3.14.0: `--watchdog`, `--grace`; 3.12.0: shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -11,7 +11,7 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
 
 | target | role (spec sections) |
 |--------|----------------------|
-| `ODCAKit` (library) | engine `Rule`/`Automaton` (R-M), `Classifier` (R-C), `CandidateSearch` (R-S), `Store` + `ColorSet` + `Look` (R-P), `Session` (R-U/K/B/A/W/X/O orchestration), `Xoshiro256` (R-N1), the help texts |
+| `ODCAKit` (library) | engine `Rule`/`Automaton` (R-M), `Classifier` (R-C), `CandidateSearch` (R-S), `Store` + `ColorSet` + `Pair` (R-P), `Session` (R-U/K/B/A/W/X/O orchestration), `Xoshiro256` (R-N1), the help texts |
 | `ODCAUI` (library) | AppKit/SwiftUI shell shared by both programs: `ViewerModel` (rendering, key translation), `AutomatonView` (display-link pacing, layer presentation), `ODCAApp`/`ContentView`, `parseArguments`/`launch` (Launch.swift) |
 | `ODCAPlay` → product `odca`, `ODCASelect` → product `odca-select` | one `main.swift` each: parse arguments, build the `Session`, `launch` |
 | `ODCAKitTests` | conformance runner + property tests (TESTS.md layers 1–2) |
@@ -68,11 +68,11 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   the dropped list), and `Store.loadCandidatePalettes` reads
   `colorsets/candidates.json`.
 - **odca-select** (R-W): `Session(selectFile:)`. `Store.loadOdcaFile` /
-  `saveOdcaFile` handle the looks file (R-P3) in the shared JSON layout via
+  `saveOdcaFile` handle the pairs file (R-P3) in the shared JSON layout via
   the static `quoted`/`list` helpers (`loadOdcaFile` returns nil for a
-  missing file, so entry writes nothing). The look cycle keeps `looks` in
+  missing file, so entry writes nothing). The pair cycle keeps `pairs` in
   file order, `viewOrder` (file indices in n/p order, rebuilt by `R`) and
-  `lookIndex`/`viewPosition`; `unsavedRule`/`unsavedSet` are the extra
+  `pairIndex`/`viewPosition`; `unsavedRule`/`unsavedSet` are the extra
   slot. Every mode but color set review draws through `Session.activeSet`
   (any pool member); arrangements are remembered per set name; `[`/`]`
   walk `pool`. `ViewerModel.shutDown` calls `Session.finish()` so exit
@@ -80,14 +80,14 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   even while paused; `renderImage` inverts palette and background while
   `inverted` (R-U10).
 - **odca** (R-X): `Session(playFile:shuffle:)`. `advance()` routes a firing
-  of the boring detector to `nextPlayLook` once `playElapsed` has reached
+  of the boring detector to `nextPlayPair` once `playElapsed` has reached
   `Session.playTimeout`, otherwise re-seeds in place; `tick` accumulates
-  `playElapsed` (the look's screen time) and `sinceInit` (the grace clock,
+  `playElapsed` (the pair's screen time) and `sinceInit` (the grace clock,
   zeroed by `initCells`) while unpaused and advances when both have run
   out. `playOrder` is the current pass — under `--shuffle`,
   `Array.shuffle(using:)` on the session RNG, redrawn up to
   `shuffleTries` (100) times until `noRepeats` holds: no two consecutive
-  looks, the one just played included, share a rule or sorted colors. Program precedence in `Session.init`: play, then
+  pairs, the one just played included, share a rule or sorted colors. Program precedence in `Session.init`: play, then
   select, then review. Colors per row (R-X5): `Session.rowPalettes` tags
   each history row with an index into `paletteTable`, the color sets rows
   have been painted with, four `RGB` per entry; in play mode `pushRow`

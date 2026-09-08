@@ -1,4 +1,4 @@
-// odca: play the looks of an odca file (REQTS section 4d).
+// odca: play the pairs of an odca file (REQTS section 4d).
 import Foundation
 import ODCAKit
 import ODCAUI

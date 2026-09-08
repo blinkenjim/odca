@@ -1,6 +1,7 @@
 {
- "looks": [
+ "pairs": [
   {
+   "name": "pair-0000",
    "rule": "33233022210132010013",
    "colorset": "ODCA default",
    "colors": [
@@ -11,6 +12,7 @@
    ]
   },
   {
+   "name": "pair-0001",
    "rule": "32332010022312200210",
    "colorset": "ODCA default",
    "colors": [
@@ -21,6 +23,7 @@
    ]
   },
   {
+   "name": "pair-0002",
    "rule": "22310203230002331122",
    "colorset": "ODCA default",
    "colors": [
@@ -31,6 +34,7 @@
    ]
   },
   {
+   "name": "pair-0003",
    "rule": "32202201003022321010",
    "colorset": "ODCA default",
    "colors": [
@@ -41,6 +45,7 @@
    ]
   },
   {
+   "name": "pair-0004",
    "rule": "22022321121130110123",
    "colorset": "ODCA default",
    "colors": [
@@ -51,6 +56,7 @@
    ]
   },
   {
+   "name": "pair-0005",
    "rule": "12113201332331012311",
    "colorset": "ODCA default",
    "colors": [
@@ -61,6 +67,7 @@
    ]
   },
   {
+   "name": "pair-0006",
    "rule": "32332010022312200210",
    "colorset": "ODCA default",
    "colors": [
@@ -71,6 +78,7 @@
    ]
   },
   {
+   "name": "pair-0007",
    "rule": "10323213122100120233",
    "colorset": "ODCA default",
    "colors": [
@@ -81,6 +89,7 @@
    ]
   },
   {
+   "name": "pair-0008",
    "rule": "02320201313001213222",
    "colorset": "ODCA default",
    "colors": [
@@ -91,6 +100,7 @@
    ]
   },
   {
+   "name": "pair-0009",
    "rule": "02013102133123220323",
    "colorset": "ODCA default",
    "colors": [
@@ -101,6 +111,7 @@
    ]
   },
   {
+   "name": "pair-0010",
    "rule": "23232130000031203331",
    "colorset": "ODCA default",
    "colors": [
@@ -111,6 +122,7 @@
    ]
   },
   {
+   "name": "pair-0011",
    "rule": "31302333103000132112",
    "colorset": "Midnight Sun Dance",
    "colors": [
@@ -121,6 +133,7 @@
    ]
   },
   {
+   "name": "pair-0012",
    "rule": "32122113022022110111",
    "colorset": "Ocean Blue Horizon",
    "colors": [
@@ -131,6 +144,7 @@
    ]
   },
   {
+   "name": "pair-0013",
    "rule": "33012322311330322233",
    "colorset": "Vibrant Rainbow Burst",
    "colors": [
@@ -141,6 +155,7 @@
    ]
   },
   {
+   "name": "pair-0014",
    "rule": "33012322311330322233",
    "colorset": "Vibrant Rainbow Burst",
    "colors": [
@@ -151,6 +166,7 @@
    ]
   },
   {
+   "name": "pair-0015",
    "rule": "33310322110231231012",
    "colorset": "Fiery Ice Cream Delight",
    "colors": [
@@ -161,6 +177,7 @@
    ]
   },
   {
+   "name": "pair-0016",
    "rule": "20113322210323221031",
    "colorset": "Golden Autumn Twilight",
    "colors": [
@@ -171,6 +188,7 @@
    ]
   },
   {
+   "name": "pair-0017",
    "rule": "10210122121113000311",
    "colorset": "Cherry Blossom Sky",
    "colors": [
@@ -181,6 +199,7 @@
    ]
   },
   {
+   "name": "pair-0018",
    "rule": "10210122121113000311",
    "colorset": "ODCA default",
    "colors": [
@@ -191,6 +210,7 @@
    ]
   },
   {
+   "name": "pair-0019",
    "rule": "22120320303032113302",
    "colorset": "Midnight Sun Dance",
    "colors": [
@@ -201,6 +221,7 @@
    ]
   },
   {
+   "name": "pair-0020",
    "rule": "20102233320223330212",
    "colorset": "Midnight Sun Dance",
    "colors": [
@@ -211,6 +232,7 @@
    ]
   },
   {
+   "name": "pair-0021",
    "rule": "20122210220333331203",
    "colorset": "Seaside Serenity",
    "colors": [
@@ -221,6 +243,7 @@
    ]
   },
   {
+   "name": "pair-0022",
    "rule": "11123110223101202133",
    "colorset": "Deep Sea Adventure",
    "colors": [
@@ -231,6 +254,7 @@
    ]
   },
   {
+   "name": "pair-0023",
    "rule": "22123332101312202310",
    "colorset": "Golden Autumn Twilight",
    "colors": [
@@ -241,6 +265,7 @@
    ]
   },
   {
+   "name": "pair-0024",
    "rule": "22123332101312202310",
    "colorset": "Golden Autumn Twilight",
    "colors": [
@@ -251,6 +276,7 @@
    ]
   },
   {
+   "name": "pair-0025",
    "rule": "32012020130330322010",
    "colorset": "Midnight Sun Dance",
    "colors": [
@@ -261,6 +287,7 @@
    ]
   },
   {
+   "name": "pair-0026",
    "rule": "20030033232103330311",
    "colorset": "Golden Autumn Twilight",
    "colors": [
@@ -271,6 +298,7 @@
    ]
   },
   {
+   "name": "pair-0027",
    "rule": "32133001012223003210",
    "colorset": "Deep Sea Adventure",
    "colors": [

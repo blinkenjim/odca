@@ -1,15 +1,24 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-07):** Spec 3.24.0, Swift 3.24.0, Python
-3.25.0: `n`/`p` in odca-select re-seed and scroll the look in, as odca's
+**YOU ARE HERE (2026-09-08):** Spec 3.26.0, Swift 3.26.0, Python
+3.27.0: "look" is "pair" throughout, pairs are named `pair-NNNN` by
+odca-select (the hook the scripting needs), and `--2` is the default
+cell size. Next: the show script, evolved by experimentation (user,
+2026-09-08) on flex/bison generating one C parser that emits JSON, used
+by Swift as a C target and by Python through ctypes (probed, both sides
+byte-identical; ANTLR rejected for needing Java; see the item below).
+The first increment does only what the command line does: `play
+<file.odca>`, `shuffle`, `watchdog N`, `grace N`, `#` comments; `odca
+<file.show>` runs it, told apart by content. Before that, 3.24.0 /
+3.25.0: `n`/`p` in odca-select re-seed and scroll the pair in, as odca's
 transitions do (the 2.24.1 screen fill withdrawn as jarring). Before
-that, 3.22.0 / 3.23.0: a mutated look is saved as a new look, never over the kept rule
+that, 3.22.0 / 3.23.0: a mutated pair is saved as a new pair, never over the kept rule
 (the 3.16.0 in-place model overwrote one of the user's best rules; it
 was recovered from git). Pending at the next change: `--2` as the
 default cell size (item below). Before that, 3.20.0 / 3.21.0: `--3`
 joins the cell size flags. Before that (2026-09-06),
 3.18.0 / 3.19.0: `U` undoes every rule change since the position last
-moved (R-K19). Before that, 3.16.0 / 3.17.0: `m` on a look under review is an
+moved (R-K19). Before that, 3.16.0 / 3.17.0: `m` on a pair under review is an
 edit of it, recorded in place by `s` (the user found `s` appending after
 `m`). Before that, 3.14.0 /
 3.15.0: `odca --watchdog SECONDS --grace SECONDS` (defaults still 120 /
@@ -127,7 +136,7 @@ script design.
       the right moment on a tall screen, or size those windows in cells
       rather than screens (parked, user, 2026-09-06; needs no Pi: the
       detectors are functions of `rows`, so a headless 270 x 480 Session
-      gives exact time-to-boredom per look, and a 480-row screen fits a
+      gives exact time-to-boredom per pair, and a 480-row screen fits a
       Mac at 2-point cells through `Viewer(cell_size=2)`, which the
       command line does not expose); (3) whether 4 px cells are right on a 1080-wide
       portrait panel viewed from gallery distance (`--2` / `--1` exist
@@ -139,9 +148,10 @@ script design.
       workers (three of the Pi's four cores) until the stash fills, and
       each worker process carries a numpy import, which on 1 GB matters —
       consider fewer workers, or none, in play mode on small machines.
-- [ ] Make `--2` the default cell size at the next change (user,
-      2026-09-07: "a nice intermediate size" of `--3`, then "at the next
-      change, let's make --2 the default"). Places: `ViewerModel.cellSize`
+- [x] (3.26.0/3.27.0, 2026-09-08; the delay table kept, so a plain run
+      is the old `--2`) Make `--2` the default cell size at the next
+      change (user, 2026-09-07: "a nice intermediate size" of `--3`, then
+      "at the next change, let's make --2 the default"). Places: `ViewerModel.cellSize`
       and `chooseCellSize`'s fallback (Swift); `cli.cell_size`'s fallback,
       `cli.run(cell=)`, `Viewer(cell_size=)` (Python); the help texts
       ("cells 4 (the default)"); R-U2 ("4 by default", "`--4` names the
@@ -165,7 +175,7 @@ script design.
       plain shuffle) Shuffle constraints for `odca --shuffle` (user,
       2026-09-05: "subject to certain constraints which I'll describe
       later"). 3.0.0 shipped the minimum: a fresh permutation per pass that
-      never opens on the look that closed the previous pass.
+      never opens on the pair that closed the previous pass.
 - [ ] Color set tool: color set review (REQTS 4b, on hold, no program binds
       it in 3.0.0) returns as its own executable (`odca-colors`?) once the
       color set workflow is taken up again; baking an arrangement into the
@@ -173,9 +183,9 @@ script design.
       and tests are kept alive meanwhile.
 - [ ] `u` restores the rule only: the color set on screen and the n/p
       position stay where they were, so after an undo the screen can show a
-      look's rule while the cycle points elsewhere (noted 2026-09-05; the
+      pair's rule while the cycle points elsewhere (noted 2026-09-05; the
       user agreed to leave it). Since 3.16.0 this only arises after `r`:
-      `m` on a look keeps the position, so `u` there is clean. Revisit
+      `m` on a pair keeps the position, so `u` there is clean. Revisit
       with the key-binding rethink.
 - [ ] Kiosk / public sub-mode for screensaver mode: ignore the keyboard,
       or expose a reduced, safe set of keys (no quitting, nothing that can
@@ -245,7 +255,7 @@ viewer sees. Roadmap, roughly in order:
       display path item below.
 - [ ] Overlay band (user, 2026-09-06): white text over a smoke-gray,
       semi-transparent background across the top of the screen, for the
-      screensaver (what it says is open: rule, look, script state).
+      screensaver (what it says is open: rule, pair, script state).
       pygame can do it on the CPU (a font surface and an alpha blit of a
       full-width band are a fraction of a millisecond, even on a Pi 5);
       on Swift it is a CATextLayer over the grid layer. Belongs to the
@@ -267,15 +277,15 @@ viewer sees. Roadmap, roughly in order:
         former colorsets.json content: sets with optional slots, dropped
         names). JSON, not sqlite: git-diffable, no dependency, the
         byte-identical two-writer discipline already exists.
-      - Looks (rule + color set name + arranged colors) live in *odca
-        files* (`.odca`, JSON `{"looks": [...]}`), one per show, named on
+      - Pairs (rule + color set name + arranged colors) live in *odca
+        files* (`.odca`, JSON `{"pairs": [...]}`), one per show, named on
         the command line; `interesting.odca` replaces interesting-rules.json.
-        Looks are self-contained, so a file plays without the library.
+        Pairs are self-contained, so a file plays without the library.
       - Rules are NOT named (user reversal, 2026-09-05): the 20-digit ID
         stays; if names are ever needed they will be programmatic
-        (rule001, look001).
+        (rule001, pair001).
       - Two programs instead of flags: `odca <file.odca> [--shuffle]` plays,
-        `odca-select <file.odca>` composes (n/p over the file's looks, s/S
+        `odca-select <file.odca>` composes (n/p over the file's pairs, s/S
         save, X delete, R grouped order). Color set review is on hold.
       - Scripts stay text files (below); until the language exists an odca
         file is the show.

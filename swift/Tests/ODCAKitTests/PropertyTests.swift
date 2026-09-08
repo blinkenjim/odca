@@ -96,22 +96,22 @@ final class PropertyTests: XCTestCase {
         XCTAssertEqual(store.loadCandidates(), [rules[0]])
     }
 
-    // PT-8: odca file — looks — round trip and tolerant loading.
+    // PT-8: odca file — pairs — round trip and tolerant loading.
     func testOdcaFileRoundTripAndTolerance() throws {
         let store = try tempStore()
-        let url = store.stateDir.appendingPathComponent("looks.odca")
+        let url = store.stateDir.appendingPathComponent("pairs.odca")
         var rng = Xoshiro256(seed: 8)
         let first = Rule.random(using: &rng)
         let second = Rule.random(using: &rng)
-        let looks = [Look(rule: first.id, colorset: "ODCA default", colors: Store.defaultColorSets[1]!.colors),
-                     Look(rule: second.id, colorset: "Mine", colors: ["#000000", "#111111", "#222222", "#333333"])]
-        Store.saveOdcaFile(looks, to: url)
-        XCTAssertEqual(Store.loadOdcaFile(url), looks)
-        try "{\"looks\": [{\"rule\": \"notarule\", \"colorset\": \"x\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}, {\"rule\": \"\(first.id)\", \"colorset\": \"ok\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}]}"
+        let pairs = [Pair(rule: first.id, colorset: "ODCA default", colors: Store.defaultColorSets[1]!.colors),
+                     Pair(rule: second.id, colorset: "Mine", colors: ["#000000", "#111111", "#222222", "#333333"])]
+        Store.saveOdcaFile(pairs, to: url)
+        XCTAssertEqual(Store.loadOdcaFile(url), pairs)
+        try "{\"pairs\": [{\"rule\": \"notarule\", \"colorset\": \"x\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}, {\"rule\": \"\(first.id)\", \"colorset\": \"ok\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}]}"
             .write(to: url, atomically: true, encoding: .utf8)
         XCTAssertEqual(Store.loadOdcaFile(url)!.map(\.rule), [first.id])
-        try "{\"pairs\": [{\"rule\": \"\(first.id)\", \"colorset\": \"old\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}]}"
-            .write(to: url, atomically: true, encoding: .utf8)  // the 2.x "pairs" key is no longer read
+        try "{\"entries\": [{\"rule\": \"\(first.id)\", \"colorset\": \"old\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}]}"
+            .write(to: url, atomically: true, encoding: .utf8)  // an unknown key holds nothing
         XCTAssertEqual(Store.loadOdcaFile(url), [])
     }
 
@@ -200,15 +200,29 @@ final class PropertyTests: XCTestCase {
         let store = try tempStore()
         let url = store.stateDir.appendingPathComponent("saver.odca")
         XCTAssertNil(Store.loadOdcaFile(url))  // missing
-        let looks = [Look(rule: String(repeating: "0123", count: 5), colorset: "A", colors: ["#000000", "#111111", "#222222", "#333333"]),
-                     Look(rule: String(repeating: "3", count: 20), colorset: "B \"quoted\"", colors: ["#AAAAAA", "#BBBBBB", "#CCCCCC", "#DDDDDD"])]
-        Store.saveOdcaFile(looks, to: url)
-        XCTAssertEqual(Store.loadOdcaFile(url), looks)
+        let pairs = [Pair(rule: String(repeating: "0123", count: 5), colorset: "A", colors: ["#000000", "#111111", "#222222", "#333333"]),
+                     Pair(rule: String(repeating: "3", count: 20), colorset: "B \"quoted\"", colors: ["#AAAAAA", "#BBBBBB", "#CCCCCC", "#DDDDDD"])]
+        Store.saveOdcaFile(pairs, to: url)
+        XCTAssertEqual(Store.loadOdcaFile(url), pairs)
+        let named = [Pair(name: "pair-0007", rule: pairs[0].rule, colorset: pairs[0].colorset, colors: pairs[0].colors), pairs[1]]
+        Store.saveOdcaFile(named, to: url)  // a name is kept, and written first
+        XCTAssertEqual(Store.loadOdcaFile(url), named)
+        XCTAssertTrue(try String(contentsOf: url, encoding: .utf8).hasPrefix("{\n \"pairs\": [\n  {\n   \"name\": \"pair-0007\",\n   \"rule\": \""))
+        try String(contentsOf: url, encoding: .utf8).replacingOccurrences(of: "\"pairs\"", with: "\"looks\"")
+            .write(to: url, atomically: true, encoding: .utf8)  // the 3.0.0 key is still read
+        XCTAssertEqual(Store.loadOdcaFile(url), named)
+        XCTAssertEqual(Store.nextPairName([]), "pair-0000")
+        XCTAssertEqual(Store.nextPairName([Pair(name: "pair-0000", rule: "", colorset: "", colors: []),
+                                           Pair(name: "pair-0002", rule: "", colorset: "", colors: []),
+                                           Pair(rule: "", colorset: "", colors: [])]), "pair-0003")
+        XCTAssertEqual(Store.nextPairName([Pair(name: "pair-9999", rule: "", colorset: "", colors: [])]), "pair-10000")
+        XCTAssertEqual(Store.nextPairName([Pair(name: "sunset", rule: "", colorset: "", colors: [])]), "pair-0000")
+        Store.saveOdcaFile(pairs, to: url)
         let text = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertTrue(text.hasPrefix("{\n \"looks\": [\n  {\n   \"rule\": \"01230123012301230123\",\n   \"colorset\": \"A\",\n   \"colors\": [\n    \"#000000\","))
+        XCTAssertTrue(text.hasPrefix("{\n \"pairs\": [\n  {\n   \"rule\": \"01230123012301230123\",\n   \"colorset\": \"A\",\n   \"colors\": [\n    \"#000000\","))
         Store.saveOdcaFile([], to: url)
-        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "{\n \"looks\": []\n}\n")
-        try "{\"looks\": [{\"rule\": \"bad\", \"colorset\": \"x\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}, {\"rule\": \"00000000000000000000\", \"colorset\": \"ok\", \"colors\": [\"#0a0a0a\", \"#000000\", \"#000000\", \"#000000\"]}]}"
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "{\n \"pairs\": []\n}\n")
+        try "{\"pairs\": [{\"rule\": \"bad\", \"colorset\": \"x\", \"colors\": [\"#000000\", \"#000000\", \"#000000\", \"#000000\"]}, {\"rule\": \"00000000000000000000\", \"colorset\": \"ok\", \"colors\": [\"#0a0a0a\", \"#000000\", \"#000000\", \"#000000\"]}]}"
             .write(to: url, atomically: true, encoding: .utf8)
         XCTAssertEqual(Store.loadOdcaFile(url)!.map(\.colorset), ["ok"])
         XCTAssertEqual(Store.loadOdcaFile(url)!.first!.colors[0], "#0A0A0A")

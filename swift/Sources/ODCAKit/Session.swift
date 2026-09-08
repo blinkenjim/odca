@@ -41,7 +41,7 @@ public final class Session {
     public static let minorityFraction = 0.10  // a producible state below this share is a minority (R-A1)
     public static let stagnationScreens = 4  // minority population steady this long -> stagnant (R-A1)
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
-    public static let playTimeout = 120.0  // odca: a look's screen time before it may advance (R-X3)
+    public static let playTimeout = 120.0  // odca: a pair's screen time before it may advance (R-X3)
     public static let playGrace = 60.0  // odca: no transition within this long of an initialization (R-X3)
     public static let shuffleTries = 100  // odca --shuffle: draws tried for an order without repeats (R-X1)
     public static let flashSeconds = 0.25  // the screen inverts this long as a mode cue (R-U10)
@@ -70,8 +70,8 @@ public final class Session {
     public enum Key: Equatable {
         case q, r, m, u, s, i, n, p, a
         case U  // undo every change since the cycle position last moved (R-K19)
-        case c, C, S  // arrange colors forward / backward; S appends a look (R-W4)
-        case N, P, X  // odca: next / previous look; odca-select: X deletes; review: next / previous / drop
+        case c, C, S  // arrange colors forward / backward; S appends a pair (R-W4)
+        case N, P, X  // odca: next / previous pair; odca-select: X deletes; review: next / previous / drop
         case R  // odca-select: toggle the n/p order, file order or grouped by rule (R-W7)
         case poolPrev, poolNext  // '[' / ']': step through the color set pool (R-K17)
         case plus, minus, space, ret
@@ -114,21 +114,21 @@ public final class Session {
     public private(set) var reviewIndex = 0
     public private(set) var droppedNames: [String] = []
     private var reviewArrangement: [String: Int] = [:]
-    // The look cycle (R-B): the file's looks in view order plus the unsaved slot.
+    // The pair cycle (R-B): the file's pairs in view order plus the unsaved slot.
     public let selectFile: URL?  // odca-select (R-W)
-    public private(set) var looks: [Look] = []  // always in file order
-    public private(set) var lookIndex: Int?  // file index of the look under review / playing
+    public private(set) var pairs: [Pair] = []  // always in file order
+    public private(set) var pairIndex: Int?  // file index of the pair under review / playing
     public private(set) var viewOrder: [Int] = []  // file indices in n/p order
-    public private(set) var viewPosition: Int?  // position of lookIndex within viewOrder
+    public private(set) var viewPosition: Int?  // position of pairIndex within viewOrder
     public private(set) var grouped = false  // R: n/p order grouped by rule (R-W7)
     public private(set) var unsavedRule: Rule?
     public private(set) var unsavedSet: ColorSetEntry?  // the set shown with the unsaved rule (R-B3)
-    // odca (R-X): play the looks of a file in order, or shuffled per pass.
+    // odca (R-X): play the pairs of a file in order, or shuffled per pass.
     public let playFile: URL?
     public let shuffle: Bool
     public private(set) var playOrder: [Int] = []  // file indices in the order of the current pass
     public private(set) var playPosition: Int?
-    public private(set) var playElapsed = 0.0  // unpaused seconds on the current look
+    public private(set) var playElapsed = 0.0  // unpaused seconds on the current pair
     public private(set) var sinceInit = 0.0  // unpaused seconds since the last (re)initialization
     public private(set) var activeSet: ColorSetEntry?  // the set in use (any pool member)
     /// Arrangement index of the active set, remembered per set name (R-K15).
@@ -193,7 +193,7 @@ public final class Session {
             width: cols, rule: rule,
             cells: Automaton.randomCells(width: cols, using: &rng))
         store.saveRule(rule)
-        unsavedRule = rule  // the startup rule fills the unsaved slot (R-B3) unless a file opens on look 1
+        unsavedRule = rule  // the startup rule fills the unsaved slot (R-B3) unless a file opens on pair 1
 
         candidates = store.loadCandidates()
         colorSets = store.loadColorSets()  // R-P4
@@ -469,175 +469,185 @@ public final class Session {
     /// Compute a screenful at once so a review step shows only the new state (R-V7).
     private func fillScreen() { for _ in 0..<rows { advance() } }
 
-    // MARK: - The look cycle (R-B, R-W)
+    // MARK: - The pair cycle (R-B, R-W)
 
-    /// n/p order (R-W7): file order, or looks grouped by rule, groups in
+    /// n/p order (R-W7): file order, or pairs grouped by rule, groups in
     /// order of each rule's first appearance.
     private func rebuildViewOrder() {
         if grouped {
             var groups: [String: [Int]] = [:]
             var ruleOrder: [String] = []
-            for (i, p) in looks.enumerated() {
+            for (i, p) in pairs.enumerated() {
                 if groups[p.rule] == nil { ruleOrder.append(p.rule) }
                 groups[p.rule, default: []].append(i)
             }
             viewOrder = ruleOrder.flatMap { groups[$0]! }
         } else {
-            viewOrder = Array(looks.indices)
+            viewOrder = Array(pairs.indices)
         }
-        viewPosition = lookIndex.flatMap { viewOrder.firstIndex(of: $0) }
+        viewPosition = pairIndex.flatMap { viewOrder.firstIndex(of: $0) }
     }
 
     /// 1-based group number of a file index among the rule groups, and the count.
     private func ruleGroup(of index: Int) -> (Int, Int) {
         var seen: [String] = []
-        for p in looks where !seen.contains(p.rule) { seen.append(p.rule) }
-        return ((seen.firstIndex(of: looks[index].rule) ?? 0) + 1, seen.count)
+        for p in pairs where !seen.contains(p.rule) { seen.append(p.rule) }
+        return ((seen.firstIndex(of: pairs[index].rule) ?? 0) + 1, seen.count)
     }
 
-    private func currentLook() -> Look {
-        Look(rule: automaton.rule.id, colorset: activeName, colors: arrangedActiveColors())
+    private func currentPair() -> Pair {
+        Pair(name: Store.nextPairName(pairs), rule: automaton.rule.id, colorset: activeName,
+             colors: arrangedActiveColors())
     }
 
-    /// Show a look's or the unsaved slot's colors: they become the active set (R-B2).
+    /// `<name> <colorset>` for the R-O4 / R-O13 lines; a nameless pair shows its set only.
+    private func label(_ pair: Pair) -> String {
+        pair.name.map { "\($0) \(pair.colorset)" } ?? pair.colorset
+    }
+
+    /// Show a pair's or the unsaved slot's colors: they become the active set (R-B2).
     private func showColors(name: String, colors: [String]) {
         activeSet = ColorSetEntry(slot: nil, name: name, colors: colors)
         activeArrangement = 0  // stored colors are already arranged
     }
 
-    private func activateLook(viewPosition position: Int, pushUndo: Bool = true) {  // R-B2, R-W8
+    private func activatePair(viewPosition position: Int, pushUndo: Bool = true) {  // R-B2, R-W8
         let index = viewOrder[position]
-        let look = looks[index]
-        if grouped, lookIndex.map({ looks[$0].rule }) != look.rule {
+        let pair = pairs[index]
+        if grouped, pairIndex.map({ pairs[$0].rule }) != pair.rule {
             let (g, total) = ruleGroup(of: index)
             output("--- rule group \(g)/\(total) ---")  // R-O12
         }
         viewPosition = position
-        lookIndex = index
-        if let rule = try? Rule(id: look.rule), rule != automaton.rule {
+        pairIndex = index
+        if let rule = try? Rule(id: pair.rule), rule != automaton.rule {
             if pushUndo { undoStack.append(automaton.rule) }
             setRule(rule)
         }
-        showColors(name: look.colorset, colors: look.colors)
+        showColors(name: pair.colorset, colors: pair.colors)
         undoMark = undoStack.count
-        output("look \(position + 1)/\(looks.count) \(look.colorset)")  // R-O4
-        initCells()  // R-W8: the look grows in from a fresh field below the old rows
+        output("pair \(position + 1)/\(pairs.count) \(label(pair))")  // R-O4
+        initCells()  // R-W8: the pair grows in from a fresh field below the old rows
     }
 
-    /// n/p: cycle through the looks in view order plus the unsaved slot, if
-    /// occupied (R-B2, R-B3). Only odca-select has a file of looks.
-    private func selectLook(step: Int) {
+    /// n/p: cycle through the pairs in view order plus the unsaved slot, if
+    /// occupied (R-B2, R-B3). Only odca-select has a file of pairs.
+    private func selectPair(step: Int) {
         let n = viewOrder.count
         let total = unsavedRule != nil ? n + 1 : n
         guard n > 0 else {
-            output("no looks")  // R-O5
+            output("no pairs")  // R-O5
             return
         }
-        let at = lookIndex == nil ? n : viewPosition!
+        let at = pairIndex == nil ? n : viewPosition!
         let to = ((at + step) % total + total) % total
         undoStack.append(automaton.rule)
         if to == n {  // only reachable when the unsaved slot is occupied
-            lookIndex = nil
+            pairIndex = nil
             viewPosition = nil
             output("unsaved rule")  // R-O4
             setRule(unsavedRule!)
             if let set = unsavedSet { showColors(name: set.name, colors: set.colors) }
             initCells()  // R-W8: every n/p step scrolls the selection in from a fresh field
         } else {
-            activateLook(viewPosition: to, pushUndo: false)
+            activatePair(viewPosition: to, pushUndo: false)
         }
     }
 
     // MARK: - odca-select (R-W)
 
     private func loadSelect(_ url: URL) {  // R-W1
-        looks = Store.loadOdcaFile(url) ?? []  // a missing file is created by the first save or at exit
+        pairs = Store.loadOdcaFile(url) ?? []  // a missing file is created by the first save or at exit
+        for i in pairs.indices where pairs[i].name == nil {  // R-P3: every pair gets a name
+            pairs[i].name = Store.nextPairName(pairs)  // the file is written at exit at the latest
+        }
         rebuildViewOrder()
-        output("odca \(url.lastPathComponent): \(looks.count) looks")  // R-O12
-        if !looks.isEmpty {
-            // Open on look 1; the unsaved slot stays empty until r or m fires.
+        output("odca \(url.lastPathComponent): \(pairs.count) pairs")  // R-O12
+        if !pairs.isEmpty {
+            // Open on pair 1; the unsaved slot stays empty until r or m fires.
             unsavedRule = nil
             unsavedSet = nil
-            activateLook(viewPosition: 0, pushUndo: false)
+            activatePair(viewPosition: 0, pushUndo: false)
         }
     }
 
     private func saveLooks() {
         guard let url = selectFile else { return }
-        Store.saveOdcaFile(looks, to: url)
-        output("saved \(looks.count) look\(looks.count == 1 ? "" : "s") to \(url.lastPathComponent)")  // R-O12
+        Store.saveOdcaFile(pairs, to: url)
+        output("saved \(pairs.count) pair\(pairs.count == 1 ? "" : "s") to \(url.lastPathComponent)")  // R-O12
     }
 
-    private func saveLook() {  // R-W4: 's' rewrites the look under review's colors in place, or appends
-        guard let i = lookIndex else {
-            appendLook()
+    private func savePair() {  // R-W4: 's' rewrites the pair under review's colors in place, or appends
+        guard let i = pairIndex else {
+            appendPair()
             return
         }
-        if automaton.rule.id != looks[i].rule {
-            // R-K3: a mutated look is a new look; a kept rule is never overwritten.
-            // The position moves onto the new look, so further edits refine it.
-            appendLook()
-            lookIndex = looks.count - 1
+        if automaton.rule.id != pairs[i].rule {
+            // R-K3: a mutated pair is a new pair; a kept rule is never overwritten.
+            // The position moves onto the new pair, so further edits refine it.
+            appendPair()
+            pairIndex = pairs.count - 1
             rebuildViewOrder()
             undoMark = undoStack.count  // an arrival (R-K19)
             return
         }
-        looks[i] = Look(rule: looks[i].rule, colorset: activeName, colors: arrangedActiveColors())
+        pairs[i] = Pair(name: pairs[i].name, rule: pairs[i].rule, colorset: activeName,
+                        colors: arrangedActiveColors())  // the name and the rule stay
         saveLooks()
-        output("saved look \((viewPosition ?? i) + 1)/\(looks.count)")  // R-O12
+        output("saved pair \((viewPosition ?? i) + 1)/\(pairs.count)")  // R-O12
     }
 
-    private func appendLook() {  // R-W4: 'S' appends a copy of the screen; the position is unchanged
-        looks.append(currentLook())  // always at the end of the file
+    private func appendPair() {  // R-W4: 'S' appends a copy of the screen; the position is unchanged
+        pairs.append(currentPair())  // always at the end of the file
         rebuildViewOrder()  // in the grouped order it joins its rule's group
         saveLooks()
-        output("added look \(looks.count)/\(looks.count)")  // R-O12
+        output("added pair \(pairs.count)/\(pairs.count)")  // R-O12
     }
 
-    private func deleteLook() {  // R-W5
-        guard let i = lookIndex, let position = viewPosition else { return }
-        looks.remove(at: i)  // in place: later looks keep their relative file order
-        lookIndex = nil
+    private func deletePair() {  // R-W5
+        guard let i = pairIndex, let position = viewPosition else { return }
+        pairs.remove(at: i)  // in place: later pairs keep their relative file order
+        pairIndex = nil
         rebuildViewOrder()
         saveLooks()
-        output("deleted look \(position + 1)/\(looks.count + 1)")  // R-O12
-        if looks.isEmpty {
+        output("deleted pair \(position + 1)/\(pairs.count + 1)")  // R-O12
+        if pairs.isEmpty {
             // Nothing left to review: the rule on screen becomes the unsaved rule.
             viewPosition = nil
             unsavedRule = automaton.rule
             unsavedSet = activeSet
         } else {
-            activateLook(viewPosition: min(position, viewOrder.count - 1))
+            activatePair(viewPosition: min(position, viewOrder.count - 1))
         }
     }
 
     private func toggleGrouped() {  // R-W7: 'R'
         grouped.toggle()
         rebuildViewOrder()
-        output("look order \(grouped ? "grouped by rule" : "file order")")  // R-O12
+        output("pair order \(grouped ? "grouped by rule" : "file order")")  // R-O12
         flash()  // R-U10
     }
 
     // MARK: - odca (R-X)
 
     private func loadPlay(_ url: URL) {  // R-X1
-        looks = Store.loadOdcaFile(url) ?? []
-        output("odca \(url.lastPathComponent): \(looks.count) looks")  // R-O13
-        if !looks.isEmpty {
+        pairs = Store.loadOdcaFile(url) ?? []
+        output("odca \(url.lastPathComponent): \(pairs.count) pairs")  // R-O13
+        if !pairs.isEmpty {
             newPass()
-            playLook(playOrder[0], reason: nil)
+            playPair(playOrder[0], reason: nil)
         }
     }
 
     /// File order, or a fresh shuffle per pass (R-X1): a permutation in which
-    /// no rule and no color set follows itself, the seam from the look just
+    /// no rule and no color set follows itself, the seam from the pair just
     /// played included; a file that allows no such order plays the last draw.
     private func newPass() {
-        var order = Array(looks.indices)
-        if shuffle && looks.count > 1 {
+        var order = Array(pairs.indices)
+        if shuffle && pairs.count > 1 {
             for _ in 0..<Session.shuffleTries {
                 order.shuffle(using: &rng)
-                if noRepeats(order, after: lookIndex) { break }
+                if noRepeats(order, after: pairIndex) { break }
             }
         }
         playOrder = order
@@ -649,38 +659,38 @@ public final class Session {
         return zip(chain, chain.dropFirst()).allSatisfy { !clash($0, $1) }
     }
 
-    /// Two looks repeat if they share the rule or the color set (in any arrangement).
+    /// Two pairs repeat if they share the rule or the color set (in any arrangement).
     private func clash(_ a: Int, _ b: Int) -> Bool {
-        looks[a].rule == looks[b].rule || looks[a].colors.sorted() == looks[b].colors.sorted()
+        pairs[a].rule == pairs[b].rule || pairs[a].colors.sorted() == pairs[b].colors.sorted()
     }
 
-    /// Activate a look for play: its rule and colors, then a fresh seed (R-X4).
-    private func playLook(_ index: Int, reason: String?) {
-        let look = looks[index]
-        lookIndex = index
-        if let rule = try? Rule(id: look.rule), rule != automaton.rule { setRule(rule) }
-        undoMark = undoStack.count  // R-K19: U returns to the look as played
-        showColors(name: look.colorset, colors: look.colors)
+    /// Activate a pair for play: its rule and colors, then a fresh seed (R-X4).
+    private func playPair(_ index: Int, reason: String?) {
+        let pair = pairs[index]
+        pairIndex = index
+        if let rule = try? Rule(id: pair.rule), rule != automaton.rule { setRule(rule) }
+        undoMark = undoStack.count  // R-K19: U returns to the pair as played
+        showColors(name: pair.colorset, colors: pair.colors)
         initCells()
-        playElapsed = 0  // the look's screen time starts now
+        playElapsed = 0  // the pair's screen time starts now
         let why = reason.map { " (\($0))" } ?? ""
-        output("look \(index + 1)/\(looks.count) \(look.colorset)\(why)")  // R-O13
+        output("pair \(index + 1)/\(pairs.count) \(label(pair))\(why)")  // R-O13
     }
 
-    private func nextPlayLook(reason: String) {  // R-X2, R-X3: on through the pass, then a new pass
+    private func nextPlayPair(reason: String) {  // R-X2, R-X3: on through the pass, then a new pass
         playPosition = (playPosition ?? -1) + 1
         if playPosition! >= playOrder.count { newPass() }
-        playLook(playOrder[playPosition!], reason: reason)
+        playPair(playOrder[playPosition!], reason: reason)
     }
 
     private func playStep(_ step: Int) {  // R-X6: N/P move through the pass by hand, wrapping
-        guard !looks.isEmpty else { return }
+        guard !pairs.isEmpty else { return }
         if step > 0 {
-            nextPlayLook(reason: "next")
+            nextPlayPair(reason: "next")
         } else {
             let n = playOrder.count
             playPosition = (((playPosition ?? 0) - 1) % n + n) % n
-            playLook(playOrder[playPosition!], reason: "previous")
+            playPair(playOrder[playPosition!], reason: "previous")
         }
     }
 
@@ -717,18 +727,18 @@ public final class Session {
         activeSet = ColorSetEntry(slot: slot, name: set.name, colors: set.colors)
     }
 
-    /// Color and look keys shared by the paused and running states (R-K10).
+    /// Color and pair keys shared by the paused and running states (R-K10).
     private func handleColorKey(_ key: Key) -> Bool {
         switch key {
         case .c: cycleColors(1)
         case .C: cycleColors(-1)
         case .S:
-            if selectMode { appendLook() } else if !reviewMode && !playMode { saveColorSet() }
+            if selectMode { appendPair() } else if !reviewMode && !playMode { saveColorSet() }
         case .N:
             if playMode { playStep(1) } else if reviewMode { reviewStep(1) }
         case .P:
             if playMode { playStep(-1) } else if reviewMode { reviewStep(-1) }
-        case .X: if selectMode { deleteLook() } else if reviewMode { dropReview() }
+        case .X: if selectMode { deletePair() } else if reviewMode { dropReview() }
         case .R: if selectMode { toggleGrouped() }
         case .poolPrev: if reviewMode { reviewStep(-1) } else { poolStep(-1) }  // R-K17
         case .poolNext: if reviewMode { reviewStep(1) } else { poolStep(1) }
@@ -754,8 +764,8 @@ public final class Session {
         }
         if autoInit && boringStreak >= rows {
             let reason = boringReason ?? "boring"
-            if playMode && !looks.isEmpty && playElapsed >= playTimeout {
-                nextPlayLook(reason: reason)  // R-X3: watchdog expired, a re-init transitions
+            if playMode && !pairs.isEmpty && playElapsed >= playTimeout {
+                nextPlayPair(reason: reason)  // R-X3: watchdog expired, a re-init transitions
             } else {
                 initCells()
                 output("auto-init (\(reason))")  // R-O6
@@ -866,9 +876,9 @@ public final class Session {
         let steps = Int(accumulated / delay)
         accumulated -= Double(steps) * delay
         for _ in 0..<min(steps, Session.stepCap) { advance() }
-        if playMode && !looks.isEmpty  // R-X3: watchdog expired and the grace period observed
+        if playMode && !pairs.isEmpty  // R-X3: watchdog expired and the grace period observed
             && playElapsed >= playTimeout && sinceInit >= playGrace {
-            nextPlayLook(reason: "timeout")
+            nextPlayPair(reason: "timeout")
         }
     }
 
@@ -900,7 +910,7 @@ public final class Session {
     private func setUnsavedRule(_ rule: Rule, arrival: Bool = true) {
         unsavedRule = rule
         unsavedSet = activeSet
-        lookIndex = nil
+        pairIndex = nil
         viewPosition = nil
         setRule(rule)
         if arrival { undoMark = undoStack.count }
@@ -926,8 +936,8 @@ public final class Session {
     private func mutateRule() {  // R-K3
         undoStack.append(automaton.rule)
         let mutant = automaton.rule.mutated(using: &rng)
-        if selectMode && lookIndex != nil {
-            setRule(mutant)  // the look under review is now changed: 's' and 'S' save it as a new look
+        if selectMode && pairIndex != nil {
+            setRule(mutant)  // the pair under review is now changed: 's' and 'S' save it as a new pair
         } else {
             setUnsavedRule(mutant, arrival: false)
         }
@@ -943,7 +953,7 @@ public final class Session {
         let rule = undoStack[mark]
         undoStack.removeSubrange(mark...)
         setRule(rule)
-        if selectMode && lookIndex == nil { unsavedRule = rule }  // the slot's mutations are undone with it
+        if selectMode && pairIndex == nil { unsavedRule = rule }  // the slot's mutations are undone with it
     }
 
     private func initCells() {  // R-K6
@@ -958,7 +968,7 @@ public final class Session {
     /// Returns false when the program should quit.
     public func handleKey(_ key: Key) -> Bool {
         if key == .q { return false }
-        if paused {  // R-K10: space, Return, s, and the color and look keys are live
+        if paused {  // R-K10: space, Return, s, and the color and pair keys are live
             switch key {
             case .space:
                 paused = false
@@ -990,13 +1000,13 @@ public final class Session {
         case .U:
             undoAll()  // R-K19
         case .s:
-            if selectMode { saveLook() }  // R-W4; otherwise nothing to save into
+            if selectMode { savePair() }  // R-W4; otherwise nothing to save into
         case .i:
             initCells()
         case .n:
-            if playMode { playStep(1) } else { selectLook(step: 1) }
+            if playMode { playStep(1) } else { selectPair(step: 1) }
         case .p:
-            if playMode { playStep(-1) } else { selectLook(step: -1) }
+            if playMode { playStep(-1) } else { selectPair(step: -1) }
         case .a:  // R-K12
             autoInit.toggle()
             output("auto-init \(autoInit ? "on" : "off")")  // R-O6

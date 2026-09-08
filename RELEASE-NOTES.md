@@ -5,6 +5,30 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.26.0 (Swift) and 3.27.0 (Python) — 2026-09-08
+
+Two changes to get out of the way before the scripting starts.
+
+"Look" is gone; the thing is a *pair* again, everywhere: the spec, the
+help texts, the messages (`pair 3/28 pair-0002 Ocean Sunset Vibes`,
+`saved 28 pairs to ...`), and the file, whose array key is `pairs`. Old
+files with a `looks` key still load; they are written back with the
+new key. `interesting.odca` is converted.
+
+Pairs have names now, which the scripting needs. `odca-select` names
+every unnamed pair when it loads a file (`pair-0000` onward, in file
+order) and every pair it appends (one past the highest number in the
+file, so a deleted number is never reused), and writes the names at the
+next save or at exit. Four digits, five once you pass `pair-9999`. Run
+`odca-select` once on each of your files to get them named; `odca`
+never writes, so it shows whatever names a file has.
+
+`--2` is the default cell size. The delay table stays as it was, so a
+plain run is exactly what `--2` was yesterday: 600 × 400 cells in the
+default window, 1/120 s between generations to start. `--4` is what the
+default used to be. Because the boring detectors count screenfuls, they
+now look at twice as many rows; say if the resets feel late.
+
 ## 3.24.0 (Swift) and 3.25.0 (Python) — 2026-09-07
 
 Un-asked, as you put it: `n` and `p` in `odca-select` no longer blast a

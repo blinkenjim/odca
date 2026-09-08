@@ -4,23 +4,23 @@ usage: odca <file.odca> [--shuffle] [--fullscreen] [--4 | --3 | --2 | --1]
             [--watchdog SECONDS] [--grace SECONDS]
        odca --help
 
-Plays the looks in an odca file, one at a time, looping. A look is a rule
-with a color set; odca-select composes them. Each look gets two minutes of
+Plays the pairs in an odca file, one at a time, looping. A pair is a rule
+with a color set; odca-select composes them. Each pair gets two minutes of
 screen time, re-seeding in place whenever it goes boring; then it hands
-over after a quiet minute or at the next re-seed, and the next look grows
+over after a quiet minute or at the next re-seed, and the next pair grows
 in from a fresh field below the old rows, which keep their colors.
 
-  --shuffle     play the looks in random order instead of file order: each
+  --shuffle     play the pairs in random order instead of file order: each
                 pass is a fresh shuffle of all of them in which no rule and
                 no color set follows itself, the seam between passes included
                 (a file too small to allow that plays a plain shuffle)
   --fullscreen  open the window full screen, for unattended runs; the
                 platform's own control leaves it, as it entered it before
   --4 / --3 / --2 / --1
-                cells 4 (the default), 3, 2, or 1 points on a side
+                cells 4, 3, 2 (the default), or 1 points on a side
                 (pixels, in the Python version)
   --watchdog SECONDS
-                a look's screen time before it may hand over: whole
+                a pair's screen time before it may hand over: whole
                 seconds, 120 by default
   --grace SECONDS
                 no hand-over within this long of a re-seed: whole seconds,
@@ -28,12 +28,12 @@ in from a fresh field below the old rows, which keep their colors.
 
 Keys:
   q     quit                            space   pause / resume
-  N / P next / previous look by hand    return  single step while paused
+  N / P next / previous pair by hand    return  single step while paused
   i     re-seed the cells               s       while paused: one screenful
   a     toggle auto-init (on at start)  + / -   faster / slower
   r     new screened random rule        m       mutate one rule entry
   u     undo the last rule change       n / p   as N / P
-  U     undo every change since arriving on this look or rule
+  U     undo every change since arriving on this pair or rule
   0-9   color set (the hot ten)         [ / ]   walk the whole color set pool
   c / C arrange colors forward / back
   F     toggle full screen (also while paused)

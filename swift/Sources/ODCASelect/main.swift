@@ -1,4 +1,4 @@
-// odca-select: compose looks in an odca file (REQTS section 4c).
+// odca-select: compose pairs in an odca file (REQTS section 4c).
 import Foundation
 import ODCAKit
 import ODCAUI
