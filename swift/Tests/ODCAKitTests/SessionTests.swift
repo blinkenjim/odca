@@ -992,7 +992,7 @@ final class SessionTests: XCTestCase {
         XCTAssertLessThanOrEqual(session.paletteTable.count, 4 * session.history.count)
     }
 
-    func testMutatingALookEditsItInPlace() throws {  // PT-34, R-K3, R-W4
+    func testMutatingALookSavesItAsANewLook() throws {  // PT-34, R-K3, R-W4
         let lines = Lines()
         let store = try reviewStore()
         let one = allZero, two = try Rule(id: String(repeating: "1", count: 20))
@@ -1000,7 +1000,12 @@ final class SessionTests: XCTestCase {
         let session = makeSession(store, lines: lines, select: file)
         XCTAssertEqual(session.lookIndex, 0)
         XCTAssertNil(session.unsavedRule)
-        _ = session.handleKey(.m)  // an edit of look 1: the position stays, the unsaved slot stays empty
+        _ = session.handleKey(.digit(3))
+        _ = lines.take()
+        _ = session.handleKey(.s)  // colors only: the look is rewritten in place
+        XCTAssertTrue(lines.take().contains("saved look 1/2"))
+        XCTAssertEqual(Store.loadOdcaFile(file)![0], Look(rule: one.id, colorset: "S3", colors: grey(30)))
+        _ = session.handleKey(.m)  // look 1 is now changed: the position stays, the unsaved slot stays empty
         XCTAssertNotEqual(session.automaton.rule, one)
         XCTAssertEqual(session.lookIndex, 0)
         XCTAssertEqual(session.viewPosition, 0)
@@ -1010,19 +1015,28 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.lookIndex, 0)
         _ = session.handleKey(.m)
         let mutant = session.automaton.rule
-        _ = session.handleKey(.digit(3))
+        _ = session.handleKey(.digit(5))
         _ = lines.take()
-        _ = session.handleKey(.s)  // rewrites look 1 in place: rule and colors
-        XCTAssertTrue(lines.take().contains("saved look 1/2"))
-        let looks = Store.loadOdcaFile(file)!
-        XCTAssertEqual(looks.count, 2)
-        XCTAssertEqual(looks[0].rule, mutant.id)
+        _ = session.handleKey(.s)  // a changed look is saved as a new look at the end; the kept rule survives
+        XCTAssertTrue(lines.take().contains("added look 3/3"))
+        var looks = Store.loadOdcaFile(file)!
+        XCTAssertEqual(looks.map(\.rule), [one.id, two.id, mutant.id])
         XCTAssertEqual(looks[0].colorset, "S3")
-        _ = session.handleKey(.m)  // a further edit, discarded by leaving the look
+        XCTAssertEqual(looks[2].colorset, "S5")
+        XCTAssertEqual(session.lookIndex, 2)  // and the position moved onto it
+        XCTAssertEqual(session.viewPosition, 2)
+        _ = session.handleKey(.U)  // nothing to unwind on the new look
+        XCTAssertEqual(session.automaton.rule, mutant)
+        _ = session.handleKey(.digit(7))
+        _ = session.handleKey(.s)  // colors again: refines the new look in place
+        XCTAssertTrue(lines.take().contains("saved look 3/3"))
+        looks = Store.loadOdcaFile(file)!
+        XCTAssertEqual(looks.map(\.colorset), ["S3", "ODCA default", "S7"])
+        _ = session.handleKey(.m)  // a further mutation, discarded by leaving the look
         _ = session.handleKey(.n)
         _ = session.handleKey(.p)
         XCTAssertEqual(session.automaton.rule, mutant)
-        XCTAssertEqual(session.lookIndex, 0)
+        XCTAssertEqual(session.lookIndex, 2)
         _ = session.handleKey(.r)  // a fresh rule is a new exploration: the unsaved slot, as before
         XCTAssertNil(session.lookIndex)
         XCTAssertEqual(session.unsavedRule, session.automaton.rule)

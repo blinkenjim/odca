@@ -103,12 +103,12 @@ consume candidates.
 | Key | Action                                       |
 |-----|----------------------------------------------|
 | r   | new random rule, screened for maybe-Class-IV behavior (ID printed) |
-| m   | mutate the rule: one entry changes to a new state (in odca-select on a look: an edit of it, kept by `s`, dropped by `n`/`p`) |
+| m   | mutate the rule: one entry changes to a new state (in odca-select on a look: the look is changed, and `s`/`S` save the mutant as a new look, never over the kept rule; `u`/`U` walk it back, `n`/`p` drop it) |
 | u   | undo the last rule change (repeatable)       |
 | U   | undo every rule change since arriving on the current look or rule, at once |
 | i   | initialize all cells to random contents      |
 | n / p | odca-select: next / previous look, or the unsaved rule, with its colors (every step fills the screen); odca: as N / P |
-| s   | odca-select: rewrite the look under review with what is on screen (its rule, mutated or not, and its colors), or append the screen as a new look when on the unsaved rule; while paused (both programs): run one screenful at 8× speed, then stay paused (press again to queue more) |
+| s   | odca-select: rewrite the look under review's colors in place, or append the screen as a new look (moving onto it) when its rule was mutated, or when on the unsaved rule; while paused (both programs): run one screenful at 8× speed, then stay paused (press again to queue more) |
 | S   | odca-select: append a copy of what is on screen as a new look |
 | X   | odca-select: delete the look under review |
 | R   | odca-select: toggle the n / p order between file order and grouped by rule (the screen inverts for a quarter second) |

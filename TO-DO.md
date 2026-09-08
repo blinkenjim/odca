@@ -1,7 +1,11 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-07):** Spec 3.20.0, Swift 3.20.0, Python
-3.21.0: `--3` joins the cell size flags. Before that (2026-09-06),
+**YOU ARE HERE (2026-09-07):** Spec 3.22.0, Swift 3.22.0, Python
+3.23.0: a mutated look is saved as a new look, never over the kept rule
+(the 3.16.0 in-place model overwrote one of the user's best rules; it
+was recovered from git). Pending at the next change: `--2` as the
+default cell size (item below). Before that, 3.20.0 / 3.21.0: `--3`
+joins the cell size flags. Before that (2026-09-06),
 3.18.0 / 3.19.0: `U` undoes every rule change since the position last
 moved (R-K19). Before that, 3.16.0 / 3.17.0: `m` on a look under review is an
 edit of it, recorded in place by `s` (the user found `s` appending after

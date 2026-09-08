@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.20.0 — 2026-09-07
+Version 3.22.0 — 2026-09-07
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -50,7 +50,9 @@ initial delay halves with the cell size — R-U5, R-U3. 3.12.0: the
 shuffle constraints — R-X1. 3.14.0: `--watchdog` and `--grace` — R-X2,
 R-X3, R-U9, section 10. 3.16.0: `m` on a look is an edit of it, recorded
 in place by `s` — R-K3, R-K5, R-B3, R-W4. 3.18.0: `U` undoes every change
-since the position last moved — R-K19, R-K4. 3.20.0: `--3` — R-U2, R-U5.)
+since the position last moved — R-K19, R-K4. 3.20.0: `--3` — R-U2, R-U5. 3.22.0: a
+mutated look is saved as a new look, never over the kept rule — R-K3,
+R-K5, R-W4.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -320,10 +322,12 @@ The new rule becomes current per R-B1 and occupies the unsaved slot
 
 **R-K3 (`m` — mutate).** Replace the current rule with a mutation of it
 (R-M10), becoming current per R-B1. In `odca-select` on a look under
-review, this is an edit of that look: the cycle position stays, the
-mutated rule shows in the look's colors, `s` records it in place (R-W4),
-`u` walks it back, and `n`/`p` discard it. Otherwise the mutation
-occupies the unsaved slot (R-B3). Cells are not reinitialized.
+review, the look is thereby *changed*: the cycle position stays, the
+mutated rule shows in the look's colors, `u`/`U` walk it back, `n`/`p`
+discard it, and `s` or `S` save the screen as a new look at the end of
+the file (R-W4) — a kept rule is never overwritten by a mutation, since a
+mutant is a different rule. Otherwise the mutation occupies the unsaved
+slot (R-B3). Cells are not reinitialized.
 
 **R-K4 (`u` — undo).** Rule changes (from `r`, `m`, `n`, `p`, `u`) push
 the outgoing rule onto an unbounded undo stack; `u` pops the stack and
@@ -337,9 +341,11 @@ A *look* is a rule with the active color set's name and arranged colors
 it exists, so the two are saved together, and the same rule may be saved
 again with other colors. `S` appends a copy of what is on screen — the
 current rule and the active set, arranged — as a new look at the end of
-the file. `s` on a look under review (R-B2) rewrites that look with what
-is on screen — its rule, mutated with `m` or not, and the active set,
-arranged; `s` on the unsaved slot appends, exactly as `S`. Both write the file at once (R-W4) and print
+the file. `s` on a look under review (R-B2) whose rule is still the
+look's own rewrites that look's color set to the active set, arranged;
+on a changed look (its rule mutated, R-K3) `s` appends the screen as a
+new look, as `S` does, and moves the position onto it, so a further `s`
+refines the new look; `s` on the unsaved slot appends, exactly as `S`. Both write the file at once (R-W4) and print
 confirmation (R-O12). Neither moves the cycle position. In `odca` the
 file is read-only and both keys do nothing.
 
@@ -607,9 +613,10 @@ with `r`, `m`, `n`, `p`, and `u`, this composes what `s` and `S` record
 (R-K5).
 
 **R-W4 (`s` / `S` — record; autosave).** As R-K5: `S` appends a copy of the
-screen; `s` rewrites the look under review with the screen's rule and
-colors (in the grouped order the look then joins its rule's group), or
-appends when on the unsaved slot. Every `s`, `S`, and `X` writes the whole file at
+screen, the position unchanged; `s` rewrites the look under review's
+colors in place, or, when its rule has been mutated or when on the
+unsaved slot, appends the screen as a new look — moving the position onto
+it in the mutated case (an arrival, R-K19). Every `s`, `S`, and `X` writes the whole file at
 once, in file order, and prints `saved <n> looks to <file>`; program exit
 writes it again (creating a missing file, empty if need be).
 

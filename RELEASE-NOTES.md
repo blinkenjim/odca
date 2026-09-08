@@ -5,6 +5,18 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.22.0 (Swift) and 3.23.0 (Python) — 2026-09-07
+
+The 3.16.0 model was a mistake, and it cost you a rule (recovered from
+git into `swift/saver.odca`, see below). Now: `m` on a look under
+review marks the look as changed. You stay on it, the mutant shows in
+its colors, `u` and `U` walk it back, `n` and `p` drop it, and `s` or
+`S` save the screen as a new look at the end of the file. A kept rule is
+never overwritten by a mutation. After `s` the position moves onto the
+new look, so a further digit and `s` refine its colors in place; `S`
+leaves the position where it was, as always. `s` on an unmutated look
+still rewrites its colors in place.
+
 ## 3.20.0 (Swift) and 3.21.0 (Python) — 2026-09-07
 
 `--3`, beside the others: 3-point cells, 400 × 266 of them in the
