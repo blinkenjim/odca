@@ -20,7 +20,7 @@ colors. The files play in turn, each its pairs in order, looping.
   --shuffle     play the files in random order instead of command-line
                 order: a fresh draw each pass, never the same file twice
                 running; the pairs within a file keep their order unless
-                its script says play shuffle
+                its script says shuffle
   --fullscreen  open the window full screen, for unattended runs; the
                 platform's own control leaves it, as it entered it before
   --4 / --3 / --2 / --1
@@ -36,11 +36,13 @@ colors. The files play in turn, each its pairs in order, looping.
 Play scripts (.play): one statement per line; # starts a comment.
   import <file>   the pairs of an odca file, in order; the name is
                   relative to the script, and quoted if it contains a
-                  space or is one of the words above
-  play [shuffle]  play every pair imported above, once, in that order;
-                  a script without it plays nothing, and shuffle draws
-                  a fresh order each pass in which no rule and no color
-                  set follows itself
+                  space or is a keyword
+  play            play every pair imported above, once, in that order
+  shuffle         the same, in a fresh order each pass, in which no
+                  rule and no color set follows itself
+
+One of play and shuffle ends a script's imports; a script with neither
+plays nothing.
 
 Keys:
   q     quit                            space   pause / resume

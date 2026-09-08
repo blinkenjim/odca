@@ -923,7 +923,7 @@ def test_play_shuffle_draws_a_fresh_order_of_a_script_pairs(make_store, odca_fil
     file = odca_file(name="six.odca")
     save_odca_file([{"rule": r.id, "colorset": n, "colors": cs} for r, n, cs in pairs], file)
     script = tmp_path / "six.play"
-    script.write_text("import six.odca\nplay shuffle\n")
+    script.write_text("import six.odca\nshuffle\n")
     s = make_session(store, show=load_show([script]))
     assert not s.shuffle  # the script asked, not the command line
     assert "odca six.play: 6 pairs, shuffled" in capsys.readouterr().out  # R-O13
@@ -944,7 +944,7 @@ def test_play_shuffle_draws_a_fresh_order_of_a_script_pairs(make_store, odca_fil
     assert ", shuffled" not in capsys.readouterr().out
     # No order can avoid a repeat: the requirement is dropped and the show goes on.
     save_odca_file([{"rule": a.id, "colorset": "X", "colors": x}, {"rule": a.id, "colorset": "Y", "colors": y}], file)
-    script.write_text("import six.odca\nplay shuffle\n")
+    script.write_text("import six.odca\nshuffle\n")
     s = make_session(store, show=load_show([script]))
     played = [s.pair_index]
     for _ in range(5):
@@ -965,7 +965,7 @@ def test_a_shuffled_script_keeps_its_seam_with_the_other_files(make_store, odca_
     save_odca_file([{"rule": b.id, "colorset": "Y", "colors": y},
                     {"rule": a.id, "colorset": "X", "colors": x}], shuffled_file)
     script = tmp_path / "two.play"
-    script.write_text("import two.odca\nplay shuffle\n")
+    script.write_text("import two.odca\nshuffle\n")
     s = make_session(store, show=load_show([plain_file, script]))
     capsys.readouterr()
     for _ in range(20):

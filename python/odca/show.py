@@ -48,8 +48,8 @@ def parse_json(text):
 
 def parse(text):
     """A script's statements, [{'line', 'import': name} | {'line', 'play': True}],
-    [{'line', 'import': name} | {'line', 'play': True, 'shuffle': bool}],
-    or ShowError('line:column: message') at the first error."""
+    [{'line', 'import': name} | {'line', 'play': True} | {'line', 'shuffle':
+    True}], or ShowError('line:column: message') at the first error."""
     result = json.loads(parse_json(text))
     if not result["ok"]:
         raise ShowError(f"{result['line']}:{result['column']}: {result['message']}")
@@ -66,9 +66,9 @@ def _is_odca_file(path):
 
 def load_script(path):
     """What a script plays (R-X7): (pairs, shuffle) — every pair of every
-    imported odca file in import order, or none when the script never says
-    `play`, and whether that `play` said `shuffle`. Imports are relative to
-    the script's directory."""
+    imported odca file in import order, or none when the script says
+    neither `play` nor `shuffle`, and which of the two it said. Imports are
+    relative to the script's directory."""
     path = Path(path)
     try:
         text = path.read_text(encoding="utf-8")
@@ -89,7 +89,7 @@ def load_script(path):
                 raise ShowError(f"{path}:{statement['line']}: {name} is not an odca file")
             pairs.extend(load_odca_file(target))
         else:
-            plays, shuffle = True, statement["shuffle"]
+            plays, shuffle = True, "shuffle" in statement
     return (pairs, shuffle) if plays else ([], False)
 
 

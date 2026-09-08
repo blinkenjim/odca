@@ -29,13 +29,15 @@ def test_the_generated_parser_is_the_same_on_both_sides():  # the two checked-in
 
 
 def test_parse_gives_statements_or_a_positioned_error():  # R-X7
-    assert parse("import a.odca\nplay\n") == [{"line": 1, "import": "a.odca"},
-                                              {"line": 2, "play": True, "shuffle": False}]
-    assert parse("play shuffle\n") == [{"line": 1, "play": True, "shuffle": True}]
+    assert parse("import a.odca\nplay\n") == [{"line": 1, "import": "a.odca"}, {"line": 2, "play": True}]
+    assert parse("shuffle\n") == [{"line": 1, "shuffle": True}]
     assert parse("# only a comment") == []
     with pytest.raises(ShowError) as e:
         parse("import a.odca\nplay\nplay\n")
     assert str(e.value) == "3:1: play given twice"
+    with pytest.raises(ShowError) as e:
+        parse("import a.odca\nplay\nshuffle\n")
+    assert str(e.value) == "3:1: shuffle after play"
 
 
 def test_a_script_plays_what_it_imports(tmp_path):  # R-X7
@@ -45,11 +47,11 @@ def test_a_script_plays_what_it_imports(tmp_path):  # R-X7
     script = tmp_path / "sub" / "show.play"
     script.write_text('import ../one.odca   # relative to the script\nimport "two pairs.odca"\nplay\n')
     assert load_script(script) == ([PAIR, PAIR, PAIR], False)
-    script.write_text('import ../one.odca\nplay shuffle\n')  # R-X7: the pairs shuffled per pass
+    script.write_text('import ../one.odca\nshuffle\n')  # R-X7: the pairs shuffled per pass
     assert load_script(script) == ([PAIR], True)
     script.write_text("import ../one.odca\n")  # imports without play: nothing plays
     assert load_script(script) == ([], False)
-    script.write_text("play shuffle\n")  # play without imports: nothing to play, shuffled or not
+    script.write_text("shuffle\n")  # a play word without imports: nothing to play
     assert load_script(script) == ([], True)
     script.write_text("import gone.odca\nplay\n")
     with pytest.raises(ShowError) as e:
@@ -60,10 +62,10 @@ def test_a_script_plays_what_it_imports(tmp_path):  # R-X7
     with pytest.raises(ShowError) as e:
         load_script(script)
     assert str(e.value) == f"{script}:3: notes.txt is not an odca file"
-    script.write_text("import ../one.odca\nplay\nimport ../one.odca\n")
+    script.write_text("import ../one.odca\nshuffle\nimport ../one.odca\n")
     with pytest.raises(ShowError) as e:
         load_script(script)
-    assert str(e.value) == f"{script}:3:1: import after play"
+    assert str(e.value) == f"{script}:3:1: import after shuffle"
     with pytest.raises(ShowError) as e:
         load_script(tmp_path / "missing.play")
     assert str(e.value) == f"{tmp_path / 'missing.play'}: cannot read"
@@ -75,7 +77,7 @@ def test_the_show_is_one_segment_per_file(tmp_path):  # R-X1
     script.write_text("import one.odca\nimport one.odca\nplay\n")
     (tmp_path / "empty.odca").write_text('{"pairs": []}')
     shuffled = tmp_path / "shuffled.play"
-    shuffled.write_text("import one.odca\nplay shuffle\n")
+    shuffled.write_text("import one.odca\nshuffle\n")
     show = load_show([script, tmp_path / "one.odca", tmp_path / "empty.odca", shuffled])
     assert show == [{"file": "show.play", "pairs": [PAIR, PAIR], "shuffle": False},  # a script: what it plays
                     {"file": "one.odca", "pairs": [PAIR], "shuffle": False},  # an odca file: import it, play it

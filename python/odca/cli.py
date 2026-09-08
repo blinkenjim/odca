@@ -6,6 +6,14 @@ from pathlib import Path
 CELL_FLAGS = ("--4", "--3", "--2", "--1")  # pixels per cell for the run, both programs (R-U2)
 
 
+def _line_buffer():
+    """Status lines (R-O) arrive promptly even when piped or logged, as they
+    do in Swift (setlinebuf). A capturing stream may not offer this."""
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(line_buffering=True)
+
+
 def parse(argv, program, help_text, flags=(), options=(), positional="<file.odca>", many=False):
     """Return (file, set of flags given, {option: value}). --help prints and exits 0 first.
 
@@ -14,6 +22,7 @@ def parse(argv, program, help_text, flags=(), options=(), positional="<file.odca
     error (exit 2), an unknown flag likewise. `options` take the next
     argument as their value; one without a value is a usage error.
     """
+    _line_buffer()
     args = list(sys.argv[1:] if argv is None else argv)
     if "--help" in args:  # R-U9: before any state, search, or window
         print(help_text, end="")
