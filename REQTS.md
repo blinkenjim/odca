@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.18.0 — 2026-09-06
+Version 3.20.0 — 2026-09-07
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -50,7 +50,7 @@ initial delay halves with the cell size — R-U5, R-U3. 3.12.0: the
 shuffle constraints — R-X1. 3.14.0: `--watchdog` and `--grace` — R-X2,
 R-X3, R-U9, section 10. 3.16.0: `m` on a look is an edit of it, recorded
 in place by `s` — R-K3, R-K5, R-B3, R-W4. 3.18.0: `U` undoes every change
-since the position last moved — R-K19, R-K4.)
+since the position last moved — R-K19, R-K4. 3.20.0: `--3` — R-U2, R-U5.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -174,17 +174,17 @@ must:
    at once (R-X1).
 
 **R-U2 (display geometry).** The display is a grid of square cells,
-`cell_size` points on a side: 4 by default, or 2 or 1 for the run when
-either program is given `--2` or `--1` (`--4` names the default; at most
-one of the three, more is a usage error, R-U9). Points, never device
+`cell_size` points on a side: 4 by default, or 3, 2, or 1 for the run
+when either program is given `--3`, `--2`, or `--1` (`--4` names the
+default; at most one of the four, more is a usage error, R-U9). Points, never device
 pixels: on a high-density display a 1-point cell still covers several
 device pixels, and the picture is scaled without smoothing. (The Python
 implementation counts its window in pixels, the same unit in practice.)
 The window is resizable, including full screen, and the grid holds as
 many whole cells as fit: `cols` = ⌊width / cell_size⌋, `rows` =
 ⌊height / cell_size⌋. The default (and first-launch) window is 1200×800
-points, giving 300 × 200 cells at the default size (600 × 400 with `--2`,
-1200 × 800 with `--1`); the minimum is 160×120 points (40 × 30 cells at
+points, giving 300 × 200 cells at the default size (400 × 266 with `--3`,
+600 × 400 with `--2`, 1200 × 800 with `--1`); the minimum is 160×120 points (40 × 30 cells at
 the default size). Interactive resizing should snap to whole cells (resize
 increments of `cell_size`); where a remainder is unavoidable (full screen)
 the grid is centered and the margins are painted in the state-0 color.
@@ -246,9 +246,10 @@ recorded in the looks that `s`/`S` save (R-K5).
 **R-U5 (timing).** Generation pacing is governed by a *delay* — the
 nominal time between generations — independent of the display refresh:
 
-- Initial delay: 1/60 s at the default cell size, halved for `--2` and
-  halved again for `--1` (R-U2), so the picture moves at about the same
-  speed in points whatever the cell; `+` and `-` (R-K8) work from there.
+- Initial delay: 1/60 s at the default cell size, scaled in proportion to
+  the cell (three quarters of it for `--3`, half for `--2`, a quarter for
+  `--1`, R-U2), so the picture moves at about the same speed in points
+  whatever the cell; `+` and `-` (R-K8) work from there.
 - The display refreshes at the screen's refresh rate (typically 60 or
   120 Hz), and implementations should pace refreshes from the display
   itself rather than a free-running timer; each refresh advances the
@@ -906,7 +907,7 @@ loses one update (loaders already tolerate malformed content, R-P).
 ## 10. Explicit non-requirements
 
 - The command line is one positional argument, the odca file, plus
-  `--help` (R-U9), the cell size flags `--4` / `--2` / `--1` (R-U2), and,
+  `--help` (R-U9), the cell size flags `--4` / `--3` / `--2` / `--1` (R-U2), and,
   for `odca`, `--shuffle` (R-X1), `--fullscreen` (R-U2), `--watchdog`
   (R-X2), and `--grace` (R-X3); no configuration files or menus. No other flags exist (the 2.x developer flags
   `--colorset-review`, `--screensaver-review`, `--consistency-check`, and

@@ -5,6 +5,15 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.20.0 (Swift) and 3.21.0 (Python) — 2026-09-07
+
+`--3`, beside the others: 3-point cells, 400 × 266 of them in the
+default window (800 is not a multiple of 3, so a 1-point margin top and
+bottom), and the starting speed scales with the cell as before, three
+quarters of the default delay. Everything downstream was already
+written in terms of the cell size, so this is the flag, the help text,
+and the spec.
+
 ## 3.18.0 (Swift) and 3.19.0 (Python) — 2026-09-06
 
 `U` undoes every rule change since you arrived where you are: on a look

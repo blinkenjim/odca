@@ -12,8 +12,8 @@ anywhere, as `swift/run` from the repository root.
 ## Run
 
 ```sh
-swift run -c release odca ../interesting.odca          # play a file of looks (--shuffle, --fullscreen, --2 / --1 optional)
-swift run -c release odca-select ../my-looks.odca      # compose looks into a file (--2 / --1 optional)
+swift run -c release odca ../interesting.odca          # play a file of looks (--shuffle, --fullscreen, --3 / --2 / --1 optional)
+swift run -c release odca-select ../my-looks.odca      # compose looks into a file (--3 / --2 / --1 optional)
 ```
 
 Use the release build for viewing. A debug build (`swift run odca`) keeps

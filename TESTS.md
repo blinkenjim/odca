@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.18.0 — 2026-09-06
+Version 3.20.0 — 2026-09-07
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -110,7 +110,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-32 | R-U8 | After 40 generations at 32 × 16: narrowing to 20 keeps the middle 20 cells of the live row and of every remembered row, keeps the history, resets the boring count, and prints `resized 20x16`; widening to 30 keeps those 20 centered with state-0 padding in old rows and random cells in the live row; a taller window shows the last rows + 1 remembered rows; a no-op resize returns false; sizes clamp to the minimum. The history never exceeds 2048 rows. |
 | PT-34 | R-K5, R-B2, R-B3 | In `odca-select`, `S` appends the current rule with the active set's name and arranged colors and prints it; `n` onto that look restores both the rule and the colors; stepping onto the unsaved slot restores the unsaved rule with the set that was active when it arrived. Opening on look 1 of a two-look file, `m` keeps the position on look 1 and leaves the unsaved slot empty, `u` walks it back there, a second `m` then a digit and `s` rewrite look 1 in place with the mutated rule and the new set (printing `saved look 1/2`), a further `m` is discarded by `n` then `p`, `r` moves to the unsaved slot as before, and `m` there stays there. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
-| PT-35 | R-U9 | Each program's embedded help text equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1; `odca` accepts `--shuffle` and `--fullscreen` in either position and `odca-select` rejects both as unknown; both accept one of `--4` / `--2` / `--1` in either position, and two of them exit 2 with a one-line message (R-U2); `odca` takes `--watchdog N` and `--grace N` in either position, and a missing value, a non-number, `0`, or a fraction exits 2 with a one-line message; `odca-select` rejects them as unknown. |
+| PT-35 | R-U9 | Each program's embedded help text equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1; `odca` accepts `--shuffle` and `--fullscreen` in either position and `odca-select` rejects both as unknown; both accept one of `--4` / `--3` / `--2` / `--1` in either position, and two of them exit 2 with a one-line message (R-U2); `odca` takes `--watchdog N` and `--grace N` in either position, and a missing value, a non-number, `0`, or a fraction exits 2 with a one-line message; `odca-select` rejects them as unknown. |
 | PT-37 | R-U4, R-P4 | The digit-bound sets of the shipped `library.json` equal the R-U4 table of `REQTS.md`: same slots, names, and colors in state order. |
 | PT-36 | R-X1 | With six looks on three rules, two each, and three color sets, two each (one of them arranged differently in its second look), `--shuffle`: over ten passes every pass plays each look exactly once, and no two consecutive looks in the whole sequence, pass seams included, share a rule or a color set in any arrangement; `P` steps back within the pass; without the flag the order is file order. With two looks on one rule, every pass is still a permutation and play continues (the requirement is dropped after a hundred draws). |
 
@@ -148,11 +148,13 @@ from `REQTS.md`.
 - **M-12** `odca interesting.odca` plays the shipped looks two minutes
   each with the old rows keeping their colors; `--shuffle` plays them in a
   different order each pass (R-X).
-- **M-13** `--2` and `--1` open the same 1200×800 window holding four and
-  sixteen times the cells, crisp at every size and in full screen (no
+- **M-13** `--3`, `--2`, and `--1` open the same 1200×800 window holding
+  400 × 266, 600 × 400, and 1200 × 800 cells (at `--3` a 2-point margin
+  top and bottom), crisp at every size and in full screen (no
   smoothing); resizing and the margins behave as at the default size,
   and the picture moves at about the same speed in points, so `--1` runs
-  four times the generations per second (R-U2, R-U5).
+  four times the generations per second and `--3` four thirds (R-U2,
+  R-U5).
 - **M-10** Dragging the window edge resizes in cell-size steps; the picture
   stays centered while cells appear or vanish at the edges; growing
   taller uncovers older rows; the animation freezes during the drag and

@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.18.0 — 2026-09-06 (`U` undoes all; 3.16.0: `m` edits the look under review; 3.14.0: `--watchdog`, `--grace`; 3.12.0: shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.20.0 — 2026-09-07 (`--3`; 3.18.0: `U` undoes all; 3.16.0: `m` edits the look under review; 3.14.0: `--watchdog`, `--grace`; 3.12.0: shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -107,7 +107,7 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   `playGrace` (120 / 60). To change the defaults: those two statics, the
   help text's prose and flag descriptions, R-X2 / R-X3, the README bullet.
 - **Cell size** (R-U2): `chooseCellSize(program:flags:)` in `Launch.swift`
-  reads `--4` / `--2` / `--1` (two exit 2) and `launch(cellSize:)` stores
+  reads `--4` / `--3` / `--2` / `--1` (two exit 2) and `launch(cellSize:)` stores
   it in `ViewerModel.cellSize`, a static set once before the window
   exists; `defaultCols` / `defaultRows` derive from it, and the view,
   the resize increments, and the image scale read it. The pixel loop in

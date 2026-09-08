@@ -56,7 +56,7 @@ public func wholeSeconds(program: String, options: [String: String], _ option: S
 }
 
 /// The cell size flags (R-U2), accepted by both programs.
-public let cellFlags = ["--4", "--2", "--1"]
+public let cellFlags = ["--4", "--3", "--2", "--1"]
 
 /// Points per cell for this run: 4 unless one cell flag says otherwise;
 /// more than one is a usage error (exit 2).
@@ -72,7 +72,7 @@ public func chooseCellSize(program: String, flags: Set<String>) -> Int {
 /// Open the window on a session built by `make` (called once, on the main
 /// actor, with the default geometry) and run the app until it quits.
 /// `fullScreen` opens the window full screen at launch (`--fullscreen`, R-U2);
-/// `cellSize` is the points per cell for the run (`--4` / `--2` / `--1`).
+/// `cellSize` is the points per cell for the run (`--4` / `--3` / `--2` / `--1`).
 @MainActor
 public func launch(fullScreen: Bool = false, cellSize: Int = 4,
                    _ make: @escaping (_ cols: Int, _ rows: Int) -> Session) {
