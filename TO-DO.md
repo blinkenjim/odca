@@ -133,6 +133,19 @@ script design.
       workers (three of the Pi's four cores) until the stash fills, and
       each worker process carries a numpy import, which on 1 GB matters —
       consider fewer workers, or none, in play mode on small machines.
+- [ ] Make `--2` the default cell size at the next change (user,
+      2026-09-07: "a nice intermediate size" of `--3`, then "at the next
+      change, let's make --2 the default"). Places: `ViewerModel.cellSize`
+      and `chooseCellSize`'s fallback (Swift); `cli.cell_size`'s fallback,
+      `cli.run(cell=)`, `Viewer(cell_size=)` (Python); the help texts
+      ("cells 4 (the default)"); R-U2 ("4 by default", "`--4` names the
+      default", the 300 × 200 default grid and the 40 × 30 minimum, which
+      become 600 × 400 and 80 × 60); R-U5 if the speed rule is re-based;
+      TESTS PT-35 / M-13; the README paragraph; `test_viewer`'s
+      `grid_size` cases. Open question for the user: does the default
+      speed stay 1/60 s at the new default cell (so `--4` becomes slower,
+      `--1` twice as fast as today) or does the cell-to-delay table stay
+      as it is (so the default run becomes 1/120 s, today's `--2`)?
 - [ ] New watchdog / grace defaults (user, 2026-09-06: 20 and 10 were
       the first values named; "we will be changing them later"). Places:
       `Session.playTimeout` / `playGrace` (Swift), `PLAY_TIMEOUT` /
