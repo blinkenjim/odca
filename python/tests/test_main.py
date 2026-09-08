@@ -67,7 +67,7 @@ def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
                      ({"show": show, "shuffle": False, "play_timeout": 20, "play_grace": 10}, False, 2)]
 
 
-def test_odca_takes_scripts_and_odca_files_in_order(monkeypatch, tmp_path, capsys):  # R-X1, R-X7
+def test_odca_takes_scripts_and_odca_files_in_order(monkeypatch, tmp_path, capsys):  # PT-38, R-X1, R-X7
     from odca import play
     from odca.store import save_odca_file
     from odca.automaton import Rule

@@ -82,7 +82,7 @@ SMOOTH_SCROLL_DELAY = 2 * INITIAL_DELAY  # slower than this: continuous scrollin
 SCREEN_SPEEDUP = 8  # paused 's' zips a screenful at delay / SCREEN_SPEEDUP (R-K13)
 PLAY_TIMEOUT = 120.0  # odca: a pair's screen time before it may advance (R-X2)
 PLAY_GRACE = 60.0  # odca: no transition within this long of an initialization (R-X3)
-SHUFFLE_TRIES = 100  # `play shuffle`: draws tried for an order without repeats before giving up (R-X7)
+SHUFFLE_TRIES = 100  # `shuffle`: draws tried for an order without repeats before giving up (R-X7)
 FLASH_SECONDS = 0.25  # the screen inverts this long as a mode cue (R-U10)
 HISTORY_DEPTH = 2048  # rows remembered beyond the screen (R-U8)
 PALETTE_LIMIT = 64  # odca: prune the per-row palette table past this many entries (R-X5)
@@ -837,7 +837,7 @@ class Session:
 
     def _load_play(self):  # R-X1
         for segment in self.show:
-            how = ", shuffled" if segment["shuffle"] else ""  # R-X7: the script said `play shuffle`
+            how = ", shuffled" if segment["shuffle"] else ""  # R-X7: the script said `shuffle`
             print(f"odca {segment['file']}: {len(segment['pairs'])} pairs{how}")  # R-O13
         self.pairs = []
         if any(segment["pairs"] for segment in self.show):
@@ -856,7 +856,8 @@ class Session:
                 # just played included (unless it is the only one with pairs).
                 if len(playable) < 2 or first != self.play_segment:
                     break
-        # Within a file, its pairs in file order, or (R-X7: `play shuffle`) a
+        # Within a file, its pairs in file order, or (R-X7: the script said
+        # `shuffle`) a
         # fresh permutation in which no rule and no color set follows itself.
         # The seam is the pair before it in the pass, whatever file that came
         # from, or the pair still on screen for the pass's first file; a file

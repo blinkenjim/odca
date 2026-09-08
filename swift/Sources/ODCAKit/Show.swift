@@ -3,7 +3,7 @@ import Foundation
 
 /// One command-line file's contribution to a show (R-X1): the pairs a play
 /// script or odca file plays, in order, and whether the script asked for
-/// them shuffled (`play shuffle`, R-X7).
+/// them shuffled (`shuffle`, R-X7).
 public struct Segment: Equatable {
     public let file: String
     public let pairs: [Pair]

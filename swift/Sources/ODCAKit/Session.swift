@@ -43,7 +43,7 @@ public final class Session {
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
     public static let playTimeout = 120.0  // odca: a pair's screen time before it may advance (R-X3)
     public static let playGrace = 60.0  // odca: no transition within this long of an initialization (R-X3)
-    public static let shuffleTries = 100  // `play shuffle`: draws tried for an order without repeats (R-X7)
+    public static let shuffleTries = 100  // `shuffle`: draws tried for an order without repeats (R-X7)
     public static let flashSeconds = 0.25  // the screen inverts this long as a mode cue (R-U10)
     public static let historyDepth = 2048  // rows remembered beyond the screen (R-U8)
     public static let paletteLimit = 64  // odca: prune the per-row palette table past this (R-X5)
@@ -125,7 +125,7 @@ public final class Session {
     public private(set) var unsavedSet: ColorSetEntry?  // the set shown with the unsaved rule (R-B3)
     // odca (R-X): play a show, one segment per command-line file (Show.load),
     // the files in turn or in a fresh shuffled order per pass, each file's
-    // pairs in file order or (R-X7: `play shuffle`) shuffled per pass.
+    // pairs in file order or (R-X7: the script said `shuffle`) shuffled.
     public let show: [Segment]?
     public let shuffle: Bool
     public private(set) var playOrder: [(segment: Int, index: Int)] = []  // the pairs of the current pass, in order
@@ -635,7 +635,7 @@ public final class Session {
 
     private func loadPlay() {  // R-X1
         for segment in show! {  // R-O13
-            let how = segment.shuffle ? ", shuffled" : ""  // R-X7: the script said `play shuffle`
+            let how = segment.shuffle ? ", shuffled" : ""  // R-X7: the script said `shuffle`
             output("odca \(segment.file): \(segment.pairs.count) pairs\(how)")
         }
         pairs = []
@@ -648,7 +648,7 @@ public final class Session {
     /// The files in command-line order, or a fresh shuffle of them per pass
     /// (R-X1): never the same file twice running, the seam from the file
     /// just played included (unless it is the only one with pairs). Within
-    /// a file, its pairs in file order, or (R-X7: `play shuffle`) a fresh
+    /// a file, its pairs in file order, or (R-X7: `shuffle`) a fresh
     /// permutation in which no rule and no color set follows itself; the
     /// seam is the pair before it in the pass, whatever file that came
     /// from, or the pair still on screen for the pass's first file. A file

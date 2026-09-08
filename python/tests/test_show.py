@@ -1,4 +1,4 @@
-"""Play scripts (TESTS.md layer 1 script cases, PT-37; REQTS R-X7, R-X1)."""
+"""Play scripts (TESTS.md layer 1 script cases and PT-38; REQTS R-X7, R-X1)."""
 
 from pathlib import Path
 
@@ -28,7 +28,7 @@ def test_the_generated_parser_is_the_same_on_both_sides():  # the two checked-in
         assert (ours / name).read_bytes() == (theirs / name).read_bytes(), name
 
 
-def test_parse_gives_statements_or_a_positioned_error():  # R-X7
+def test_parse_gives_statements_or_a_positioned_error():  # PT-38, R-X7
     assert parse("import a.odca\nplay\n") == [{"line": 1, "import": "a.odca"}, {"line": 2, "play": True}]
     assert parse("shuffle\n") == [{"line": 1, "shuffle": True}]
     assert parse("# only a comment") == []
@@ -40,7 +40,7 @@ def test_parse_gives_statements_or_a_positioned_error():  # R-X7
     assert str(e.value) == "3:1: shuffle after play"
 
 
-def test_a_script_plays_what_it_imports(tmp_path):  # R-X7
+def test_a_script_plays_what_it_imports(tmp_path):  # PT-38, R-X7
     save_odca_file([PAIR], tmp_path / "one.odca")
     (tmp_path / "sub").mkdir()
     save_odca_file([PAIR, PAIR], tmp_path / "sub" / "two pairs.odca")
@@ -71,7 +71,7 @@ def test_a_script_plays_what_it_imports(tmp_path):  # R-X7
     assert str(e.value) == f"{tmp_path / 'missing.play'}: cannot read"
 
 
-def test_the_show_is_one_segment_per_file(tmp_path):  # R-X1
+def test_the_show_is_one_segment_per_file(tmp_path):  # PT-38, R-X1
     save_odca_file([PAIR], tmp_path / "one.odca")
     script = tmp_path / "show.play"
     script.write_text("import one.odca\nimport one.odca\nplay\n")

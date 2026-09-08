@@ -1,7 +1,7 @@
 import XCTest
 @testable import ODCAKit
 
-/// Play scripts (TESTS.md layer 1 script cases, PT-37; REQTS R-X7, R-X1).
+/// Play scripts (TESTS.md layer 1 script cases and PT-38; REQTS R-X7, R-X1).
 final class ShowTests: XCTestCase {
     let root = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -29,7 +29,7 @@ final class ShowTests: XCTestCase {
         }
     }
 
-    func testParseGivesStatementsOrAPositionedError() throws {  // R-X7
+    func testParseGivesStatementsOrAPositionedError() throws {  // PT-38, R-X7
         XCTAssertEqual(try Show.parse("import a.odca\nplay\n"),
                        [.import(line: 1, file: "a.odca"), .play(line: 2)])
         XCTAssertEqual(try Show.parse("shuffle\n"), [.shuffle(line: 1)])
@@ -42,7 +42,7 @@ final class ShowTests: XCTestCase {
         }
     }
 
-    func testAScriptPlaysWhatItImports() throws {  // R-X7
+    func testAScriptPlaysWhatItImports() throws {  // PT-38, R-X7
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("odca-show-\(UUID().uuidString)")
         let sub = dir.appendingPathComponent("sub")
         try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
@@ -80,7 +80,7 @@ final class ShowTests: XCTestCase {
         }
     }
 
-    func testTheShowIsOneSegmentPerFile() throws {  // R-X1
+    func testTheShowIsOneSegmentPerFile() throws {  // PT-38, R-X1
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("odca-show-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
