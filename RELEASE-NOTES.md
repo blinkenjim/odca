@@ -5,6 +5,16 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.24.0 (Swift) and 3.25.0 (Python) — 2026-09-07
+
+Un-asked, as you put it: `n` and `p` in `odca-select` no longer blast a
+screenful of the new look onto the screen. They re-seed the cells and
+the look grows in from a fresh field below the old rows, exactly as a
+transition does in `odca`. The old rows recolor at once, as everything
+in the workbench does. The screen fill on navigation dates from 2.24.1
+and is withdrawn from the spec; the dormant color set review keeps its
+own fill.
+
 ## 3.22.0 (Swift) and 3.23.0 (Python) — 2026-09-07
 
 The 3.16.0 model was a mistake, and it cost you a rule (recovered from

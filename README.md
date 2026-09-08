@@ -80,8 +80,9 @@ There are two programs, sharing the engine and most of the keyboard:
   shows screened random rules, you dress each in a color set, and `s`/`S`
   save the result as a look in the named file (created if missing). `n`/`p`
   cycle through the file's looks and one extra slot holding the unsaved
-  rule you were exploring; every step fills the screen with the selected
-  look. `X` deletes the look under review; `R` toggles the `n`/`p` order
+  rule you were exploring; every step re-seeds the cells and the selected
+  look scrolls in from a fresh field, as a transition does in `odca`. `X`
+  deletes the look under review; `R` toggles the `n`/`p` order
   between file order and grouped by rule (the screen inverts briefly to
   confirm). The file is written after every change and at exit.
 
@@ -107,7 +108,7 @@ consume candidates.
 | u   | undo the last rule change (repeatable)       |
 | U   | undo every rule change since arriving on the current look or rule, at once |
 | i   | initialize all cells to random contents      |
-| n / p | odca-select: next / previous look, or the unsaved rule, with its colors (every step fills the screen); odca: as N / P |
+| n / p | odca-select: next / previous look, or the unsaved rule, with its colors (every step re-seeds and scrolls the look in); odca: as N / P |
 | s   | odca-select: rewrite the look under review's colors in place, or append the screen as a new look (moving onto it) when its rule was mutated, or when on the unsaved rule; while paused (both programs): run one screenful at 8× speed, then stay paused (press again to queue more) |
 | S   | odca-select: append a copy of what is on screen as a new look |
 | X   | odca-select: delete the look under review |

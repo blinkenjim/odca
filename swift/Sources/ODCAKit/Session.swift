@@ -466,7 +466,7 @@ public final class Session {
         output("color set \(e.name)")  // R-O15
     }
 
-    /// Compute a screenful at once so a navigation shows only the new state (R-V7, R-W8).
+    /// Compute a screenful at once so a review step shows only the new state (R-V7).
     private func fillScreen() { for _ in 0..<rows { advance() } }
 
     // MARK: - The look cycle (R-B, R-W)
@@ -521,7 +521,7 @@ public final class Session {
         showColors(name: look.colorset, colors: look.colors)
         undoMark = undoStack.count
         output("look \(position + 1)/\(looks.count) \(look.colorset)")  // R-O4
-        fillScreen()  // R-W8: every navigation shows a screenful of the selection
+        initCells()  // R-W8: the look grows in from a fresh field below the old rows
     }
 
     /// n/p: cycle through the looks in view order plus the unsaved slot, if
@@ -542,7 +542,7 @@ public final class Session {
             output("unsaved rule")  // R-O4
             setRule(unsavedRule!)
             if let set = unsavedSet { showColors(name: set.name, colors: set.colors) }
-            fillScreen()  // R-W8
+            initCells()  // R-W8: every n/p step scrolls the selection in from a fresh field
         } else {
             activateLook(viewPosition: to, pushUndo: false)
         }

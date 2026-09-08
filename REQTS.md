@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.22.0 — 2026-09-07
+Version 3.24.0 — 2026-09-07
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -52,7 +52,8 @@ R-X3, R-U9, section 10. 3.16.0: `m` on a look is an edit of it, recorded
 in place by `s` — R-K3, R-K5, R-B3, R-W4. 3.18.0: `U` undoes every change
 since the position last moved — R-K19, R-K4. 3.20.0: `--3` — R-U2, R-U5. 3.22.0: a
 mutated look is saved as a new look, never over the kept rule — R-K3,
-R-K5, R-W4.)
+R-K5, R-W4. 3.24.0: navigation re-seeds and scrolls the look in instead
+of filling the screen — R-W8, R-B2, R-K10, R-W1.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -373,9 +374,9 @@ paused, continues without a jump (R-U3). While paused, every key except
 the spacebar, Return (R-K11), `s` (R-K13), `c`/`C` (R-K15), `[`/`]`
 (R-K17), the digits (R-K9), the look keys `S`, `X`, `R` (section 4c) and
 `N`/`P` (section 4d), `F` (R-K18), and `q` is ignored; `q` quits normally. Those keys
-touch colors and files, never the running computation (the screenfuls
-that navigation fills, R-W8, are the exception, being part of the
-navigation), so they remain live. Pausing does not stop the background
+touch colors and files, never the running computation (the re-seed that
+navigation makes, R-W8, is the exception, being part of the navigation;
+the new field then waits for the resume), so they remain live. Pausing does not stop the background
 search (R-S).
 
 **R-K11 (Return — single step).** While paused, Return computes and
@@ -455,7 +456,7 @@ cycle of n+1 slots: slots 0…n−1 are the looks and one extra slot holds the
 one slot; a look's rule becomes current per R-B1 (pushing undo per R-K4)
 and its colors become the active color set at arrangement 1 — a look is a
 presentation, not just a rule — and the position is printed (R-O4). Every
-step then fills the screen (R-W8). Looks appended during the session are
+step then re-seeds the cells and scrolls the look in (R-W8). Looks appended during the session are
 reached in turn.
 
 **R-B3 (the unsaved slot).** The unsaved slot holds the most recent rule
@@ -584,8 +585,8 @@ arrangements are recorded in looks instead (R-P3).
 
 **R-V7 (steps fill the screen).** Every `N`/`P` step, and the display of
 the next set after `X`, immediately computes and displays a full
-screenful (`rows` generations) under the newly shown set, paused or not,
-as in R-W8.
+screenful (`rows` generations) under the newly shown set, paused or not
+(the review keeps the screen fill that `odca-select` gave up in 3.24.0).
 
 ---
 
@@ -598,8 +599,8 @@ and collect the results as looks in an odca file (R-P3).
 required argument (R-U9 for errors). If it exists its looks are loaded;
 if not, nothing is written until the first save or exit (R-W4). On entry
 the program prints `odca <file>: <n> looks` (R-O12) and, if the list is
-non-empty, activates look 1 (R-B2: its rule and colors, then a screenful,
-R-W8) with the unsaved slot empty; otherwise the startup rule occupies the
+non-empty, activates look 1 (R-B2: its rule and colors, then a fresh
+field, R-W8) with the unsaved slot empty; otherwise the startup rule occupies the
 unsaved slot (R-U1). Every ordinary key keeps its meaning except as
 redefined here; the pool of color sets is the library loaded at startup
 (R-P4).
@@ -641,14 +642,14 @@ changed by the view: `s` and `X` act on the look at its file position, `S`
 appends to the end of the file (the new look joins its rule's group in the
 view, at the end of that group or as a new last group).
 
-**R-W8 (navigation fills the screen).** Every activation by `n`/`p` — a
-look or the unsaved slot — and the activation after `X` immediately
-computes and displays a full screenful (`rows` generations) under the
-activated presentation, paused or not, so that navigation looks the same
-whether or not the rule changed: the whole screen is the new look's
-output rather than a re-colored old one or a slowly arriving new one.
-Generations so computed count for auto-init (R-A) and the screen counter
-(R-K14) as usual.
+**R-W8 (navigation scrolls the look in).** Every activation by `n`/`p` —
+a look or the unsaved slot — and the activation after `X` re-seeds the
+cells as `i` does (R-K6) and lets the activated presentation grow in from
+that fresh field below the old rows, exactly as a transition does in
+`odca` (R-X4), so the two programs feel alike. The old rows recolor at
+once, as everything in `odca-select` does (R-X5); nothing is computed
+ahead. (2.24.1 to 3.22.0 filled the screen with a screenful at once
+instead; withdrawn as jarring beside `odca`.)
 
 ---
 

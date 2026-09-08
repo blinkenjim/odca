@@ -1,7 +1,9 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-07):** Spec 3.22.0, Swift 3.22.0, Python
-3.23.0: a mutated look is saved as a new look, never over the kept rule
+**YOU ARE HERE (2026-09-07):** Spec 3.24.0, Swift 3.24.0, Python
+3.25.0: `n`/`p` in odca-select re-seed and scroll the look in, as odca's
+transitions do (the 2.24.1 screen fill withdrawn as jarring). Before
+that, 3.22.0 / 3.23.0: a mutated look is saved as a new look, never over the kept rule
 (the 3.16.0 in-place model overwrote one of the user's best rules; it
 was recovered from git). Pending at the next change: `--2` as the
 default cell size (item below). Before that, 3.20.0 / 3.21.0: `--3`

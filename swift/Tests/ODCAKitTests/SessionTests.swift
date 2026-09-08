@@ -683,7 +683,7 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.n)  // look 1: rule0, S3 arranged, and a screenful at once
         XCTAssertEqual(session.lookIndex, 0)
         XCTAssertEqual(session.automaton.rule, rule0)
-        XCTAssertEqual(session.automaton.generation, gBefore + session.rows)  // R-W8
+        XCTAssertEqual(session.automaton.generation, 0)  // R-W8: a fresh field, scrolled in
         XCTAssertEqual(session.palette.map(\.r), [0x1E, 0x1F, 0x21, 0x20])
         XCTAssertTrue(lines.take().contains("look 1/2 S3"))
 
