@@ -2,7 +2,9 @@
 
    One statement per line; `#` starts a comment; blank lines are allowed.
      import <file>   a bare word or a double-quoted string
-     play [shuffle]  at most once, after every import
+     play            play the imported pairs in order
+     shuffle         play them in a fresh order each pass
+                     (one of the two, at most once, after every import)
    The parser emits JSON (show.h); the first error ends the parse. */
 %{
 #include <stdio.h>
@@ -16,11 +18,9 @@
 
 static void showyyerror(YYLTYPE *loc, struct show_ctx *ctx, const char *msg);
 static void emit(struct show_ctx *ctx, const char *prefix, const char *text);
-/* Two rules rather than one with an optional `shuffle`: each spelling of
-   the statement stays visible in the grammar and the value stack holds
-   only strings. (Neither shape makes bison name `shuffle` in the error
-   after `play <junk>`: the state after PLAY reduces by default.) */
-static void play(struct show_ctx *ctx, YYLTYPE *loc, int shuffle);
+/* `play` and `shuffle` are the two ways to say how the imported pairs are
+   played; either one ends the script's imports. */
+static void plays(struct show_ctx *ctx, YYLTYPE *loc, const char *word);
 static char *copy_prefix(const char *s, size_t n) {  /* strndup, which C11 lacks */
     char *out = malloc(n + 1);
     if (out) { memcpy(out, s, n); out[n] = '\0'; }
@@ -54,15 +54,19 @@ script
 statement
     : IMPORT WORD
         {
-            if (ctx->played) show_fail(ctx, @1.first_line, @1.first_column, "import after play");
+            if (ctx->played) {
+                char msg[32];
+                snprintf(msg, sizeof msg, "import after %s", ctx->played);
+                show_fail(ctx, @1.first_line, @1.first_column, msg);
+            }
             else if (!*$2) show_fail(ctx, @2.first_line, @2.first_column, "empty file name");
             else { char line[32]; snprintf(line, sizeof line, "{\"line\":%d,\"import\":", @1.first_line);
                    emit(ctx, line, $2); }
             free($2);
             if (ctx->error) YYABORT;
         }
-    | PLAY         { play(ctx, &@1, 0); if (ctx->error) YYABORT; }
-    | PLAY SHUFFLE { play(ctx, &@1, 1); if (ctx->error) YYABORT; }
+    | PLAY    { plays(ctx, &@1, "play");    if (ctx->error) YYABORT; }
+    | SHUFFLE { plays(ctx, &@1, "shuffle"); if (ctx->error) YYABORT; }
     ;
 
 %%
@@ -70,6 +74,22 @@ statement
 /* Bison's message, made to read well: an unexpected word is quoted as
    written, and "end of file" drops out of an expectation list that has
    anything else in it (it is always allowed between statements). */
+/* "a or b or c" -> "a, b or c": bison puts `or` between every pair of
+   alternatives, which reads worse the more the language grows. */
+static void commas(char *s) {
+    char *at = strstr(s, "expecting ");
+    if (!at) return;
+    int n = 0;
+    for (char *p = at; (p = strstr(p, " or ")) != NULL; p += 4) n++;
+    for (char *p = at; n > 1; n--) {
+        p = strstr(p, " or ");
+        p[0] = ',';
+        p[1] = ' ';
+        memmove(p + 2, p + 4, strlen(p + 4) + 1);
+        p += 2;
+    }
+}
+
 static void showyyerror(YYLTYPE *loc, struct show_ctx *ctx, const char *msg) {
     struct show_buf b = { NULL, 0, 0 };
     const char *word = strstr(msg, "unexpected word");
@@ -93,21 +113,23 @@ static void showyyerror(YYLTYPE *loc, struct show_ctx *ctx, const char *msg) {
         p = eof + strlen("expecting end of file or ");
     }
     show_buf_add(&b, p);
+    if (b.s) commas(b.s);
     show_fail(ctx, loc->first_line, loc->first_column, b.s);
     free(b.s);
 }
 
-static void play(struct show_ctx *ctx, YYLTYPE *loc, int shuffle) {
+static void plays(struct show_ctx *ctx, YYLTYPE *loc, const char *word) {
+    char text[64];
     if (ctx->played) {
-        show_fail(ctx, loc->first_line, loc->first_column, "play given twice");
+        if (strcmp(word, ctx->played) == 0) snprintf(text, sizeof text, "%s given twice", word);
+        else snprintf(text, sizeof text, "%s after %s", word, ctx->played);
+        show_fail(ctx, loc->first_line, loc->first_column, text);
         return;
     }
-    char line[64];
-    snprintf(line, sizeof line, "{\"line\":%d,\"play\":true,\"shuffle\":%s}",
-             loc->first_line, shuffle ? "true" : "false");
+    snprintf(text, sizeof text, "{\"line\":%d,\"%s\":true}", loc->first_line, word);
     show_buf_add(&ctx->out, ctx->out.len ? "," : "");
-    show_buf_add(&ctx->out, line);
-    ctx->played = 1;
+    show_buf_add(&ctx->out, text);
+    ctx->played = word;
 }
 
 static void emit(struct show_ctx *ctx, const char *prefix, const char *text) {

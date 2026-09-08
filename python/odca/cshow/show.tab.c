@@ -94,7 +94,7 @@
 
 
 /* Copy the first part of user declarations.  */
-#line 7 "show.y"
+#line 9 "show.y"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,11 +107,9 @@
 
 static void showyyerror(YYLTYPE *loc, struct show_ctx *ctx, const char *msg);
 static void emit(struct show_ctx *ctx, const char *prefix, const char *text);
-/* Two rules rather than one with an optional `shuffle`: each spelling of
-   the statement stays visible in the grammar and the value stack holds
-   only strings. (Neither shape makes bison name `shuffle` in the error
-   after `play <junk>`: the state after PLAY reduces by default.) */
-static void play(struct show_ctx *ctx, YYLTYPE *loc, int shuffle);
+/* `play` and `shuffle` are the two ways to say how the imported pairs are
+   played; either one ends the script's imports. */
+static void plays(struct show_ctx *ctx, YYLTYPE *loc, const char *word);
 static char *copy_prefix(const char *s, size_t n) {  /* strndup, which C11 lacks */
     char *out = malloc(n + 1);
     if (out) { memcpy(out, s, n); out[n] = '\0'; }
@@ -142,7 +140,7 @@ typedef union YYSTYPE
 #line 37 "show.y"
 { char *str; }
 /* Line 193 of yacc.c.  */
-#line 146 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.1zEn7L8TJx/show.tab.c"
+#line 144 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.7j6ocmI0K8/show.tab.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -167,7 +165,7 @@ typedef struct YYLTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 171 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.1zEn7L8TJx/show.tab.c"
+#line 169 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.7j6ocmI0K8/show.tab.c"
 
 #ifdef short
 # undef short
@@ -446,13 +444,13 @@ static const yytype_uint8 yyprhs[] =
 static const yytype_int8 yyrhs[] =
 {
        9,     0,    -1,    -1,     9,    10,     6,    -1,     3,     7,
-      -1,     4,    -1,     4,     5,    -1
+      -1,     4,    -1,     5,    -1
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    49,    49,    51,    55,    64,    65
+       0,    49,    49,    51,    55,    68,    69
 };
 #endif
 
@@ -485,7 +483,7 @@ static const yytype_uint8 yyr1[] =
 /* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
 static const yytype_uint8 yyr2[] =
 {
-       0,     2,     0,     3,     2,     1,     2
+       0,     2,     0,     3,     2,     1,     1
 };
 
 /* YYDEFACT[STATE-NAME] -- Default rule to reduce with in state
@@ -493,13 +491,13 @@ static const yytype_uint8 yyr2[] =
    means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       2,     0,     1,     0,     5,     0,     4,     6,     3
+       2,     0,     1,     0,     5,     6,     0,     4,     3
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-      -1,     1,     5
+      -1,     1,     6
 };
 
 /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
@@ -507,7 +505,7 @@ static const yytype_int8 yydefgoto[] =
 #define YYPACT_NINF -7
 static const yytype_int8 yypact[] =
 {
-      -7,     0,    -7,    -6,    -3,    -1,    -7,    -7,    -7
+      -7,     0,    -7,    -6,    -7,    -7,    -4,    -7,    -7
 };
 
 /* YYPGOTO[NTERM-NUM].  */
@@ -523,19 +521,19 @@ static const yytype_int8 yypgoto[] =
 #define YYTABLE_NINF -1
 static const yytype_uint8 yytable[] =
 {
-       2,     6,     7,     3,     4,     8
+       2,     7,     8,     3,     4,     5
 };
 
 static const yytype_uint8 yycheck[] =
 {
-       0,     7,     5,     3,     4,     6
+       0,     7,     6,     3,     4,     5
 };
 
 /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
    symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,     9,     0,     3,     4,    10,     7,     5,     6
+       0,     9,     0,     3,     4,     5,    10,     7,     6
 };
 
 #define yyerrok		(yyerrstatus = 0)
@@ -1060,7 +1058,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, ctx)
       case 7: /* "\"word\"" */
 #line 45 "show.y"
 	{ free((yyvaluep->str)); };
-#line 1064 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.1zEn7L8TJx/show.tab.c"
+#line 1062 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.7j6ocmI0K8/show.tab.c"
 	break;
 
       default:
@@ -1385,7 +1383,11 @@ yyreduce:
         case 4:
 #line 56 "show.y"
     {
-            if (ctx->played) show_fail(ctx, (yylsp[(1) - (2)]).first_line, (yylsp[(1) - (2)]).first_column, "import after play");
+            if (ctx->played) {
+                char msg[32];
+                snprintf(msg, sizeof msg, "import after %s", ctx->played);
+                show_fail(ctx, (yylsp[(1) - (2)]).first_line, (yylsp[(1) - (2)]).first_column, msg);
+            }
             else if (!*(yyvsp[(2) - (2)].str)) show_fail(ctx, (yylsp[(2) - (2)]).first_line, (yylsp[(2) - (2)]).first_column, "empty file name");
             else { char line[32]; snprintf(line, sizeof line, "{\"line\":%d,\"import\":", (yylsp[(1) - (2)]).first_line);
                    emit(ctx, line, (yyvsp[(2) - (2)].str)); }
@@ -1395,18 +1397,18 @@ yyreduce:
     break;
 
   case 5:
-#line 64 "show.y"
-    { play(ctx, &(yylsp[(1) - (1)]), 0); if (ctx->error) YYABORT; ;}
+#line 68 "show.y"
+    { plays(ctx, &(yylsp[(1) - (1)]), "play");    if (ctx->error) YYABORT; ;}
     break;
 
   case 6:
-#line 65 "show.y"
-    { play(ctx, &(yylsp[(1) - (2)]), 1); if (ctx->error) YYABORT; ;}
+#line 69 "show.y"
+    { plays(ctx, &(yylsp[(1) - (1)]), "shuffle"); if (ctx->error) YYABORT; ;}
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1410 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.1zEn7L8TJx/show.tab.c"
+#line 1412 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.7j6ocmI0K8/show.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1626,12 +1628,28 @@ yyreturn:
 }
 
 
-#line 68 "show.y"
+#line 72 "show.y"
 
 
 /* Bison's message, made to read well: an unexpected word is quoted as
    written, and "end of file" drops out of an expectation list that has
    anything else in it (it is always allowed between statements). */
+/* "a or b or c" -> "a, b or c": bison puts `or` between every pair of
+   alternatives, which reads worse the more the language grows. */
+static void commas(char *s) {
+    char *at = strstr(s, "expecting ");
+    if (!at) return;
+    int n = 0;
+    for (char *p = at; (p = strstr(p, " or ")) != NULL; p += 4) n++;
+    for (char *p = at; n > 1; n--) {
+        p = strstr(p, " or ");
+        p[0] = ',';
+        p[1] = ' ';
+        memmove(p + 2, p + 4, strlen(p + 4) + 1);
+        p += 2;
+    }
+}
+
 static void showyyerror(YYLTYPE *loc, struct show_ctx *ctx, const char *msg) {
     struct show_buf b = { NULL, 0, 0 };
     const char *word = strstr(msg, "unexpected word");
@@ -1655,21 +1673,23 @@ static void showyyerror(YYLTYPE *loc, struct show_ctx *ctx, const char *msg) {
         p = eof + strlen("expecting end of file or ");
     }
     show_buf_add(&b, p);
+    if (b.s) commas(b.s);
     show_fail(ctx, loc->first_line, loc->first_column, b.s);
     free(b.s);
 }
 
-static void play(struct show_ctx *ctx, YYLTYPE *loc, int shuffle) {
+static void plays(struct show_ctx *ctx, YYLTYPE *loc, const char *word) {
+    char text[64];
     if (ctx->played) {
-        show_fail(ctx, loc->first_line, loc->first_column, "play given twice");
+        if (strcmp(word, ctx->played) == 0) snprintf(text, sizeof text, "%s given twice", word);
+        else snprintf(text, sizeof text, "%s after %s", word, ctx->played);
+        show_fail(ctx, loc->first_line, loc->first_column, text);
         return;
     }
-    char line[64];
-    snprintf(line, sizeof line, "{\"line\":%d,\"play\":true,\"shuffle\":%s}",
-             loc->first_line, shuffle ? "true" : "false");
+    snprintf(text, sizeof text, "{\"line\":%d,\"%s\":true}", loc->first_line, word);
     show_buf_add(&ctx->out, ctx->out.len ? "," : "");
-    show_buf_add(&ctx->out, line);
-    ctx->played = 1;
+    show_buf_add(&ctx->out, text);
+    ctx->played = word;
 }
 
 static void emit(struct show_ctx *ctx, const char *prefix, const char *text) {

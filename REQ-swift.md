@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.30.0 — 2026-09-08 (`play shuffle`; 3.28.0: play scripts: `Show`, the `CShow` target; 3.26.0: pairs, named; 2-point default; 3.24.0: navigation scrolls the pair in; 3.22.0: a mutated pair saves as a new pair; 3.20.0: `--3`; 3.18.0: `U` undoes all; 3.16.0: `m` edits the pair under review; 3.14.0: `--watchdog`, `--grace`; 3.12.0: shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.32.0 — 2026-09-08 (`shuffle` a statement of its own; 3.30.0: a script shuffles its pairs; 3.28.0: play scripts: `Show`, the `CShow` target; 3.26.0: pairs, named; 2-point default; 3.24.0: navigation scrolls the pair in; 3.22.0: a mutated pair saves as a new pair; 3.20.0: `--3`; 3.18.0: `U` undoes all; 3.16.0: `m` edits the pair under review; 3.14.0: `--watchdog`, `--grace`; 3.12.0: shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -94,7 +94,7 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   `--shuffle`, `Array.shuffle(using:)` on the session RNG redrawn while
   the first file with pairs is the one just played (`playSegment`);
   `playPair(at:)` announces `playing <file>` when the segment changes in
-  a show of more than one. A segment whose script said `play shuffle`
+  a show of more than one. A segment whose script said `shuffle`
   (R-X7) has its own pair indices shuffled into the pass instead,
   `Array.shuffle(using:)` on the session RNG redrawn up to
   `shuffleTries` (100) times until `noRepeats` holds: no two consecutive

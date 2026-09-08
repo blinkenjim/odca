@@ -5,9 +5,34 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.32.0 (Swift) and 3.33.0 (Python) — 2026-09-08
+
+Two small corrections to yesterday's pair.
+
+`shuffle` is a statement of its own, not a word after `play`: both are
+verbs, and a script says one of them about the pairs it imported. So
+the script reads
+
+```
+import interesting.odca
+shuffle
+```
+
+and `play shuffle` is now a syntax error. A script says `play` or
+`shuffle`, at most once, never both, and gets told which it repeated:
+`shuffle after play`, `play given twice`. Error messages listing
+several possibilities now read `expecting import, play or shuffle`
+rather than stringing `or` between every pair.
+
+The Python program sets line buffering on its output, as the Swift one
+already did, so `odca show.play > log` writes each line as it happens
+instead of holding them in a buffer. `PYTHONUNBUFFERED=1` is no longer
+needed to watch a piped run.
+
 ## 3.30.0 (Swift) and 3.31.0 (Python) — 2026-09-08
 
-The script's second word: `play shuffle`.
+The script's second word: `play shuffle` (renamed to `shuffle` in
+3.32.0; read it that way below).
 
 ```
 import interesting.odca
@@ -27,9 +52,9 @@ first pair of the shuffled script is checked against the last pair of
 the file before it, not just against its own.
 
 The two shuffles are now clearly different things. `--shuffle` on the
-command line orders the *files*; `play shuffle` in a script orders
-*its own pairs*. They compose. The entry line says which files are
-shuffled: `odca my-show.play: 28 pairs, shuffled`.
+command line orders the *files*; the script statement orders *its own
+pairs*. They compose. The entry line says which files are shuffled:
+`odca my-show.play: 28 pairs, shuffled`.
 
 `import`, `play`, and `shuffle` are reserved words now, so a file
 actually named `shuffle` has to be quoted.

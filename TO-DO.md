@@ -1,11 +1,13 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-08):** Spec 3.30.0, Swift 3.30.0, Python
-3.31.0: the show script has `import <file>` and `play [shuffle]`
-(R-X7). `odca` plays a show of one or more files, each a play script
+**YOU ARE HERE (2026-09-08):** Spec 3.32.0, Swift 3.32.0, Python
+3.33.0: the show script has `import <file>`, `play`, and `shuffle`
+(R-X7; the user, 2026-09-08: "the shuffle is a verb, so it's not `play
+shuffle` but simply `shuffle`" — both words are verbs, a script says
+one of them). Python now line-buffers its output as Swift does. `odca` plays a show of one or more files, each a play script
 (`.play`, `#` comments) or an odca file, which plays as a script that
 imports it. `--shuffle` on the command line draws the order of the
-*files* per pass (never the same file twice running); `play shuffle` in
+*files* per pass (never the same file twice running); `shuffle` in
 a script draws the order of *its own pairs* per pass, under the 3.12.0
 constraints (no rule and no color set follows itself, seams across
 files included, a hundred draws then the last one). The parser is one
@@ -305,7 +307,7 @@ viewer sees. Roadmap, roughly in order:
       once in every mode (R-K20); awaiting the user's word.
 - [ ] Scriptable screensaver mode (the interactive mode absorbs the same
       ability). In progress since 3.28.0: play scripts (`import`,
-      `play [shuffle]`; R-X7) on a flex/bison C parser shared by both
+      `play`, `shuffle`; R-X7) on a flex/bison C parser shared by both
       implementations (`script/`), grown by experimentation, one
       statement at a time; candidates next: `watchdog N` and `grace N`,
       then pools, events, and transitions. The vision, as

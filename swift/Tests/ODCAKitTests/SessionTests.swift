@@ -981,7 +981,7 @@ final class SessionTests: XCTestCase {
         let file = odcaFile(store, name: "six.odca")
         Store.saveOdcaFile(pairs, to: file)
         let script = file.deletingLastPathComponent().appendingPathComponent("six.play")
-        try "import six.odca\nplay shuffle\n".write(to: script, atomically: true, encoding: .utf8)
+        try "import six.odca\nshuffle\n".write(to: script, atomically: true, encoding: .utf8)
         let session = makeSession(store, lines: lines, show: try Show.load([script]))
         XCTAssertFalse(session.shuffle)  // the script asked, not the command line
         XCTAssertTrue(lines.take().contains("odca six.play: 6 pairs, shuffled"))  // R-O13
@@ -1002,7 +1002,7 @@ final class SessionTests: XCTestCase {
         XCTAssertFalse(lines.take().contains(", shuffled"))
         // No order can avoid a repeat: the requirement is dropped and the show goes on.
         Store.saveOdcaFile([Pair(rule: a.id, colorset: "X", colors: x), Pair(rule: a.id, colorset: "Y", colors: y)], to: file)
-        try "import six.odca\nplay shuffle\n".write(to: script, atomically: true, encoding: .utf8)
+        try "import six.odca\nshuffle\n".write(to: script, atomically: true, encoding: .utf8)
         let small = makeSession(store, show: try Show.load([script]))
         var pair = [small.pairIndex!]
         for _ in 0..<5 { _ = small.handleKey(.N); pair.append(small.pairIndex!) }
@@ -1021,7 +1021,7 @@ final class SessionTests: XCTestCase {
         Store.saveOdcaFile([Pair(rule: b.id, colorset: "Y", colors: y),
                             Pair(rule: a.id, colorset: "X", colors: x)], to: shuffledFile)
         let script = shuffledFile.deletingLastPathComponent().appendingPathComponent("two.play")
-        try "import two.odca\nplay shuffle\n".write(to: script, atomically: true, encoding: .utf8)
+        try "import two.odca\nshuffle\n".write(to: script, atomically: true, encoding: .utf8)
         let session = makeSession(store, show: try Show.load([plainFile, script]))
         for _ in 0..<20 {  // the clashing pair never opens the file
             XCTAssertEqual(session.playOrder.dropFirst().map { [$0.segment, $0.index] }, [[1, 1], [1, 0]])

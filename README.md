@@ -76,7 +76,7 @@ There are two programs, sharing the engine and most of the keyboard:
   keep their colors. The files play in turn, each its pairs in order;
   `--shuffle` draws a fresh order of the files each pass (never the same
   file twice running) and leaves the pairs within a file in the order
-  their script asks for;
+  its script asks for;
   `--fullscreen` opens full screen at once, for unattended runs;
   `--watchdog` and `--grace` set the two clocks in whole seconds (120 and
   60 by default).
@@ -98,19 +98,20 @@ A **play script** (`.play`) says what to play, one statement per line,
 # my-show.play
 import interesting.odca        # relative to the script's directory
 import "sunday pairs.odca"     # quote a name with spaces
-play shuffle                   # every pair imported above, once each
+shuffle                        # every pair imported above, once each
 ```
 
-`play` alone plays them in the order they were imported. `play shuffle`
-draws a fresh order each pass in which no rule and no color set follows
-itself, the seam between passes included, so nothing repeats where the
-eye would notice.
+`play` plays them in the order they were imported. `shuffle` says the
+same thing but draws a fresh order each pass, in which no rule and no
+color set follows itself, the seam between passes included, so nothing
+repeats where the eye would notice. A script says one of the two, and
+one of them ends its imports.
 
 `odca my-show.play` plays it; `odca a.play b.play c.odca --shuffle`
 plays three files in a fresh order each pass. A script that never says
 `play` plays nothing, and the first error (a misspelled statement, a
 missing import) stops `odca` with the line and column before any window
-opens. That is the whole language so far, `import` and `play [shuffle]`; it
+opens. That is the whole language so far, `import`, `play`, and `shuffle`; it
 grows by increments (see
 `REQTS.md` R-X7 and `TO-DO.md`). The parser is one C program generated
 by flex and bison from `script/` and shared by both implementations.

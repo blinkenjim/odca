@@ -9,7 +9,7 @@ struct show_ctx {
     void *scanner;
     int line, col;        /* position of the next token, from 1 */
     int pending;          /* a statement is open on the current line: its end of line is due */
-    int played;           /* a play statement has been seen */
+    const char *played;   /* the play statement seen, "play" or "shuffle", else NULL */
     struct show_buf out;  /* the statements, as JSON, comma separated */
     char *error;          /* the first error's message, or NULL */
     int error_line, error_column;

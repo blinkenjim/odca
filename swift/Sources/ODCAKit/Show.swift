@@ -25,7 +25,8 @@ public struct ShowError: Error, Equatable, CustomStringConvertible {
 /// A play script statement (R-X7).
 public enum Statement: Equatable {
     case `import`(line: Int, file: String)
-    case play(line: Int, shuffle: Bool)
+    case play(line: Int)
+    case shuffle(line: Int)
 }
 
 /// Play scripts (R-X7) and the show odca plays (R-X1). The parser is one C
@@ -47,8 +48,9 @@ public enum Show {
             throw ShowError("\(root["line"] as! Int):\(root["column"] as! Int): \(root["message"] as! String)")
         }
         return (root["statements"] as! [[String: Any]]).map { s in
-            if let file = s["import"] as? String { return .import(line: s["line"] as! Int, file: file) }
-            return .play(line: s["line"] as! Int, shuffle: s["shuffle"] as! Bool)
+            let line = s["line"] as! Int
+            if let file = s["import"] as? String { return .import(line: line, file: file) }
+            return s["shuffle"] != nil ? .shuffle(line: line) : .play(line: line)
         }
     }
 
@@ -59,10 +61,10 @@ public enum Show {
     }
 
     /// What a script plays (R-X7): every pair of every imported odca file in
-    /// import order, or none when the script never says `play`, and whether
-    /// that `play` said `shuffle`. Imports are relative to the script's
-    /// directory. Messages name the script as it was given (a relative path
-    /// stays relative, as in Python).
+    /// import order, or none when the script says neither `play` nor
+    /// `shuffle`, and which of the two it said. Imports are relative to the
+    /// script's directory. Messages name the script as it was given (a
+    /// relative path stays relative, as in Python).
     public static func loadScript(_ url: URL) throws -> (pairs: [Pair], shuffle: Bool) {
         guard let text = try? String(contentsOf: url, encoding: .utf8) else {
             throw ShowError("\(url.relativePath): cannot read")
@@ -80,9 +82,11 @@ public enum Show {
                 }
                 guard isOdcaFile(target) else { throw ShowError("\(url.relativePath):\(line): \(name) is not an odca file") }
                 pairs += Store.loadOdcaFile(target) ?? []
-            case .play(_, let wantsShuffle):
+            case .play:
                 plays = true
-                shuffle = wantsShuffle
+            case .shuffle:
+                plays = true
+                shuffle = true
             }
         }
         return plays ? (pairs, shuffle) : ([], false)
