@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-CELL_FLAGS = ("--4", "--2", "--1")  # pixels per cell for the run, both programs (R-U2)
+CELL_FLAGS = ("--4", "--3", "--2", "--1")  # pixels per cell for the run, both programs (R-U2)
 
 
 def parse(argv, program, help_text, flags=(), options=()):

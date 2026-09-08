@@ -5,7 +5,7 @@ conformance/help-odca.txt and conformance/help-odca-select.txt.
 HELP_ODCA = """\
 odca: one-dimensional cellular automata as art
 
-usage: odca <file.odca> [--shuffle] [--fullscreen] [--4 | --2 | --1]
+usage: odca <file.odca> [--shuffle] [--fullscreen] [--4 | --3 | --2 | --1]
             [--watchdog SECONDS] [--grace SECONDS]
        odca --help
 
@@ -21,9 +21,9 @@ in from a fresh field below the old rows, which keep their colors.
                 (a file too small to allow that plays a plain shuffle)
   --fullscreen  open the window full screen, for unattended runs; the
                 platform's own control leaves it, as it entered it before
-  --4 / --2 / --1
-                cells 4 (the default), 2, or 1 points on a side (pixels,
-                in the Python version)
+  --4 / --3 / --2 / --1
+                cells 4 (the default), 3, 2, or 1 points on a side
+                (pixels, in the Python version)
   --watchdog SECONDS
                 a look's screen time before it may hand over: whole
                 seconds, 120 by default
@@ -51,7 +51,7 @@ rule and the candidate stash.
 HELP_ODCA_SELECT = """\
 odca-select: compose looks for odca
 
-usage: odca-select <file.odca> [--4 | --2 | --1]
+usage: odca-select <file.odca> [--4 | --3 | --2 | --1]
        odca-select --help
 
 Shows random rules that passed the maybe-Class-IV screen, lets you dress
@@ -61,9 +61,9 @@ every change and at exit. Looks already in the file are reached with n and
 p, which cycle through them and one extra slot holding the unsaved rule
 you were exploring; every step fills the screen with the selected look.
 
-  --4 / --2 / --1
-                cells 4 (the default), 2, or 1 points on a side (pixels,
-                in the Python version)
+  --4 / --3 / --2 / --1
+                cells 4 (the default), 3, 2, or 1 points on a side
+                (pixels, in the Python version)
 
 Keys:
   q     quit                            space   pause / resume

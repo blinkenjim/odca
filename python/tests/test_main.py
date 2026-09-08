@@ -29,7 +29,7 @@ def test_help_prints_and_exits_zero(main, text, capsys, tmp_path, monkeypatch): 
 def test_usage_errors(capsys, tmp_path):  # R-W1, R-X1
     with pytest.raises(SystemExit) as e:
         play_main([])
-    assert e.value.code == 2 and "usage: odca <file.odca> [--shuffle] [--fullscreen] [--4] [--2] [--1] [--watchdog N] [--grace N]" in capsys.readouterr().out
+    assert e.value.code == 2 and "usage: odca <file.odca> [--shuffle] [--fullscreen] [--4] [--3] [--2] [--1] [--watchdog N] [--grace N]" in capsys.readouterr().out
     with pytest.raises(SystemExit) as e:
         play_main([str(tmp_path / "nope.odca")])
     assert e.value.code == 1 and "does not exist" in capsys.readouterr().out
@@ -77,6 +77,7 @@ def test_initial_delay_follows_the_cell_size():  # R-U5
     from odca.session import INITIAL_DELAY
     assert initial_delay(4) == INITIAL_DELAY
     assert initial_delay(2) == INITIAL_DELAY / 2 and initial_delay(1) == INITIAL_DELAY / 4
+    assert initial_delay(3) == INITIAL_DELAY * 3 / 4  # in proportion to the cell
 
 
 def test_cell_size_flags(monkeypatch, tmp_path, capsys):  # R-U2
@@ -86,7 +87,8 @@ def test_cell_size_flags(monkeypatch, tmp_path, capsys):  # R-U2
     select.main(["--2", "x.odca"])
     select.main(["x.odca", "--4"])
     select.main(["x.odca"])
-    assert calls == [2, 4, 4]
+    select.main(["x.odca", "--3"])
+    assert calls == [2, 4, 4, 3]
     with pytest.raises(SystemExit) as e:
         select.main(["x.odca", "--2", "--1"])  # at most one
-    assert e.value.code == 2 and "choose one of --4, --2, --1" in capsys.readouterr().out
+    assert e.value.code == 2 and "choose one of --4, --3, --2, --1" in capsys.readouterr().out
