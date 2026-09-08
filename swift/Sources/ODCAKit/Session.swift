@@ -25,7 +25,7 @@ public struct RGB: Equatable {
 /// translates toolkit key events into `Session.Key`, calls `tick(_:)` at
 /// its refresh rate, and draws `history` through `paletteTable` and `rowPalettes`
 /// (inverted while `inverted`). Programs: odca-select (`selectFile`, section
-/// 4c), odca (`playFile`, section 4d); color set review (`reviewMode`,
+/// 4c), odca (`show`, section 4d); color set review (`reviewMode`,
 /// section 4b) is on hold and bound by no program.
 /// See REQTS sections R-U, R-K, R-B, R-A, R-P, R-O.
 public final class Session {
@@ -43,7 +43,6 @@ public final class Session {
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
     public static let playTimeout = 120.0  // odca: a pair's screen time before it may advance (R-X3)
     public static let playGrace = 60.0  // odca: no transition within this long of an initialization (R-X3)
-    public static let shuffleTries = 100  // odca --shuffle: draws tried for an order without repeats (R-X1)
     public static let flashSeconds = 0.25  // the screen inverts this long as a mode cue (R-U10)
     public static let historyDepth = 2048  // rows remembered beyond the screen (R-U8)
     public static let paletteLimit = 64  // odca: prune the per-row palette table past this (R-X5)
@@ -123,11 +122,13 @@ public final class Session {
     public private(set) var grouped = false  // R: n/p order grouped by rule (R-W7)
     public private(set) var unsavedRule: Rule?
     public private(set) var unsavedSet: ColorSetEntry?  // the set shown with the unsaved rule (R-B3)
-    // odca (R-X): play the pairs of a file in order, or shuffled per pass.
-    public let playFile: URL?
+    // odca (R-X): play a show, one segment per command-line file (Show.load),
+    // the files in turn or in a fresh shuffled order per pass.
+    public let show: [Segment]?
     public let shuffle: Bool
-    public private(set) var playOrder: [Int] = []  // file indices in the order of the current pass
+    public private(set) var playOrder: [(segment: Int, index: Int)] = []  // the pairs of the current pass, in order
     public private(set) var playPosition: Int?
+    public private(set) var playSegment: Int?  // the segment (command-line file) of the pair playing
     public private(set) var playElapsed = 0.0  // unpaused seconds on the current pair
     public private(set) var sinceInit = 0.0  // unpaused seconds since the last (re)initialization
     public private(set) var activeSet: ColorSetEntry?  // the set in use (any pool member)
@@ -165,7 +166,7 @@ public final class Session {
     public init(
         cols: Int, rows: Int, store: Store = Store(),
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
-        reviewMode: Bool = false, selectFile: URL? = nil, playFile: URL? = nil, shuffle: Bool = false,
+        reviewMode: Bool = false, selectFile: URL? = nil, show: [Segment]? = nil, shuffle: Bool = false,
         initialDelay: Double = Session.initialDelay,
         playTimeout: Double = Session.playTimeout, playGrace: Double = Session.playGrace,
         output: @escaping (String) -> Void = { print($0) }
@@ -179,10 +180,10 @@ public final class Session {
         self.store = store
         self.search = search
         // Program precedence: odca (play), then odca-select, then color set review.
-        self.playFile = playFile
-        self.shuffle = shuffle && playFile != nil
-        let selectFile = playFile == nil ? selectFile : nil
-        self.reviewMode = reviewMode && selectFile == nil && playFile == nil
+        self.show = show
+        self.shuffle = shuffle && show != nil
+        let selectFile = show == nil ? selectFile : nil
+        self.reviewMode = reviewMode && selectFile == nil && show == nil
         self.selectFile = selectFile
         self.output = output
         var rng = rng
@@ -208,11 +209,11 @@ public final class Session {
         output("rule \(rule.id)")
         if reviewMode { loadReview() }
         if let url = selectFile { loadSelect(url) }
-        if let url = playFile { loadPlay(url) }
+        if show != nil { loadPlay() }
     }
 
     public var selectMode: Bool { selectFile != nil }
-    public var playMode: Bool { playFile != nil }
+    public var playMode: Bool { show != nil }
     /// The display shows inverted colors while a flash runs (R-U10).
     public var inverted: Bool { flashRemaining > 0 }
 
@@ -630,42 +631,38 @@ public final class Session {
 
     // MARK: - odca (R-X)
 
-    private func loadPlay(_ url: URL) {  // R-X1
-        pairs = Store.loadOdcaFile(url) ?? []
-        output("odca \(url.lastPathComponent): \(pairs.count) pairs")  // R-O13
-        if !pairs.isEmpty {
+    private func loadPlay() {  // R-X1
+        for segment in show! { output("odca \(segment.file): \(segment.pairs.count) pairs") }  // R-O13
+        pairs = []
+        if show!.contains(where: { !$0.pairs.isEmpty }) {
             newPass()
-            playPair(playOrder[0], reason: nil)
+            playPair(at: 0, reason: nil)
         }
     }
 
-    /// File order, or a fresh shuffle per pass (R-X1): a permutation in which
-    /// no rule and no color set follows itself, the seam from the pair just
-    /// played included; a file that allows no such order plays the last draw.
+    /// The files in command-line order, or a fresh shuffle of them per pass
+    /// (R-X1): never the same file twice running, the seam from the file
+    /// just played included (unless it is the only one with pairs).
     private func newPass() {
-        var order = Array(pairs.indices)
-        if shuffle && pairs.count > 1 {
-            for _ in 0..<Session.shuffleTries {
+        let show = self.show!
+        var order = Array(show.indices)
+        if shuffle && show.count > 1 {
+            let playable = order.filter { !show[$0].pairs.isEmpty }
+            repeat {
                 order.shuffle(using: &rng)
-                if noRepeats(order, after: pairIndex) { break }
-            }
+            } while playable.count >= 2 && order.first { !show[$0].pairs.isEmpty } == playSegment
         }
-        playOrder = order
+        playOrder = order.flatMap { seg in show[seg].pairs.indices.map { (segment: seg, index: $0) } }
         playPosition = 0
     }
 
-    private func noRepeats(_ order: [Int], after previous: Int?) -> Bool {
-        let chain = (previous.map { [$0] } ?? []) + order
-        return zip(chain, chain.dropFirst()).allSatisfy { !clash($0, $1) }
-    }
-
-    /// Two pairs repeat if they share the rule or the color set (in any arrangement).
-    private func clash(_ a: Int, _ b: Int) -> Bool {
-        pairs[a].rule == pairs[b].rule || pairs[a].colors.sorted() == pairs[b].colors.sorted()
-    }
-
     /// Activate a pair for play: its rule and colors, then a fresh seed (R-X4).
-    private func playPair(_ index: Int, reason: String?) {
+    private func playPair(at position: Int, reason: String?) {
+        let (segment, index) = playOrder[position]
+        playPosition = position
+        let entered = segment != playSegment
+        playSegment = segment
+        pairs = show![segment].pairs
         let pair = pairs[index]
         pairIndex = index
         if let rule = try? Rule(id: pair.rule), rule != automaton.rule { setRule(rule) }
@@ -673,24 +670,27 @@ public final class Session {
         showColors(name: pair.colorset, colors: pair.colors)
         initCells()
         playElapsed = 0  // the pair's screen time starts now
+        if entered && show!.count > 1 { output("playing \(show![segment].file)") }  // R-O13: another file
         let why = reason.map { " (\($0))" } ?? ""
         output("pair \(index + 1)/\(pairs.count) \(label(pair))\(why)")  // R-O13
     }
 
     private func nextPlayPair(reason: String) {  // R-X2, R-X3: on through the pass, then a new pass
-        playPosition = (playPosition ?? -1) + 1
-        if playPosition! >= playOrder.count { newPass() }
-        playPair(playOrder[playPosition!], reason: reason)
+        var position = (playPosition ?? -1) + 1
+        if position >= playOrder.count {
+            newPass()
+            position = 0
+        }
+        playPair(at: position, reason: reason)
     }
 
     private func playStep(_ step: Int) {  // R-X6: N/P move through the pass by hand, wrapping
-        guard !pairs.isEmpty else { return }
+        guard !playOrder.isEmpty else { return }
         if step > 0 {
             nextPlayPair(reason: "next")
         } else {
             let n = playOrder.count
-            playPosition = (((playPosition ?? 0) - 1) % n + n) % n
-            playPair(playOrder[playPosition!], reason: "previous")
+            playPair(at: (((playPosition ?? 0) - 1) % n + n) % n, reason: "previous")
         }
     }
 
@@ -764,7 +764,7 @@ public final class Session {
         }
         if autoInit && boringStreak >= rows {
             let reason = boringReason ?? "boring"
-            if playMode && !pairs.isEmpty && playElapsed >= playTimeout {
+            if playMode && !playOrder.isEmpty && playElapsed >= playTimeout {
                 nextPlayPair(reason: reason)  // R-X3: watchdog expired, a re-init transitions
             } else {
                 initCells()
@@ -876,7 +876,7 @@ public final class Session {
         let steps = Int(accumulated / delay)
         accumulated -= Double(steps) * delay
         for _ in 0..<min(steps, Session.stepCap) { advance() }
-        if playMode && !pairs.isEmpty  // R-X3: watchdog expired and the grace period observed
+        if playMode && !playOrder.isEmpty  // R-X3: watchdog expired and the grace period observed
             && playElapsed >= playTimeout && sinceInit >= playGrace {
             nextPlayPair(reason: "timeout")
         }

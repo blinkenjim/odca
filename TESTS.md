@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.26.0 — 2026-09-08
+Version 3.28.0 — 2026-09-08
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -59,6 +59,15 @@ reversed-row cases) and both edge modes.
 R-U4 table of `REQTS.md`, slot by slot, name and colors; the reference
 suite parses the table and compares (PT-37).
 
+**Files:** `conformance/scripts/<case>.play` with `<case>.json` — the
+play script cases (R-X7): each `.json` is the shared parser's output for
+the `.play` beside it, byte for byte, plus one newline —
+`{"ok":true,"statements":[...]}` or `{"ok":false,"line":L,"column":C,
+"message":"..."}`. Produced by `script/regen`'s parser; adding a case or
+changing the grammar is a spec change. Every implementation parses each
+`.play` and compares (PT-38); the two checked-in copies of the generated
+C (`swift/Sources/CShow/`, `python/odca/cshow/`) must be identical.
+
 **Files:** `conformance/help-odca.txt` and `conformance/help-odca-select.txt`
 — the normative `--help` texts (R-U9), printed byte for byte by every
 implementation. Editing one is a spec change (bump `REQTS.md`). Each
@@ -110,9 +119,10 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-32 | R-U8 | After 40 generations at 32 × 16: narrowing to 20 keeps the middle 20 cells of the live row and of every remembered row, keeps the history, resets the boring count, and prints `resized 20x16`; widening to 30 keeps those 20 centered with state-0 padding in old rows and random cells in the live row; a taller window shows the last rows + 1 remembered rows; a no-op resize returns false; sizes clamp to the minimum. The history never exceeds 2048 rows. |
 | PT-34 | R-K5, R-B2, R-B3 | In `odca-select`, `S` appends the current rule with the active set's name and arranged colors and prints it; `n` onto that pair restores both the rule and the colors; stepping onto the unsaved slot restores the unsaved rule with the set that was active when it arrived. Opening on pair 1 of a two-pair file, a digit and `s` rewrite pair 1's colors in place (`saved pair 1/2`); `m` keeps the position on pair 1 and leaves the unsaved slot empty, `u` walks it back there; a second `m`, a digit, and `s` append the screen as pair 3 with the mutated rule and the new set (`added pair 3/3`), pair 1 keeping its rule, and the position moves onto pair 3 where `U` has nothing to unwind and a digit and `s` refine it in place (`saved pair 3/3`); a further `m` is discarded by `n` then `p`; `r` moves to the unsaved slot as before, and `m` there stays there. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
-| PT-35 | R-U9 | Each program's embedded help text equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1; `odca` accepts `--shuffle` and `--fullscreen` in either position and `odca-select` rejects both as unknown; both accept one of `--4` / `--3` / `--2` / `--1` in either position, and two of them exit 2 with a one-line message (R-U2); `odca` takes `--watchdog N` and `--grace N` in either position, and a missing value, a non-number, `0`, or a fraction exits 2 with a one-line message; `odca-select` rejects them as unknown. |
+| PT-35 | R-U9 | Each program's embedded help text equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1; `odca` with a missing file among several exits 1 naming it, and `odca-select` given two files exits 2 with its usage line; `odca` accepts `--shuffle` and `--fullscreen` in either position and `odca-select` rejects both as unknown; both accept one of `--4` / `--3` / `--2` / `--1` in either position, and two of them exit 2 with a one-line message (R-U2); `odca` takes `--watchdog N` and `--grace N` in either position, and a missing value, a non-number, `0`, or a fraction exits 2 with a one-line message; `odca-select` rejects them as unknown. |
 | PT-37 | R-U4, R-P4 | The digit-bound sets of the shipped `library.json` equal the R-U4 table of `REQTS.md`: same slots, names, and colors in state order. |
-| PT-36 | R-X1 | With six pairs on three rules, two each, and three color sets, two each (one of them arranged differently in its second pair), `--shuffle`: over ten passes every pass plays each pair exactly once, and no two consecutive pairs in the whole sequence, pass seams included, share a rule or a color set in any arrangement; `P` steps back within the pass; without the flag the order is file order. With two pairs on one rule, every pass is still a permutation and play continues (the requirement is dropped after a hundred draws). |
+| PT-36 | R-X1, R-O13 | With three odca files of two, one, and three pairs, `--shuffle`: entry prints `odca <file>: <n> pairs` for each in command-line order, then `playing <file>` before the first pair line; over ten passes (`N` fifty-nine times) every pass plays every file once, each file whole with its pairs in file order, no pass opens with the file that closed the one before, the orders differ between passes, and `playing <file>` precedes every change of file; `P` steps back within the pass. Without the flag the order is command-line order. With one file with pairs between two empty ones, it plays on. With a single file, `playing` is never printed and every pass is file order. |
+| PT-38 | R-X7, R-X1 | The parser gives `import a.odca` / `play` as statements with their line numbers, an empty or comment-only script as none, and a second `play` as the error `3:1: play given twice`. A script in a subdirectory imports `../one.odca` and `"two pairs.odca"` relative to itself and plays their pairs in import order; imports without `play`, and `play` without imports, play nothing; a missing import fails as `<script>:<line>: cannot read <file>`, a text file as `<script>:<line>: <file> is not an odca file`, an import after `play` as `<script>:3:1: import after play`, and an unreadable script as `<script>: cannot read`. `load` gives one segment per command-line file in order — a script's pairs, an odca file's own pairs, an empty file's none — and reads any extension but `.odca` as a script. `odca` given a script and an odca file passes both segments to the session in order; a script error exits 1 with `error: <script>:<line>: cannot read <file>`, a syntax error with `error: <script>:<line>:<column>: <message>`, before any window. |
 
 ---
 
@@ -147,8 +157,9 @@ from `REQTS.md`.
   exit at once, with no window, no toolkit banner, and no change to
   `~/.odca`; `odca` alone prints a usage line (R-U9).
 - **M-12** `odca interesting.odca` plays the shipped pairs two minutes
-  each with the old rows keeping their colors; `--shuffle` plays them in a
-  different order each pass (R-X).
+  each with the old rows keeping their colors; `odca a.play b.odca
+  --shuffle` plays the files in a different order each pass, each file's
+  pairs in order, announcing `playing <file>` at each change (R-X).
 - **M-13** The default run holds 600 × 400 cells in the 1200×800 window;
   `--4`, `--3`, and `--1` hold 300 × 200, 400 × 266 (a 1-point margin
   top and bottom), and 1200 × 800, crisp at every size and in full

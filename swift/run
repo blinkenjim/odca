@@ -4,8 +4,8 @@
 # sources changed, then runs the binary with the remaining arguments. File
 # paths are relative to where you run this from, not to this script.
 #
-#   swift/run odca interesting.odca [--shuffle] [--fullscreen]
-#   swift/run odca-select my-looks.odca
+#   swift/run odca show.play [more files] [--shuffle] [--fullscreen]
+#   swift/run odca-select my-pairs.odca
 #   swift/run test               # the test suite
 set -e
 dir="$(cd "$(dirname "$0")" && pwd)"

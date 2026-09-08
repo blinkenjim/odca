@@ -1,0 +1,5 @@
+# A show: every pair of two files, in this order.
+import interesting.odca
+
+import "more pairs.odca"   # names with spaces are quoted
+play

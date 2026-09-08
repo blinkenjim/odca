@@ -2,12 +2,14 @@ import AppKit
 import ODCAKit
 
 /// Shared command-line handling for odca and odca-select (R-U9, R-W1, R-X1):
-/// `--help` prints and exits before anything else; the one positional
-/// argument is the odca file; unknown options and a missing file argument
-/// are usage errors (exit 2). `options` take the next argument as their
-/// value; one without a value is a usage error.
-public func parseArguments(program: String, help: String, flags: [String] = [], options: [String] = [])
-    -> (file: URL, flags: Set<String>, options: [String: String]) {
+/// `--help` prints and exits before anything else; the positional
+/// arguments are files, exactly one or, with `many`, one or more, in
+/// order; none, or too many, and unknown options are usage errors (exit
+/// 2). `options` take the next argument as their value; one without a
+/// value is a usage error.
+public func parseArguments(program: String, help: String, flags: [String] = [], options: [String] = [],
+                           positional: String = "<file.odca>", many: Bool = false)
+    -> (files: [URL], flags: Set<String>, options: [String: String]) {
     setlinebuf(stdout)  // status lines (R-O) arrive promptly even when piped or logged
     let args = Array(CommandLine.arguments.dropFirst())
     if args.contains("--help") {
@@ -37,12 +39,12 @@ public func parseArguments(program: String, help: String, flags: [String] = [], 
         }
         i += 1
     }
-    guard files.count == 1 else {
+    guard !files.isEmpty, files.count == 1 || many else {
         let usage = flags.map { " [\($0)]" }.joined() + options.map { " [\($0) N]" }.joined()
-        print("usage: \(program) <file.odca>\(usage)")
+        print("usage: \(program) \(positional)\(usage)")
         exit(2)
     }
-    return (URL(fileURLWithPath: files[0]), given, values)
+    return (files.map { URL(fileURLWithPath: $0) }, given, values)
 }
 
 /// A positive whole number of seconds given to `option`, or `default` (R-X2, R-X3).

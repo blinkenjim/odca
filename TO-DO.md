@@ -1,15 +1,24 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-08):** Spec 3.26.0, Swift 3.26.0, Python
-3.27.0: "look" is "pair" throughout, pairs are named `pair-NNNN` by
-odca-select (the hook the scripting needs), and `--2` is the default
-cell size. Next: the show script, evolved by experimentation (user,
-2026-09-08) on flex/bison generating one C parser that emits JSON, used
-by Swift as a C target and by Python through ctypes (probed, both sides
-byte-identical; ANTLR rejected for needing Java; see the item below).
-The first increment does only what the command line does: `play
-<file.odca>`, `shuffle`, `watchdog N`, `grace N`, `#` comments; `odca
-<file.show>` runs it, told apart by content. Before that, 3.24.0 /
+**YOU ARE HERE (2026-09-08):** Spec 3.28.0, Swift 3.28.0, Python
+3.29.0: the show script begins. `odca` plays a show of one or more
+files, each a play script (`.play`: `import <file>`, `play`, `#`
+comments; R-X7) or an odca file, which plays as a script that imports
+it; `--shuffle` now draws the order of the *files* per pass (never the
+same file twice running) and leaves each file's pairs in order — the
+pair-level shuffle of 3.12.0 is withdrawn until the language has a
+statement for it. The parser is one flex/bison grammar in `script/`
+(`script/regen`) generating C that is checked in beside both
+implementations (`swift/Sources/CShow`, a SwiftPM C target;
+`python/odca/cshow`, compiled by `setup.py` at install and loaded through
+ctypes) and emits JSON; `conformance/scripts/` pins its output byte for
+byte. Import errors and syntax errors stop `odca` before any window,
+with line and column. The language grows by experimentation (user,
+2026-09-08): the next statements are the user's call — candidates are
+`shuffle` (of a script's pairs), `watchdog N` / `grace N`, and a blast
+key. Before this, 3.26.0 / 3.27.0: "look" is "pair" throughout, pairs
+are named `pair-NNNN` by odca-select, and `--2` is the default cell
+size. Before that, 3.24.0 /
 3.25.0: `n`/`p` in odca-select re-seed and scroll the pair in, as odca's
 transitions do (the 2.24.1 screen fill withdrawn as jarring). Before
 that, 3.22.0 / 3.23.0: a mutated pair is saved as a new pair, never over the kept rule
@@ -289,8 +298,18 @@ viewer sees. Roadmap, roughly in order:
         save, X delete, R grouped order). Color set review is on hold.
       - Scripts stay text files (below); until the language exists an odca
         file is the show.
+- [ ] Blast key (user, 2026-09-08: "What was the key to blast a screenful
+      of rows onto the display? I'd like to resurrect that feature"):
+      there never was one — the screen fill was what `n`/`p` did in
+      odca-select from 2.24.1 to 3.24.0. Proposed `b`, a screenful at
+      once in every mode (R-K20); awaiting the user's word.
 - [ ] Scriptable screensaver mode (the interactive mode absorbs the same
-      ability): a declarative, not procedural, script language that can
+      ability). In progress since 3.28.0: play scripts (`import`,
+      `play`; R-X7) on a flex/bison C parser shared by both
+      implementations (`script/`), grown by experimentation, one
+      statement at a time; candidates next: `shuffle`, `watchdog N`,
+      `grace N`, then pools, events, and transitions. The vision, as
+      first written: a declarative, not procedural, script language that can
       intermix ODCA rules (the interesting ones), specify how rules
       interact via transparency layering, choose transition effects, and
       assign probabilities to rules, color sets, and intermixes so that

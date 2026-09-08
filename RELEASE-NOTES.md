@@ -5,6 +5,41 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.28.0 (Swift) and 3.29.0 (Python) — 2026-09-08
+
+The show script begins. `odca` now plays a *show*: one or more files on
+the command line, each a play script or an odca file. A play script is
+a text file, `.play` by convention, one statement per line, `#` for
+comments:
+
+```
+import interesting.odca      # relative to the script's own directory
+import "sunday pairs.odca"   # quote a name with spaces
+play                         # every pair imported above, in order
+```
+
+That is the whole language for now: `import` and `play`. An odca file
+on the command line plays as a script that imports it, so `odca
+interesting.odca` does what it did. Several files play in turn, each
+its pairs in order, looping; `--shuffle` now draws a fresh order of the
+*files* each pass, never the same file twice running, and leaves the
+pairs inside a file in their order. The old pair-level shuffle is gone
+with it; `odca one.odca --shuffle` plays file order until a script
+statement for shuffling arrives. New messages: `odca <file>: <n> pairs`
+per file at entry, and `playing <file>` at every change of file in a
+show of two or more.
+
+Errors in a script stop the program before any window opens, with the
+line and column: `error: show.play:2:6: syntax error, unexpected word
+now, expecting end of line`; `error: show.play:1: cannot read a.odca`.
+
+Under the hood: one flex/bison grammar in `script/` generates a C
+parser that both implementations compile and use (`script/regen`; the
+generated C is checked in, so a clone needs neither tool). The Python
+install now compiles it, which needs a C compiler; `python/run` rebuilds
+when the parser changes. Golden cases in `conformance/scripts/` pin the
+parser's output byte for byte on both sides.
+
 ## 3.26.0 (Swift) and 3.27.0 (Python) — 2026-09-08
 
 Two changes to get out of the way before the scripting starts.

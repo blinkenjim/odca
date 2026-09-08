@@ -30,13 +30,15 @@ final class SessionTests: XCTestCase {
 
     /// A session whose terminal output is captured into `lines`.
     func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil,
-                     review: Bool = false, select: URL? = nil, play: URL? = nil, shuffle: Bool = false,
+                     review: Bool = false, select: URL? = nil, play: URL? = nil, show: [Segment]? = nil,
+                     shuffle: Bool = false,
                      initialDelay: Double = Session.initialDelay,
                      playTimeout: Double = Session.playTimeout, playGrace: Double = Session.playGrace) -> Session {
         let sink: (String) -> Void = lines.map { l in { l.all.append($0) } } ?? { print($0) }
         return Session(cols: 32, rows: 16, store: store,
                        search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed),
-                       reviewMode: review, selectFile: select, playFile: play, shuffle: shuffle,
+                       reviewMode: review, selectFile: select,
+                       show: show ?? play.map { try! Show.load([$0]) }, shuffle: shuffle,
                        initialDelay: initialDelay, playTimeout: playTimeout, playGrace: playGrace, output: sink)
     }
 
@@ -918,37 +920,54 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.pairIndex, 0)
     }
 
-    func testShuffleIsAFreshPassWithoutRepeats() throws {  // PT-36
+    func testShuffleDrawsAFreshOrderOfTheFiles() throws {  // PT-36
+        let lines = Lines()
         let store = try reviewStore()
-        let file = odcaFile(store, name: "saver.odca")
-        let a = allProducible, b = try Rule(id: String(repeating: "1", count: 20)), c = try Rule(id: String(repeating: "2", count: 20))
-        let x = grey(10), y = grey(20), z = grey(30)
-        let pairs = [Pair(rule: a.id, colorset: "X", colors: x), Pair(rule: a.id, colorset: "Y", colors: y),
-                     Pair(rule: b.id, colorset: "X'", colors: x.reversed()), Pair(rule: b.id, colorset: "Z", colors: z),
-                     Pair(rule: c.id, colorset: "Y", colors: y), Pair(rule: c.id, colorset: "Z", colors: z)]
-        Store.saveOdcaFile(pairs, to: file)
-        let session = makeSession(store, play: file, shuffle: true)
+        let b = try Rule(id: String(repeating: "1", count: 20)), c = try Rule(id: String(repeating: "2", count: 20))
+        let files = [odcaFile(store, rules: [allProducible, b], name: "a.odca"),
+                     odcaFile(store, rules: [c], name: "b.odca"),
+                     odcaFile(store, rules: [allZero, b, c], name: "c.odca")]
+        let show = try Show.load(files)
+        let session = makeSession(store, lines: lines, show: show, shuffle: true)
         XCTAssertTrue(session.shuffle)
-        var played = [session.pairIndex!]
-        for _ in 0..<59 { _ = session.handleKey(.N); played.append(session.pairIndex!) }  // ten passes
+        var out = lines.take()
+        XCTAssertTrue(out.contains("odca a.odca: 2 pairs\nodca b.odca: 1 pairs\nodca c.odca: 3 pairs\n"), out)
+        XCTAssertTrue(out.contains("playing "))
+        XCTAssertLessThan(out.range(of: "playing ")!.lowerBound, out.range(of: "pair 1/")!.lowerBound)  // R-O13
+        var played = [[session.playSegment!, session.pairIndex!]]
+        for _ in 0..<59 { _ = session.handleKey(.N); played.append([session.playSegment!, session.pairIndex!]) }  // ten passes
+        let sizes = [2, 1, 3]
+        var orders = Set<[Int]>()
         for p in 0..<10 {
-            XCTAssertEqual(Array(played[(6 * p)..<(6 * p + 6)]).sorted(), Array(0..<6))  // every pass: every pair once
+            let onePass = Array(played[(6 * p)..<(6 * p + 6)])
+            let order = onePass.filter { $0[1] == 0 }.map { $0[0] }  // the files, in the order the pass plays them
+            XCTAssertEqual(order.sorted(), [0, 1, 2])  // every file once
+            let expected = order.flatMap { seg in (0..<sizes[seg]).map { [seg, $0] } }
+            XCTAssertEqual(onePass, expected)  // the pairs of a file in file order, the file played whole
+            orders.insert(order)
         }
-        for (i, j) in zip(played, played.dropFirst()) {  // never the same rule or color set in a row, seams included
-            XCTAssertNotEqual(pairs[i].rule, pairs[j].rule, "\(i) then \(j)")
-            XCTAssertNotEqual(pairs[i].colors.sorted(), pairs[j].colors.sorted(), "\(i) then \(j)")
-        }
+        for p in 1..<10 { XCTAssertNotEqual(played[6 * p - 1][0], played[6 * p][0]) }  // never the same file twice running
+        XCTAssertGreaterThan(orders.count, 1)  // fresh draws
+        out = lines.take()
+        XCTAssertEqual(out.components(separatedBy: "playing ").count - 1, 29)  // every file entry announced (the first read above)
         _ = session.handleKey(.P)  // back one within the pass
-        XCTAssertEqual(session.pairIndex, played[played.count - 2])
-        let plain = makeSession(store, play: file)
-        XCTAssertEqual(plain.playOrder, Array(0..<6))
+        XCTAssertEqual([session.playSegment!, session.pairIndex!], played[played.count - 2])
+        let plain = makeSession(store, show: show)
         XCTAssertFalse(plain.shuffle)
-        // No order can avoid a repeat: the requirement is dropped and the show goes on.
-        Store.saveOdcaFile([Pair(rule: a.id, colorset: "X", colors: x), Pair(rule: a.id, colorset: "Y", colors: y)], to: file)
-        let small = makeSession(store, play: file, shuffle: true)
-        var pair = [small.pairIndex!]
-        for _ in 0..<5 { _ = small.handleKey(.N); pair.append(small.pairIndex!) }
-        for i in stride(from: 0, to: 6, by: 2) { XCTAssertEqual(Array(pair[i..<(i + 2)]).sorted(), [0, 1]) }
+        XCTAssertEqual(plain.playOrder.map { [$0.segment, $0.index] }, [[0, 0], [0, 1], [1, 0], [2, 0], [2, 1], [2, 2]])
+        // One file with pairs among empty ones: it plays on, and shuffling changes nothing that shows.
+        let empty = odcaFile(store, name: "empty.odca")
+        try "{\"pairs\": []}".write(to: empty, atomically: true, encoding: .utf8)
+        let lone = makeSession(store, show: try Show.load([empty, files[1], empty]), shuffle: true)
+        for _ in 0..<4 { _ = lone.handleKey(.N) }
+        XCTAssertEqual([lone.playSegment!, lone.pairIndex!], [1, 0])
+        // A single file: `playing` is never printed, and every pass is the file's order.
+        let single = makeSession(store, lines: lines, show: try Show.load([files[2]]), shuffle: true)
+        _ = lines.take()
+        for _ in 0..<6 { _ = single.handleKey(.N) }
+        out = lines.take()
+        XCTAssertFalse(out.contains("playing"))
+        XCTAssertEqual(single.pairIndex, 0)
     }
 
     func testRowsKeepTheirColorsThroughQuickTransitions() throws {  // PT-31, R-X5

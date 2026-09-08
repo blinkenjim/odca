@@ -39,10 +39,11 @@ its own directory.
 | `conformance/vectors.json` | golden engine vectors every implementation must pass |
 | `library.json` | the color set pool, shared by both implementations |
 | `interesting.odca` | the pairs (rule + color set) kept so far — an odca file, playable with `odca interesting.odca` |
-| `conformance/` | golden engine vectors and the `--help` texts, byte-identical across implementations |
+| `conformance/` | golden engine vectors, the `--help` texts, and the play script cases (`scripts/`), byte-identical across implementations |
+| `script/` | the play script grammar (`show.l`, `show.y`) and `regen`, which generates the C parser into both implementations |
 | `python/` | the reference implementation (Python + pygame); see `python/README.md` |
 | `REQ-python.md` | implementation notes for the Python version |
-| `swift/` | Swift implementation (macOS, `swift/run odca <file.odca>`); see `swift/README.md` |
+| `swift/` | Swift implementation (macOS, `swift/run odca <file>`); see `swift/README.md` |
 | `REQ-swift.md` | implementation notes for the Swift version |
 
 Planned: `cpp/`.
@@ -65,17 +66,20 @@ git-tagged (`v2.0.0`, `v2.1.0`, …).
 
 There are two programs, sharing the engine and most of the keyboard:
 
-- **`odca <file.odca> [--shuffle] [--fullscreen] [--4 | --3 | --2 | --1] [--watchdog N] [--grace N]`** plays the *pairs* in an odca file,
-  one after another, looping. A pair is a rule with a color set. Every pair
-  gets two minutes of screen time, re-seeding in place whenever it goes
-  boring; then it hands over after a quiet minute or at the next re-seed,
-  and the next pair grows in from a fresh field below the old rows, which
-  keep their colors. `--shuffle` plays each pass in a fresh random order
-  in which no rule or color set follows itself, pass seams included;
+- **`odca <file> [<file> ...] [--shuffle] [--fullscreen] [--4 | --3 | --2 | --1] [--watchdog N] [--grace N]`** plays a *show*: the
+  *pairs* of one or more files, one after another, looping. A pair is a
+  rule with a color set; a file is a play script (below) or an odca
+  file, which plays as a script that imports it. Every pair gets two
+  minutes of screen time, re-seeding in place whenever it goes boring;
+  then it hands over after a quiet minute or at the next re-seed, and
+  the next pair grows in from a fresh field below the old rows, which
+  keep their colors. The files play in turn, each its pairs in order;
+  `--shuffle` draws a fresh order of the files each pass (never the same
+  file twice running) and leaves the pairs within a file in order;
   `--fullscreen` opens full screen at once, for unattended runs;
   `--watchdog` and `--grace` set the two clocks in whole seconds (120 and
   60 by default).
-  `N`/`P` (or `n`/`p`) step by hand. The file is never written.
+  `N`/`P` (or `n`/`p`) step by hand. No file is written.
 - **`odca-select <file.odca> [--4 | --3 | --2 | --1]`** is the workbench that composes them: it
   shows screened random rules, you dress each in a color set, and `s`/`S`
   save the result as a pair in the named file (created if missing). `n`/`p`
@@ -85,6 +89,24 @@ There are two programs, sharing the engine and most of the keyboard:
   deletes the pair under review; `R` toggles the `n`/`p` order
   between file order and grouped by rule (the screen inverts briefly to
   confirm). The file is written after every change and at exit.
+
+A **play script** (`.play`) says what to play, one statement per line,
+`#` for comments:
+
+```
+# my-show.play
+import interesting.odca        # relative to the script's directory
+import "sunday pairs.odca"     # quote a name with spaces
+play                           # every pair imported above, in order
+```
+
+`odca my-show.play` plays it; `odca a.play b.play c.odca --shuffle`
+plays three files in a fresh order each pass. A script that never says
+`play` plays nothing, and the first error (a misspelled statement, a
+missing import) stops `odca` with the line and column before any window
+opens. That is the whole language so far; it grows by increments (see
+`REQTS.md` R-X7 and `TO-DO.md`). The parser is one C program generated
+by flex and bison from `script/` and shared by both implementations.
 
 `odca --help` and `odca-select --help` print the flags and keys (the same
 text from both implementations). On startup the programs load the previous

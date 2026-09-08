@@ -1,0 +1,23 @@
+#!/bin/bash
+# Regenerate the play script parser (REQTS R-X7) from show.l and show.y
+# and install the C into both implementations:
+#   swift/Sources/CShow/      (a SwiftPM C target; show.h in include/)
+#   python/odca/cshow/        (built into odca._show by pip install)
+# Needs flex and bison (macOS ships flex 2.6 and bison 2.3 in /usr/bin;
+# bison 3 warns about the 2.3 directives and works). The generated files
+# are checked in so a fresh clone needs neither tool; the two copies must
+# stay identical (the test suites check).
+set -e
+cd "$(dirname "$0")"
+tmp="$(mktemp -d)"
+flex --header-file="$tmp/show.lex.h" -o "$tmp/show.lex.c" show.l
+bison -d -o "$tmp/show.tab.c" show.y
+mv -f "$tmp/show.tab.h" "$tmp/show.tab.h" 2>/dev/null || true
+for dest in ../swift/Sources/CShow ../python/odca/cshow; do
+  mkdir -p "$dest/include"
+  for f in show.lex.c show.lex.h show.tab.c show.tab.h; do cat "$tmp/$f" > "$dest/$f"; done
+  cat show_internal.h > "$dest/show_internal.h"
+  cat show.h > "$dest/include/show.h"
+done
+rm -rf "$tmp"
+echo "regenerated: swift/Sources/CShow and python/odca/cshow"

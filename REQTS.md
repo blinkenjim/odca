@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.26.0 — 2026-09-08
+Version 3.28.0 — 2026-09-08
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -55,7 +55,11 @@ mutated pair is saved as a new pair, never over the kept rule — R-K3,
 R-K5, R-W4. 3.24.0: navigation re-seeds and scrolls the pair in instead
 of filling the screen — R-W8, R-B2, R-K10, R-W1. 3.26.0: "look" becomes
 "pair" throughout, pairs are named `pair-NNNN` — R-P3, R-O4, R-O12,
-R-O13; 2-point cells by default — R-U2, R-U3, R-U5.)
+R-O13; 2-point cells by default — R-U2, R-U3, R-U5. 3.28.0: play
+scripts — `odca` plays a show of one or more files, `.play` scripts with
+`import` and `play` or odca files, and `--shuffle` draws the order of
+the files — R-X1, R-X7, R-U1, R-U9, R-O13, section 10; the 3.12.0
+pair-level shuffle withdrawn.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -66,9 +70,9 @@ fixes and clarifications.
 This document specifies ODCA, a four-state, count-based, one-dimensional
 cellular automaton presented as art, in sufficient detail to re-create the
 programs from scratch in any language. There are two programs sharing one
-engine and one keyboard vocabulary: `odca <file.odca>` plays the *pairs*
-(rule + color set) of an odca file (section 4d), and `odca-select
-<file.odca>` composes them (section 4c). "The program" below means either
+engine and one keyboard vocabulary: `odca <file> ...` plays a show, the
+*pairs* (rule + color set) of play scripts and odca files (section 4d),
+and `odca-select <file.odca>` composes them (section 4c). "The program" below means either
 unless a section says which. It is
 language-independent; it assumes a unix-like environment (macOS, Ubuntu,
 or similar) with a per-user home directory and a graphical display.
@@ -160,9 +164,9 @@ mechanism satisfying R-M5–R-M8 is conforming.
 
 ## 2. Interactive program: startup and display (R-U)
 
-**R-U1 (startup).** On launch, after reading its one required argument
-(the odca file, sections 4c and 4d; `--help` aside, R-U9), the program
-must:
+**R-U1 (startup).** On launch, after reading its file arguments (the
+odca file of `odca-select`, section 4c; the show of `odca`, section 4d;
+`--help` aside, R-U9), the program must:
 1. Load the previously saved current rule (see R-P1); if absent or
    invalid, generate a random rule (R-M11).
 2. Persist that rule as the current rule (R-P1) and print it (R-O1).
@@ -175,8 +179,8 @@ must:
    empty; otherwise on the unsaved slot, which holds the loaded rule
    (R-B3). In 3.0.0 this reads: `odca-select` on a file with pairs opens
    on pair 1 with the unsaved slot empty (R-W1); on an empty or missing
-   file the loaded rule occupies the unsaved slot. `odca` plays pair 1
-   at once (R-X1).
+   file the loaded rule occupies the unsaved slot. `odca` plays the
+   show's first pair at once (R-X1).
 
 **R-U2 (display geometry).** The display is a grid of square cells,
 `cell_size` points on a side: 2 by default (since 3.26.0; 4 before), or
@@ -296,7 +300,8 @@ every other argument is ignored. The texts are the files
 `conformance/help-odca.txt` and `conformance/help-odca-select.txt`,
 reproduced byte for byte (each ends with a single newline); they name
 every flag and key. Changing a text is a spec change made in that file.
-Other command-line errors: a missing or extra positional argument or an
+Other command-line errors: a missing positional argument (or, for
+`odca-select`, an extra one) or an
 unknown option prints a one-line usage message and exits with status 2,
 as does an option that takes a value (`--watchdog`, `--grace`) given
 none, or one that is not a positive whole number;
@@ -658,26 +663,30 @@ instead; withdrawn as jarring beside `odca`.)
 
 ## 4d. odca (R-X)
 
-The art: play the pairs of an odca file (R-P3), one after another.
+The art: play a *show* — the pairs (R-P3) of one or more files, one
+after another.
 
-**R-X1 (entry and order).** `odca <file.odca> [--shuffle]` — the file is
-the one required argument and must exist (R-U9 for errors). On entry the
-program prints `odca <file>: <n> pairs` (R-O13) and, if the list is
-non-empty, plays pair 1. Without `--shuffle` the pairs are played in file
-order, looping from the last back to the first indefinitely. With
-`--shuffle` each *pass* through the pairs is a fresh uniformly random
-permutation of all of them — every pair plays once before the next pass
-— in which no two consecutive pairs share a rule or a color set (the
-same four colors in any arrangement), the seam included: the first pair
-of a pass may share neither with the pair that closed the previous one.
-The program draws a permutation and tests it, redrawing the whole
-sequence on a failure, up to a hundred times (six pairs with every rule
-and every color set appearing twice pass a draw one time in twelve, so
-ten draws would miss two passes in five; a hundred, one in six thousand,
-at no measurable cost); a file that allows no such order (one pair, or every
-pair on one rule, for instance) then plays the last draw as it is, so
-the show never stalls. An empty file leaves the
-program running as usual; the file is never written.
+**R-X1 (entry and order).** `odca <file> [<file> ...] [--shuffle]` — one
+or more files, each a play script (R-X7) or an odca file (R-P3), which
+plays as a script that imports it and plays it: `odca a.odca` plays the
+pairs of `a.odca` in file order, as it always has. Every file must exist,
+and every script must read without error (R-X7), before anything else
+happens (R-U9 for the `--help` and usage cases; otherwise exit status 1
+after one line, `error: <message>`). On entry the program prints `odca
+<file>: <n> pairs` for each file in turn (R-O13) and, if any has pairs,
+plays the first. The show is the files' pairs: each file's pairs in
+their order, the files in command-line order, looping from the last pair
+of the last file back to the first indefinitely; a file with no pairs
+takes no turn. With `--shuffle` each *pass* — every file once — is a
+fresh uniformly random permutation of the files in which the first file
+with pairs is not the file that closed the previous pass (when two or
+more files have pairs; the program redraws until it holds), and the
+pairs within a file keep their order: the shuffle is of files, never of
+their contents. (From 3.0.0 to 3.26.0 `odca` took one odca file and
+`--shuffle` permuted its pairs, from 3.12.0 under constraints on
+consecutive rules and color sets; withdrawn with the show. A script will
+shuffle pairs when the language gets there.) A show with no pairs leaves
+the program running as usual; no file is written.
 
 **R-X2 (equal screen time).** Every pair gets the same screen time: a
 *watchdog* of 120 unpaused seconds by default, or the whole number of
@@ -722,6 +731,37 @@ pass by hand, exactly as an automatic advance would (R-X4: rule, colors,
 fresh seed, watchdog restarted), wrapping at both ends of the pass (a
 forward step past the end starts a new pass, R-X1); the announcement's
 reason reads `next` or `previous`. Live while paused.
+
+**R-X7 (play scripts).** A play script is a text file, by convention
+with the extension `.play` (any extension but `.odca` is read as a
+script), of one statement per line; `#` starts a comment that runs to
+the end of the line, and blank lines are allowed. The statements:
+
+- `import <file>` — the pairs of an odca file (R-P3), in file order,
+  appended to what the script has imported so far. The name is a bare
+  word (no blanks, `#`, or `"`) or a double-quoted string (no escapes),
+  resolved relative to the script's own directory. The file must exist
+  and be an odca file (a JSON object with a `pairs`, or the old `looks`,
+  key); its malformed pairs are skipped as R-P3 says.
+- `play` — play every pair imported above, once each, in that order. At
+  most one per script, and no `import` may follow it. A script without
+  `play` plays nothing.
+
+The first error stops the program before any window opens (R-X1): a
+syntax error as `error: <script>:<line>:<column>: <message>` — the
+messages are `syntax error, unexpected word <word>, expecting import or
+play`, `syntax error, unexpected end of line, expecting word`, `syntax
+error, unexpected <token>, expecting end of line`, `unterminated quote`,
+`empty file name`, `play given twice`, and `import after play`, lines
+and columns counted from 1 (`conformance/scripts/` holds the cases,
+TESTS.md) — and an import that fails as `error: <script>:<line>: cannot
+read <file>` or `error: <script>:<line>: <file> is not an odca file`.
+The scanner and parser are one C program generated by flex and bison
+from `script/show.l` and `script/show.y` (`script/regen`), emitting JSON
+that every implementation consumes; an implementation may parse by any
+means that gives the same results, the shared parser being the
+reference. The language grows by increments, each a change to this
+requirement.
 
 ---
 
@@ -824,9 +864,12 @@ The program prints single-line, human-readable status to standard output:
   <g>/<G> ---` before an activation that enters a different rule's group.
   Arrangement messages (R-O9) name the set.
 - **R-O14.** On a geometry change (R-U8): `resized <cols>x<rows>`.
-- **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> pairs`;
-  on playing pair i (0-based, file position) of n `pair <i+1>/<n> <name>
-  <colorset>` (the name omitted when the pair has none), followed on advances by the reason in parentheses — the
+- **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> pairs`
+  for each file in command-line order; in a show of two or more files
+  (never with one), `playing <file>` before a pair from a different file
+  than the last pair played, the first pair included; on playing pair i
+  (0-based, position within its file) of that file's n `pair <i+1>/<n>
+  <name> <colorset>` (the name omitted when the pair has none), followed on advances by the reason in parentheses — the
   auto-init reason (R-O6) when a re-init transitions, `timeout` when the
   grace period does, `next`, or `previous`. It precedes the R-O1 line when
   the rule changes.
@@ -925,7 +968,9 @@ loses one update (loaders already tolerate malformed content, R-P).
 
 ## 10. Explicit non-requirements
 
-- The command line is one positional argument, the odca file, plus
+- The command line is the file arguments (one odca file for
+  `odca-select`; one or more play scripts or odca files for `odca`,
+  R-X1) plus
   `--help` (R-U9), the cell size flags `--4` / `--3` / `--2` / `--1` (R-U2), and,
   for `odca`, `--shuffle` (R-X1), `--fullscreen` (R-U2), `--watchdog`
   (R-X2), and `--grace` (R-X3); no configuration files or menus. No other flags exist (the 2.x developer flags
