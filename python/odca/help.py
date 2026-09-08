@@ -73,9 +73,9 @@ Keys:
   U     undo every change since arriving on this look or rule
   i     re-seed the cells               + / -   faster / slower
   n / p next / previous look, or the unsaved rule
-  s     rewrite the look under review with what is on screen, its rule
-        (mutated with m or not) and its colors; on the unsaved rule,
-        append the screen as a new look (as S)
+  s     rewrite the look under review's colors in place; after m (its rule
+        changed) append the screen as a new look at the end and move onto
+        it, never overwriting a kept rule; on the unsaved rule, append (as S)
   S     append a copy of what is on screen as a new look
   X     delete the look under review
   R     toggle the order of n / p: file order, or grouped by rule

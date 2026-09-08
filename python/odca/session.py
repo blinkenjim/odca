@@ -656,7 +656,7 @@ class Session:
         self.undo_stack.append(self.automaton.rule)
         mutant = self.automaton.rule.mutated(self.rng)
         if self.select_mode and self.look_index is not None:
-            self._set_rule(mutant)  # an edit of the look under review: the position stays; 's' records it
+            self._set_rule(mutant)  # the look under review is now changed: 's' and 'S' save it as a new look
         else:
             self._set_unsaved_rule(mutant, arrival=False)
 
@@ -771,14 +771,21 @@ class Session:
         n = len(self.looks)
         print(f"saved {n} look{'' if n == 1 else 's'} to {self.select_file.name}")  # R-O12
 
-    def save_look(self):  # R-W4: 's' rewrites the look under review with the screen, or appends
+    def save_look(self):  # R-W4: 's' rewrites the look under review's colors in place, or appends
         if self.look_index is None:
             self.append_look()
             return
         i = self.look_index
-        self.looks[i] = {"rule": self.automaton.rule.id, "colorset": self.active_name,
+        if self.automaton.rule.id != self.looks[i]["rule"]:
+            # R-K3: a mutated look is a new look; a kept rule is never overwritten.
+            # The position moves onto the new look, so further edits refine it.
+            self.append_look()
+            self.look_index = len(self.looks) - 1
+            self._rebuild_view_order()
+            self._undo_mark = len(self.undo_stack)  # an arrival (R-K19)
+            return
+        self.looks[i] = {"rule": self.looks[i]["rule"], "colorset": self.active_name,
                          "colors": self._arranged_active_colors()}
-        self._rebuild_view_order()  # a mutated rule may move the look between groups (R-W7)
         self._save_looks()
         print(f"saved look {self.view_position + 1}/{len(self.looks)}")  # R-O12
 

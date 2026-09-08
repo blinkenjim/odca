@@ -957,27 +957,40 @@ def test_look_carries_its_color_set_and_cycle_applies_it(make_store, odca_file, 
     assert s.palette[0] == rgb("#1E1E1E")
 
 
-def test_mutating_a_look_edits_it_in_place(make_store, odca_file, capsys):  # PT-34, R-K3, R-W4
+def test_mutating_a_look_saves_it_as_a_new_look(make_store, odca_file, capsys):  # PT-34, R-K3, R-W4
     store = review_store(make_store)
     file = odca_file(rules=[FOUR[0], FOUR[1]], name="saver.odca")
     s = make_session(store, select_file=file)
     assert s.look_index == 0 and s.unsaved_rule is None
-    s.handle_key("m")  # an edit of look 1: the position stays, the unsaved slot stays empty
+    s.handle_key("3")
+    capsys.readouterr()
+    s.handle_key("s")  # colors only: the look is rewritten in place
+    assert "saved look 1/2" in capsys.readouterr().out
+    assert load_odca_file(file)[0] == {"rule": FOUR[0].id, "colorset": "S3", "colors": grey(30)}
+    s.handle_key("m")  # look 1 is now changed: the position stays, the unsaved slot stays empty
     assert s.rule != FOUR[0] and s.look_index == 0 and s.view_position == 0 and s.unsaved_rule is None
     s.handle_key("u")  # walked back, still on look 1
     assert s.rule == FOUR[0] and s.look_index == 0
     s.handle_key("m")
     mutant = s.rule
-    s.handle_key("3")
+    s.handle_key("5")
     capsys.readouterr()
-    s.handle_key("s")  # rewrites look 1 in place: rule and colors
-    assert "saved look 1/2" in capsys.readouterr().out
+    s.handle_key("s")  # a changed look is saved as a new look at the end; the kept rule survives
+    assert "added look 3/3" in capsys.readouterr().out
     looks = load_odca_file(file)
-    assert len(looks) == 2 and looks[0]["rule"] == mutant.id and looks[0]["colorset"] == "S3"
-    s.handle_key("m")  # a further edit, discarded by leaving the look
+    assert [l["rule"] for l in looks] == [FOUR[0].id, FOUR[1].id, mutant.id]
+    assert looks[0]["colorset"] == "S3" and looks[2]["colorset"] == "S5"
+    assert s.look_index == 2 and s.view_position == 2  # and the position moved onto it
+    s.handle_key("U")  # nothing to unwind on the new look
+    assert s.rule == mutant
+    s.handle_key("7")
+    s.handle_key("s")  # colors again: refines the new look in place
+    assert "saved look 3/3" in capsys.readouterr().out
+    assert [l["colorset"] for l in load_odca_file(file)] == ["S3", "ODCA default", "S7"]
+    s.handle_key("m")  # a further mutation, discarded by leaving the look
     s.handle_key("n")
     s.handle_key("p")
-    assert s.rule == mutant and s.look_index == 0
+    assert s.rule == mutant and s.look_index == 2
     s.handle_key("r")  # a fresh rule is a new exploration: the unsaved slot, as before
     assert s.look_index is None and s.unsaved_rule == s.rule
     s.handle_key("m")  # on the unsaved slot the mutant stays there
