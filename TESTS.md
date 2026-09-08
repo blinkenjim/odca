@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.28.0 — 2026-09-08
+Version 3.30.0 — 2026-09-08
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -62,8 +62,9 @@ suite parses the table and compares (PT-37).
 **Files:** `conformance/scripts/<case>.play` with `<case>.json` — the
 play script cases (R-X7): each `.json` is the shared parser's output for
 the `.play` beside it, byte for byte, plus one newline —
-`{"ok":true,"statements":[...]}` or `{"ok":false,"line":L,"column":C,
-"message":"..."}`. Produced by `script/regen`'s parser; adding a case or
+`{"ok":true,"statements":[...]}` — an import as `{"line":L,"import":
+"<name>"}` and a play as `{"line":L,"play":true,"shuffle":B}` — or
+`{"ok":false,"line":L,"column":C,"message":"..."}`. Produced by `script/regen`'s parser; adding a case or
 changing the grammar is a spec change. Every implementation parses each
 `.play` and compares (PT-38); the two checked-in copies of the generated
 C (`swift/Sources/CShow/`, `python/odca/cshow/`) must be identical.
@@ -123,6 +124,7 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-37 | R-U4, R-P4 | The digit-bound sets of the shipped `library.json` equal the R-U4 table of `REQTS.md`: same slots, names, and colors in state order. |
 | PT-36 | R-X1, R-O13 | With three odca files of two, one, and three pairs, `--shuffle`: entry prints `odca <file>: <n> pairs` for each in command-line order, then `playing <file>` before the first pair line; over ten passes (`N` fifty-nine times) every pass plays every file once, each file whole with its pairs in file order, no pass opens with the file that closed the one before, the orders differ between passes, and `playing <file>` precedes every change of file; `P` steps back within the pass. Without the flag the order is command-line order. With one file with pairs between two empty ones, it plays on. With a single file, `playing` is never printed and every pass is file order. |
 | PT-38 | R-X7, R-X1 | The parser gives `import a.odca` / `play` as statements with their line numbers, an empty or comment-only script as none, and a second `play` as the error `3:1: play given twice`. A script in a subdirectory imports `../one.odca` and `"two pairs.odca"` relative to itself and plays their pairs in import order; imports without `play`, and `play` without imports, play nothing; a missing import fails as `<script>:<line>: cannot read <file>`, a text file as `<script>:<line>: <file> is not an odca file`, an import after `play` as `<script>:3:1: import after play`, and an unreadable script as `<script>: cannot read`. `load` gives one segment per command-line file in order — a script's pairs, an odca file's own pairs, an empty file's none — and reads any extension but `.odca` as a script. `odca` given a script and an odca file passes both segments to the session in order; a script error exits 1 with `error: <script>:<line>: cannot read <file>`, a syntax error with `error: <script>:<line>:<column>: <message>`, before any window. |
+| PT-39 | R-X7, R-X1, R-O13 | With six pairs on three rules, two each, and three color sets, two each (one of them arranged differently in its second pair), imported by a script that says `play shuffle`: the entry line reads `odca <script>: 6 pairs, shuffled`, the session's own shuffle flag is off (the script asked, not the command line), and over ten passes every pass plays each pair exactly once with no two consecutive pairs in the whole sequence, pass seams included, sharing a rule or a color set in any arrangement; `P` steps back within the pass; with a plain `play` the order is file order and nothing is called shuffled. With two pairs on one rule, every pass is still a permutation and play continues (the requirement is dropped after a hundred draws). In a show of a plain file whose only pair clashes with one of a shuffled script's two, that pair never opens the script's pass, twenty passes running. |
 
 ---
 

@@ -42,26 +42,28 @@
      END = 0,
      IMPORT = 258,
      PLAY = 259,
-     NEWLINE = 260,
-     WORD = 261
+     SHUFFLE = 260,
+     NEWLINE = 261,
+     WORD = 262
    };
 #endif
 /* Tokens.  */
 #define END 0
 #define IMPORT 258
 #define PLAY 259
-#define NEWLINE 260
-#define WORD 261
+#define SHUFFLE 260
+#define NEWLINE 261
+#define WORD 262
 
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 32 "show.y"
+#line 37 "show.y"
 { char *str; }
 /* Line 1529 of yacc.c.  */
-#line 65 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.qydYwDlUk3/show.tab.h"
+#line 67 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.1zEn7L8TJx/show.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

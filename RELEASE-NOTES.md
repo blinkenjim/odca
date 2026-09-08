@@ -5,6 +5,35 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.30.0 (Swift) and 3.31.0 (Python) — 2026-09-08
+
+The script's second word: `play shuffle`.
+
+```
+import interesting.odca
+play shuffle
+```
+
+`play` alone plays what the script imported in import order. `play
+shuffle` draws a fresh order for every pass, under the old constraints:
+no rule and no color set follows itself, the seam between passes
+included, so you never see the same rule twice running or the same four
+colors in a different arrangement. It draws up to a hundred times and
+then gives up and plays the last draw, so a file that allows no such
+order (all one rule, say) still plays.
+
+The seam is honest across files: in `odca plain.odca fancy.play`, the
+first pair of the shuffled script is checked against the last pair of
+the file before it, not just against its own.
+
+The two shuffles are now clearly different things. `--shuffle` on the
+command line orders the *files*; `play shuffle` in a script orders
+*its own pairs*. They compose. The entry line says which files are
+shuffled: `odca my-show.play: 28 pairs, shuffled`.
+
+`import`, `play`, and `shuffle` are reserved words now, so a file
+actually named `shuffle` has to be quoted.
+
 ## 3.28.0 (Swift) and 3.29.0 (Python) — 2026-09-08
 
 The show script begins. `odca` now plays a *show*: one or more files on

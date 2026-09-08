@@ -1,22 +1,22 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-08):** Spec 3.28.0, Swift 3.28.0, Python
-3.29.0: the show script begins. `odca` plays a show of one or more
-files, each a play script (`.play`: `import <file>`, `play`, `#`
-comments; R-X7) or an odca file, which plays as a script that imports
-it; `--shuffle` now draws the order of the *files* per pass (never the
-same file twice running) and leaves each file's pairs in order — the
-pair-level shuffle of 3.12.0 is withdrawn until the language has a
-statement for it. The parser is one flex/bison grammar in `script/`
-(`script/regen`) generating C that is checked in beside both
-implementations (`swift/Sources/CShow`, a SwiftPM C target;
-`python/odca/cshow`, compiled by `setup.py` at install and loaded through
-ctypes) and emits JSON; `conformance/scripts/` pins its output byte for
-byte. Import errors and syntax errors stop `odca` before any window,
-with line and column. The language grows by experimentation (user,
-2026-09-08): the next statements are the user's call — candidates are
-`shuffle` (of a script's pairs), `watchdog N` / `grace N`, and a blast
-key. Before this, 3.26.0 / 3.27.0: "look" is "pair" throughout, pairs
+**YOU ARE HERE (2026-09-08):** Spec 3.30.0, Swift 3.30.0, Python
+3.31.0: the show script has `import <file>` and `play [shuffle]`
+(R-X7). `odca` plays a show of one or more files, each a play script
+(`.play`, `#` comments) or an odca file, which plays as a script that
+imports it. `--shuffle` on the command line draws the order of the
+*files* per pass (never the same file twice running); `play shuffle` in
+a script draws the order of *its own pairs* per pass, under the 3.12.0
+constraints (no rule and no color set follows itself, seams across
+files included, a hundred draws then the last one). The parser is one
+flex/bison grammar in `script/` (`script/regen`) generating C that is
+checked in beside both implementations (`swift/Sources/CShow`, a
+SwiftPM C target; `python/odca/cshow`, compiled by `setup.py` at
+install and loaded through ctypes) and emits JSON;
+`conformance/scripts/` pins its output byte for byte. Errors stop
+`odca` before any window, with line and column. The language grows by
+experimentation (user, 2026-09-08); the next statements are the user's
+call, `watchdog N` / `grace N` being the obvious candidates. Before this, 3.26.0 / 3.27.0: "look" is "pair" throughout, pairs
 are named `pair-NNNN` by odca-select, and `--2` is the default cell
 size. Before that, 3.24.0 /
 3.25.0: `n`/`p` in odca-select re-seed and scroll the pair in, as odca's
@@ -305,10 +305,10 @@ viewer sees. Roadmap, roughly in order:
       once in every mode (R-K20); awaiting the user's word.
 - [ ] Scriptable screensaver mode (the interactive mode absorbs the same
       ability). In progress since 3.28.0: play scripts (`import`,
-      `play`; R-X7) on a flex/bison C parser shared by both
+      `play [shuffle]`; R-X7) on a flex/bison C parser shared by both
       implementations (`script/`), grown by experimentation, one
-      statement at a time; candidates next: `shuffle`, `watchdog N`,
-      `grace N`, then pools, events, and transitions. The vision, as
+      statement at a time; candidates next: `watchdog N` and `grace N`,
+      then pools, events, and transitions. The vision, as
       first written: a declarative, not procedural, script language that can
       intermix ODCA rules (the interesting ones), specify how rules
       interact via transparency layering, choose transition effects, and

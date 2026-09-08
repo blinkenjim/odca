@@ -23,6 +23,7 @@ static char *show_strndup(const char *s, size_t n) {
 %%
 "import"            TOKEN(IMPORT);
 "play"              TOKEN(PLAY);
+"shuffle"           TOKEN(SHUFFLE);
 \"[^"\n]*\"         { yylval->str = show_strndup(yytext + 1, yyleng - 2); TOKEN(WORD); }
 \"[^"\n]*           { show_fail(yyextra, yylloc->first_line, yylloc->first_column, "unterminated quote"); return 0; }
 [^ \t\r\n#"]+       { yylval->str = strdup(yytext); TOKEN(WORD); }

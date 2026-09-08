@@ -43,6 +43,7 @@ public final class Session {
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
     public static let playTimeout = 120.0  // odca: a pair's screen time before it may advance (R-X3)
     public static let playGrace = 60.0  // odca: no transition within this long of an initialization (R-X3)
+    public static let shuffleTries = 100  // `play shuffle`: draws tried for an order without repeats (R-X7)
     public static let flashSeconds = 0.25  // the screen inverts this long as a mode cue (R-U10)
     public static let historyDepth = 2048  // rows remembered beyond the screen (R-U8)
     public static let paletteLimit = 64  // odca: prune the per-row palette table past this (R-X5)
@@ -123,7 +124,8 @@ public final class Session {
     public private(set) var unsavedRule: Rule?
     public private(set) var unsavedSet: ColorSetEntry?  // the set shown with the unsaved rule (R-B3)
     // odca (R-X): play a show, one segment per command-line file (Show.load),
-    // the files in turn or in a fresh shuffled order per pass.
+    // the files in turn or in a fresh shuffled order per pass, each file's
+    // pairs in file order or (R-X7: `play shuffle`) shuffled per pass.
     public let show: [Segment]?
     public let shuffle: Bool
     public private(set) var playOrder: [(segment: Int, index: Int)] = []  // the pairs of the current pass, in order
@@ -632,7 +634,10 @@ public final class Session {
     // MARK: - odca (R-X)
 
     private func loadPlay() {  // R-X1
-        for segment in show! { output("odca \(segment.file): \(segment.pairs.count) pairs") }  // R-O13
+        for segment in show! {  // R-O13
+            let how = segment.shuffle ? ", shuffled" : ""  // R-X7: the script said `play shuffle`
+            output("odca \(segment.file): \(segment.pairs.count) pairs\(how)")
+        }
         pairs = []
         if show!.contains(where: { !$0.pairs.isEmpty }) {
             newPass()
@@ -642,7 +647,12 @@ public final class Session {
 
     /// The files in command-line order, or a fresh shuffle of them per pass
     /// (R-X1): never the same file twice running, the seam from the file
-    /// just played included (unless it is the only one with pairs).
+    /// just played included (unless it is the only one with pairs). Within
+    /// a file, its pairs in file order, or (R-X7: `play shuffle`) a fresh
+    /// permutation in which no rule and no color set follows itself; the
+    /// seam is the pair before it in the pass, whatever file that came
+    /// from, or the pair still on screen for the pass's first file. A file
+    /// that allows no such order plays the last draw as it is.
     private func newPass() {
         let show = self.show!
         var order = Array(show.indices)
@@ -652,8 +662,32 @@ public final class Session {
                 order.shuffle(using: &rng)
             } while playable.count >= 2 && order.first { !show[$0].pairs.isEmpty } == playSegment
         }
-        playOrder = order.flatMap { seg in show[seg].pairs.indices.map { (segment: seg, index: $0) } }
+        var previous = playSegment.map { (segment: $0, index: pairIndex!) }
+        var pass: [(segment: Int, index: Int)] = []
+        for seg in order {
+            var indices = Array(show[seg].pairs.indices)
+            if show[seg].shuffle && indices.count > 1 {
+                for _ in 0..<Session.shuffleTries {
+                    indices.shuffle(using: &rng)
+                    if noRepeats(seg, indices, after: previous) { break }
+                }
+            }
+            pass += indices.map { (segment: seg, index: $0) }
+            previous = pass.last
+        }
+        playOrder = pass
         playPosition = 0
+    }
+
+    private func noRepeats(_ segment: Int, _ indices: [Int], after previous: (segment: Int, index: Int)?) -> Bool {
+        let chain = (previous.map { [$0] } ?? []) + indices.map { (segment: segment, index: $0) }
+        return zip(chain, chain.dropFirst()).allSatisfy { !clash($0, $1) }
+    }
+
+    /// Two pairs repeat if they share the rule or the color set (in any arrangement).
+    private func clash(_ a: (segment: Int, index: Int), _ b: (segment: Int, index: Int)) -> Bool {
+        let pa = show![a.segment].pairs[a.index], pb = show![b.segment].pairs[b.index]
+        return pa.rule == pb.rule || pa.colors.sorted() == pb.colors.sorted()
     }
 
     /// Activate a pair for play: its rule and colors, then a fresh seed (R-X4).

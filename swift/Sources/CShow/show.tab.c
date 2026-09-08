@@ -77,16 +77,18 @@
      END = 0,
      IMPORT = 258,
      PLAY = 259,
-     NEWLINE = 260,
-     WORD = 261
+     SHUFFLE = 260,
+     NEWLINE = 261,
+     WORD = 262
    };
 #endif
 /* Tokens.  */
 #define END 0
 #define IMPORT 258
 #define PLAY 259
-#define NEWLINE 260
-#define WORD 261
+#define SHUFFLE 260
+#define NEWLINE 261
+#define WORD 262
 
 
 
@@ -105,6 +107,11 @@
 
 static void showyyerror(YYLTYPE *loc, struct show_ctx *ctx, const char *msg);
 static void emit(struct show_ctx *ctx, const char *prefix, const char *text);
+/* Two rules rather than one with an optional `shuffle`: each spelling of
+   the statement stays visible in the grammar and the value stack holds
+   only strings. (Neither shape makes bison name `shuffle` in the error
+   after `play <junk>`: the state after PLAY reduces by default.) */
+static void play(struct show_ctx *ctx, YYLTYPE *loc, int shuffle);
 static char *copy_prefix(const char *s, size_t n) {  /* strndup, which C11 lacks */
     char *out = malloc(n + 1);
     if (out) { memcpy(out, s, n); out[n] = '\0'; }
@@ -132,10 +139,10 @@ static char *copy_prefix(const char *s, size_t n) {  /* strndup, which C11 lacks
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 32 "show.y"
+#line 37 "show.y"
 { char *str; }
 /* Line 193 of yacc.c.  */
-#line 139 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.qydYwDlUk3/show.tab.c"
+#line 146 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.1zEn7L8TJx/show.tab.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -160,7 +167,7 @@ typedef struct YYLTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 164 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.qydYwDlUk3/show.tab.c"
+#line 171 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.1zEn7L8TJx/show.tab.c"
 
 #ifdef short
 # undef short
@@ -377,20 +384,20 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  2
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   4
+#define YYLAST   5
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  7
+#define YYNTOKENS  8
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  3
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  5
+#define YYNRULES  6
 /* YYNRULES -- Number of states.  */
-#define YYNSTATES  8
+#define YYNSTATES  9
 
 /* YYTRANSLATE(YYLEX) -- Bison symbol number corresponding to YYLEX.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   261
+#define YYMAXUTOK   262
 
 #define YYTRANSLATE(YYX)						\
   ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
@@ -424,7 +431,7 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
-       5,     6
+       5,     6,     7
 };
 
 #if YYDEBUG
@@ -432,20 +439,20 @@ static const yytype_uint8 yytranslate[] =
    YYRHS.  */
 static const yytype_uint8 yyprhs[] =
 {
-       0,     0,     3,     4,     8,    11
+       0,     0,     3,     4,     8,    11,    13
 };
 
 /* YYRHS -- A `-1'-separated list of the rules' RHS.  */
 static const yytype_int8 yyrhs[] =
 {
-       8,     0,    -1,    -1,     8,     9,     5,    -1,     3,     6,
-      -1,     4,    -1
+       9,     0,    -1,    -1,     9,    10,     6,    -1,     3,     7,
+      -1,     4,    -1,     4,     5,    -1
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    43,    43,    45,    49,    58
+       0,    49,    49,    51,    55,    64,    65
 };
 #endif
 
@@ -455,7 +462,8 @@ static const yytype_uint8 yyrline[] =
 static const char *const yytname[] =
 {
   "\"end of file\"", "error", "$undefined", "\"import\"", "\"play\"",
-  "\"end of line\"", "\"word\"", "$accept", "script", "statement", 0
+  "\"shuffle\"", "\"end of line\"", "\"word\"", "$accept", "script",
+  "statement", 0
 };
 #endif
 
@@ -464,20 +472,20 @@ static const char *const yytname[] =
    token YYLEX-NUM.  */
 static const yytype_uint16 yytoknum[] =
 {
-       0,   256,   257,   258,   259,   260,   261
+       0,   256,   257,   258,   259,   260,   261,   262
 };
 # endif
 
 /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,     7,     8,     8,     9,     9
+       0,     8,     9,     9,    10,    10,    10
 };
 
 /* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
 static const yytype_uint8 yyr2[] =
 {
-       0,     2,     0,     3,     2,     1
+       0,     2,     0,     3,     2,     1,     2
 };
 
 /* YYDEFACT[STATE-NAME] -- Default rule to reduce with in state
@@ -485,7 +493,7 @@ static const yytype_uint8 yyr2[] =
    means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       2,     0,     1,     0,     5,     0,     4,     3
+       2,     0,     1,     0,     5,     0,     4,     6,     3
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
@@ -496,16 +504,16 @@ static const yytype_int8 yydefgoto[] =
 
 /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
    STATE-NUM.  */
-#define YYPACT_NINF -6
+#define YYPACT_NINF -7
 static const yytype_int8 yypact[] =
 {
-      -6,     0,    -6,    -5,    -6,    -3,    -6,    -6
+      -7,     0,    -7,    -6,    -3,    -1,    -7,    -7,    -7
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-      -6,    -6,    -6
+      -7,    -7,    -7
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]].  What to do in state STATE-NUM.  If
@@ -515,19 +523,19 @@ static const yytype_int8 yypgoto[] =
 #define YYTABLE_NINF -1
 static const yytype_uint8 yytable[] =
 {
-       2,     6,     7,     3,     4
+       2,     6,     7,     3,     4,     8
 };
 
 static const yytype_uint8 yycheck[] =
 {
-       0,     6,     5,     3,     4
+       0,     7,     5,     3,     4,     6
 };
 
 /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
    symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,     8,     0,     3,     4,     9,     6,     5
+       0,     9,     0,     3,     4,    10,     7,     5,     6
 };
 
 #define yyerrok		(yyerrstatus = 0)
@@ -1049,10 +1057,10 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, ctx)
 
   switch (yytype)
     {
-      case 6: /* "\"word\"" */
-#line 39 "show.y"
+      case 7: /* "\"word\"" */
+#line 45 "show.y"
 	{ free((yyvaluep->str)); };
-#line 1056 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.qydYwDlUk3/show.tab.c"
+#line 1064 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.1zEn7L8TJx/show.tab.c"
 	break;
 
       default:
@@ -1375,7 +1383,7 @@ yyreduce:
   switch (yyn)
     {
         case 4:
-#line 50 "show.y"
+#line 56 "show.y"
     {
             if (ctx->played) show_fail(ctx, (yylsp[(1) - (2)]).first_line, (yylsp[(1) - (2)]).first_column, "import after play");
             else if (!*(yyvsp[(2) - (2)].str)) show_fail(ctx, (yylsp[(2) - (2)]).first_line, (yylsp[(2) - (2)]).first_column, "empty file name");
@@ -1387,19 +1395,18 @@ yyreduce:
     break;
 
   case 5:
-#line 59 "show.y"
-    {
-            if (ctx->played) show_fail(ctx, (yylsp[(1) - (1)]).first_line, (yylsp[(1) - (1)]).first_column, "play given twice");
-            else { char line[32]; snprintf(line, sizeof line, "{\"line\":%d,\"play\":true}", (yylsp[(1) - (1)]).first_line);
-                   show_buf_add(&ctx->out, ctx->out.len ? "," : ""); show_buf_add(&ctx->out, line); }
-            ctx->played = 1;
-            if (ctx->error) YYABORT;
-        ;}
+#line 64 "show.y"
+    { play(ctx, &(yylsp[(1) - (1)]), 0); if (ctx->error) YYABORT; ;}
+    break;
+
+  case 6:
+#line 65 "show.y"
+    { play(ctx, &(yylsp[(1) - (2)]), 1); if (ctx->error) YYABORT; ;}
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1403 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.qydYwDlUk3/show.tab.c"
+#line 1410 "/var/folders/9l/y3g25my94j3_1p5fvxs1959c0000gn/T/tmp.1zEn7L8TJx/show.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1650,6 +1657,19 @@ static void showyyerror(YYLTYPE *loc, struct show_ctx *ctx, const char *msg) {
     show_buf_add(&b, p);
     show_fail(ctx, loc->first_line, loc->first_column, b.s);
     free(b.s);
+}
+
+static void play(struct show_ctx *ctx, YYLTYPE *loc, int shuffle) {
+    if (ctx->played) {
+        show_fail(ctx, loc->first_line, loc->first_column, "play given twice");
+        return;
+    }
+    char line[64];
+    snprintf(line, sizeof line, "{\"line\":%d,\"play\":true,\"shuffle\":%s}",
+             loc->first_line, shuffle ? "true" : "false");
+    show_buf_add(&ctx->out, ctx->out.len ? "," : "");
+    show_buf_add(&ctx->out, line);
+    ctx->played = 1;
 }
 
 static void emit(struct show_ctx *ctx, const char *prefix, const char *text) {

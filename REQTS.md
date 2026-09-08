@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.28.0 — 2026-09-08
+Version 3.30.0 — 2026-09-08
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -59,7 +59,9 @@ R-O13; 2-point cells by default — R-U2, R-U3, R-U5. 3.28.0: play
 scripts — `odca` plays a show of one or more files, `.play` scripts with
 `import` and `play` or odca files, and `--shuffle` draws the order of
 the files — R-X1, R-X7, R-U1, R-U9, R-O13, section 10; the 3.12.0
-pair-level shuffle withdrawn.)
+pair-level shuffle withdrawn. 3.30.0: `play shuffle` — a script's pairs
+drawn afresh each pass under the 3.12.0 constraints — R-X7, R-X1,
+R-O13.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -681,11 +683,11 @@ takes no turn. With `--shuffle` each *pass* — every file once — is a
 fresh uniformly random permutation of the files in which the first file
 with pairs is not the file that closed the previous pass (when two or
 more files have pairs; the program redraws until it holds), and the
-pairs within a file keep their order: the shuffle is of files, never of
-their contents. (From 3.0.0 to 3.26.0 `odca` took one odca file and
-`--shuffle` permuted its pairs, from 3.12.0 under constraints on
-consecutive rules and color sets; withdrawn with the show. A script will
-shuffle pairs when the language gets there.) A show with no pairs leaves
+pairs within a file keep their order unless its own script asks for them
+shuffled (`play shuffle`, R-X7): the flag is about files, never their
+contents. (From 3.0.0 to 3.26.0 `odca` took one odca file and
+`--shuffle` permuted its pairs, from 3.12.0 under the constraints that
+`play shuffle` now carries.) A show with no pairs leaves
 the program running as usual; no file is written.
 
 **R-X2 (equal screen time).** Every pair gets the same screen time: a
@@ -743,15 +745,33 @@ the end of the line, and blank lines are allowed. The statements:
   resolved relative to the script's own directory. The file must exist
   and be an odca file (a JSON object with a `pairs`, or the old `looks`,
   key); its malformed pairs are skipped as R-P3 says.
-- `play` — play every pair imported above, once each, in that order. At
-  most one per script, and no `import` may follow it. A script without
-  `play` plays nothing.
+- `play [shuffle]` — play every pair imported above, once each, in that
+  order. At most one per script, and no `import` may follow it. A script
+  without `play` plays nothing. With `shuffle`, each *pass* through the
+  script's pairs is instead a fresh uniformly random permutation of all
+  of them — every pair plays once before the next pass — in which no two
+  consecutive pairs share a rule or a color set (the same four colors in
+  any arrangement), the seam included: the first pair of a pass may
+  share neither with the pair that played before it, which in a show of
+  several files is the last pair of the file before it in the pass (for
+  the pass's first file, the pair still on screen). The program draws a
+  permutation and tests it, redrawing the whole sequence on a failure,
+  up to a hundred times (six pairs with every rule and every color set
+  appearing twice pass a draw one time in twelve, so ten draws would
+  miss two passes in five; a hundred, one in six thousand, at no
+  measurable cost); a set of pairs that allows no such order (one pair,
+  or every pair on one rule, for instance) then plays the last draw as
+  it is, so the show never stalls.
+
+`import`, `play`, and `shuffle` are reserved: a file of that name must be
+quoted.
 
 The first error stops the program before any window opens (R-X1): a
 syntax error as `error: <script>:<line>:<column>: <message>` — the
 messages are `syntax error, unexpected word <word>, expecting import or
 play`, `syntax error, unexpected end of line, expecting word`, `syntax
-error, unexpected <token>, expecting end of line`, `unterminated quote`,
+error, unexpected <token>, expecting end of line` (and with a keyword
+where a name belongs, `expecting word`), `unterminated quote`,
 `empty file name`, `play given twice`, and `import after play`, lines
 and columns counted from 1 (`conformance/scripts/` holds the cases,
 TESTS.md) — and an import that fails as `error: <script>:<line>: cannot
@@ -865,7 +885,8 @@ The program prints single-line, human-readable status to standard output:
   Arrangement messages (R-O9) name the set.
 - **R-O14.** On a geometry change (R-U8): `resized <cols>x<rows>`.
 - **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> pairs`
-  for each file in command-line order; in a show of two or more files
+  for each file in command-line order, `, shuffled` appended when its
+  script said `play shuffle` (R-X7); in a show of two or more files
   (never with one), `playing <file>` before a pair from a different file
   than the last pair played, the first pair included; on playing pair i
   (0-based, position within its file) of that file's n `pair <i+1>/<n>

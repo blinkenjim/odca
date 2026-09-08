@@ -970,6 +970,65 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(single.pairIndex, 0)
     }
 
+    func testShuffleDrawsAFreshOrderOfAScriptsPairs() throws {  // PT-39
+        let lines = Lines()
+        let store = try reviewStore()
+        let a = allProducible, b = try Rule(id: String(repeating: "1", count: 20)), c = try Rule(id: String(repeating: "2", count: 20))
+        let x = grey(10), y = grey(20), z = grey(30)
+        let pairs = [Pair(rule: a.id, colorset: "X", colors: x), Pair(rule: a.id, colorset: "Y", colors: y),
+                     Pair(rule: b.id, colorset: "X'", colors: x.reversed()), Pair(rule: b.id, colorset: "Z", colors: z),
+                     Pair(rule: c.id, colorset: "Y", colors: y), Pair(rule: c.id, colorset: "Z", colors: z)]
+        let file = odcaFile(store, name: "six.odca")
+        Store.saveOdcaFile(pairs, to: file)
+        let script = file.deletingLastPathComponent().appendingPathComponent("six.play")
+        try "import six.odca\nplay shuffle\n".write(to: script, atomically: true, encoding: .utf8)
+        let session = makeSession(store, lines: lines, show: try Show.load([script]))
+        XCTAssertFalse(session.shuffle)  // the script asked, not the command line
+        XCTAssertTrue(lines.take().contains("odca six.play: 6 pairs, shuffled"))  // R-O13
+        var played = [session.pairIndex!]
+        for _ in 0..<59 { _ = session.handleKey(.N); played.append(session.pairIndex!) }  // ten passes
+        for p in 0..<10 {
+            XCTAssertEqual(Array(played[(6 * p)..<(6 * p + 6)]).sorted(), Array(0..<6))  // every pass: every pair once
+        }
+        for (i, j) in zip(played, played.dropFirst()) {  // never the same rule or color set in a row, seams included
+            XCTAssertNotEqual(pairs[i].rule, pairs[j].rule, "\(i) then \(j)")
+            XCTAssertNotEqual(pairs[i].colors.sorted(), pairs[j].colors.sorted(), "\(i) then \(j)")
+        }
+        _ = session.handleKey(.P)  // back one within the pass
+        XCTAssertEqual(session.pairIndex, played[played.count - 2])
+        try "import six.odca\nplay\n".write(to: script, atomically: true, encoding: .utf8)  // plain play: file order
+        let plain = makeSession(store, lines: lines, show: try Show.load([script]))
+        XCTAssertEqual(plain.playOrder.map { $0.index }, Array(0..<6))
+        XCTAssertFalse(lines.take().contains(", shuffled"))
+        // No order can avoid a repeat: the requirement is dropped and the show goes on.
+        Store.saveOdcaFile([Pair(rule: a.id, colorset: "X", colors: x), Pair(rule: a.id, colorset: "Y", colors: y)], to: file)
+        try "import six.odca\nplay shuffle\n".write(to: script, atomically: true, encoding: .utf8)
+        let small = makeSession(store, show: try Show.load([script]))
+        var pair = [small.pairIndex!]
+        for _ in 0..<5 { _ = small.handleKey(.N); pair.append(small.pairIndex!) }
+        for i in stride(from: 0, to: 6, by: 2) { XCTAssertEqual(Array(pair[i..<(i + 2)]).sorted(), [0, 1]) }
+    }
+
+    func testAShuffledScriptKeepsItsSeamWithTheOtherFiles() throws {  // PT-39
+        let store = try reviewStore()
+        let a = try Rule(id: String(repeating: "1", count: 20)), b = try Rule(id: String(repeating: "2", count: 20))
+        let x = grey(10), y = grey(20)
+        // The plain file ends on rule b with colors y; the shuffled file holds one
+        // pair on each, so only b-then-a, y-then-x can open its pass.
+        let plainFile = odcaFile(store, name: "plain.odca")
+        Store.saveOdcaFile([Pair(rule: b.id, colorset: "Y", colors: y)], to: plainFile)
+        let shuffledFile = odcaFile(store, name: "two.odca")
+        Store.saveOdcaFile([Pair(rule: b.id, colorset: "Y", colors: y),
+                            Pair(rule: a.id, colorset: "X", colors: x)], to: shuffledFile)
+        let script = shuffledFile.deletingLastPathComponent().appendingPathComponent("two.play")
+        try "import two.odca\nplay shuffle\n".write(to: script, atomically: true, encoding: .utf8)
+        let session = makeSession(store, show: try Show.load([plainFile, script]))
+        for _ in 0..<20 {  // the clashing pair never opens the file
+            XCTAssertEqual(session.playOrder.dropFirst().map { [$0.segment, $0.index] }, [[1, 1], [1, 0]])
+            _ = session.handleKey(.N)
+        }
+    }
+
     func testRowsKeepTheirColorsThroughQuickTransitions() throws {  // PT-31, R-X5
         let store = try reviewStore()
         let file = odcaFile(store, name: "saver.odca")

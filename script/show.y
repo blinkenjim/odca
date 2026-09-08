@@ -2,7 +2,7 @@
 
    One statement per line; `#` starts a comment; blank lines are allowed.
      import <file>   a bare word or a double-quoted string
-     play            at most once, after every import
+     play [shuffle]  at most once, after every import
    The parser emits JSON (show.h); the first error ends the parse. */
 %{
 #include <stdio.h>
@@ -16,6 +16,11 @@
 
 static void showyyerror(YYLTYPE *loc, struct show_ctx *ctx, const char *msg);
 static void emit(struct show_ctx *ctx, const char *prefix, const char *text);
+/* Two rules rather than one with an optional `shuffle`: each spelling of
+   the statement stays visible in the grammar and the value stack holds
+   only strings. (Neither shape makes bison name `shuffle` in the error
+   after `play <junk>`: the state after PLAY reduces by default.) */
+static void play(struct show_ctx *ctx, YYLTYPE *loc, int shuffle);
 static char *copy_prefix(const char *s, size_t n) {  /* strndup, which C11 lacks */
     char *out = malloc(n + 1);
     if (out) { memcpy(out, s, n); out[n] = '\0'; }
@@ -34,6 +39,7 @@ static char *copy_prefix(const char *s, size_t n) {  /* strndup, which C11 lacks
 %token END 0 "end of file"
 %token IMPORT "import"
 %token PLAY "play"
+%token SHUFFLE "shuffle"
 %token NEWLINE "end of line"
 %token <str> WORD "word"
 %destructor { free($$); } WORD
@@ -55,14 +61,8 @@ statement
             free($2);
             if (ctx->error) YYABORT;
         }
-    | PLAY
-        {
-            if (ctx->played) show_fail(ctx, @1.first_line, @1.first_column, "play given twice");
-            else { char line[32]; snprintf(line, sizeof line, "{\"line\":%d,\"play\":true}", @1.first_line);
-                   show_buf_add(&ctx->out, ctx->out.len ? "," : ""); show_buf_add(&ctx->out, line); }
-            ctx->played = 1;
-            if (ctx->error) YYABORT;
-        }
+    | PLAY         { play(ctx, &@1, 0); if (ctx->error) YYABORT; }
+    | PLAY SHUFFLE { play(ctx, &@1, 1); if (ctx->error) YYABORT; }
     ;
 
 %%
@@ -95,6 +95,19 @@ static void showyyerror(YYLTYPE *loc, struct show_ctx *ctx, const char *msg) {
     show_buf_add(&b, p);
     show_fail(ctx, loc->first_line, loc->first_column, b.s);
     free(b.s);
+}
+
+static void play(struct show_ctx *ctx, YYLTYPE *loc, int shuffle) {
+    if (ctx->played) {
+        show_fail(ctx, loc->first_line, loc->first_column, "play given twice");
+        return;
+    }
+    char line[64];
+    snprintf(line, sizeof line, "{\"line\":%d,\"play\":true,\"shuffle\":%s}",
+             loc->first_line, shuffle ? "true" : "false");
+    show_buf_add(&ctx->out, ctx->out.len ? "," : "");
+    show_buf_add(&ctx->out, line);
+    ctx->played = 1;
 }
 
 static void emit(struct show_ctx *ctx, const char *prefix, const char *text) {

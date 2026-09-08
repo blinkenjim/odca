@@ -1,1 +1,1 @@
-{"ok":true,"statements":[{"line":2,"import":"interesting.odca"},{"line":4,"import":"more pairs.odca"},{"line":5,"play":true}]}
+{"ok":true,"statements":[{"line":2,"import":"interesting.odca"},{"line":4,"import":"more pairs.odca"},{"line":5,"play":true,"shuffle":false}]}

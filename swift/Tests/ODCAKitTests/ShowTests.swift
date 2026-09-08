@@ -30,7 +30,9 @@ final class ShowTests: XCTestCase {
     }
 
     func testParseGivesStatementsOrAPositionedError() throws {  // R-X7
-        XCTAssertEqual(try Show.parse("import a.odca\nplay\n"), [.import(line: 1, file: "a.odca"), .play(line: 2)])
+        XCTAssertEqual(try Show.parse("import a.odca\nplay\n"),
+                       [.import(line: 1, file: "a.odca"), .play(line: 2, shuffle: false)])
+        XCTAssertEqual(try Show.parse("play shuffle\n"), [.play(line: 1, shuffle: true)])
         XCTAssertEqual(try Show.parse("# only a comment"), [])
         XCTAssertThrowsError(try Show.parse("import a.odca\nplay\nplay\n")) { e in
             XCTAssertEqual(e as? ShowError, ShowError("3:1: play given twice"))
@@ -44,23 +46,31 @@ final class ShowTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         Store.saveOdcaFile([pair], to: dir.appendingPathComponent("one.odca"))
         Store.saveOdcaFile([pair, pair], to: sub.appendingPathComponent("two pairs.odca"))
-        let script = sub.appendingPathComponent("show.play")
-        func write(_ text: String) throws { try text.write(to: script, atomically: true, encoding: .utf8) }
-        try write("import ../one.odca   # relative to the script\nimport \"two pairs.odca\"\nplay\n")
-        XCTAssertEqual(try Show.loadScript(script), [pair, pair, pair])
-        try write("import ../one.odca\n")  // imports without play: nothing plays
-        XCTAssertEqual(try Show.loadScript(script), [])
-        try write("play\n")  // play without imports: nothing to play
-        XCTAssertEqual(try Show.loadScript(script), [])
+        let scriptURL = sub.appendingPathComponent("show.play")
+        func write(_ text: String) throws { try text.write(to: scriptURL, atomically: true, encoding: .utf8) }
+        func script(_ text: String) throws -> (pairs: [Pair], shuffle: Bool) {
+            try write(text)
+            return try Show.loadScript(scriptURL)
+        }
+        var loaded = try script("import ../one.odca   # relative to the script\nimport \"two pairs.odca\"\nplay\n")
+        XCTAssertEqual(loaded.pairs, [pair, pair, pair])
+        XCTAssertFalse(loaded.shuffle)
+        loaded = try script("import ../one.odca\nplay shuffle\n")  // R-X7: the pairs shuffled per pass
+        XCTAssertEqual(loaded.pairs, [pair])
+        XCTAssertTrue(loaded.shuffle)
+        loaded = try script("import ../one.odca\n")  // imports without play: nothing plays
+        XCTAssertEqual(loaded.pairs, [])
+        loaded = try script("play shuffle\n")  // play without imports: nothing to play, shuffled or not
+        XCTAssertEqual(loaded.pairs, [])
         func failure(_ text: String) throws -> String? {
             try write(text)
-            do { _ = try Show.loadScript(script) } catch let e as ShowError { return e.description }
+            do { _ = try Show.loadScript(scriptURL) } catch let e as ShowError { return e.description }
             return nil
         }
-        XCTAssertEqual(try failure("import gone.odca\nplay\n"), "\(script.path):1: cannot read gone.odca")
+        XCTAssertEqual(try failure("import gone.odca\nplay\n"), "\(scriptURL.path):1: cannot read gone.odca")
         try "hello\n".write(to: sub.appendingPathComponent("notes.txt"), atomically: true, encoding: .utf8)
-        XCTAssertEqual(try failure("\n\nimport notes.txt\nplay\n"), "\(script.path):3: notes.txt is not an odca file")
-        XCTAssertEqual(try failure("import ../one.odca\nplay\nimport ../one.odca\n"), "\(script.path):3:1: import after play")
+        XCTAssertEqual(try failure("\n\nimport notes.txt\nplay\n"), "\(scriptURL.path):3: notes.txt is not an odca file")
+        XCTAssertEqual(try failure("import ../one.odca\nplay\nimport ../one.odca\n"), "\(scriptURL.path):3:1: import after play")
         let missing = dir.appendingPathComponent("missing.play")
         XCTAssertThrowsError(try Show.loadScript(missing)) { e in
             XCTAssertEqual(e as? ShowError, ShowError("\(missing.path): cannot read"))
@@ -76,10 +86,13 @@ final class ShowTests: XCTestCase {
         try "import one.odca\nimport one.odca\nplay\n".write(to: script, atomically: true, encoding: .utf8)
         let empty = dir.appendingPathComponent("empty.odca")
         try "{\"pairs\": []}".write(to: empty, atomically: true, encoding: .utf8)
-        let show = try Show.load([script, dir.appendingPathComponent("one.odca"), empty])
+        let shuffled = dir.appendingPathComponent("shuffled.play")
+        try "import one.odca\nplay shuffle\n".write(to: shuffled, atomically: true, encoding: .utf8)
+        let show = try Show.load([script, dir.appendingPathComponent("one.odca"), empty, shuffled])
         XCTAssertEqual(show, [Segment(file: "show.play", pairs: [pair, pair]),  // a script: what it plays
                               Segment(file: "one.odca", pairs: [pair]),  // an odca file: import it, play it
-                              Segment(file: "empty.odca", pairs: [])])
+                              Segment(file: "empty.odca", pairs: []),
+                              Segment(file: "shuffled.play", pairs: [pair], shuffle: true)])  // R-X7
         let other = dir.appendingPathComponent("show.txt")
         try "import one.odca\nplay\n".write(to: other, atomically: true, encoding: .utf8)
         XCTAssertEqual(try Show.load([other])[0].pairs, [pair])  // any other extension is a script
