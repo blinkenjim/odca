@@ -5,6 +5,18 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.58.0 (Swift, spec) — 2026-09-10
+
+**`odca-evolve --parity`** keeps the field even. As each rule's turn
+comes, if its shortest recorded lifetime at the width, times 0.9,
+outlives the longest lifetime any other rule of the file holds, it
+gives up its turn, printing `skipped: shortest 4821 × 0.9 outlives
+1200` on its line, and the time goes to the rules behind. The judgment
+uses the seeds as they stand at that moment, this run's finds
+included. A rule with no seeds always runs; a rule holding nothing but
+survivors of the cap stands aside while any other rule holds anything
+shorter.
+
 ## 3.56.0 (Swift, spec) and 3.57.0 (Python) — 2026-09-10
 
 **`odca-select my.odca --longest`** curates what `odca --longest`

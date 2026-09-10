@@ -96,7 +96,7 @@ the keyboard:
   `--shuffle` mixes the seeds under the usual no-repeat rule; `--cells`
   picks the width when the files record more than one. The rule keys do
   nothing; `i` restarts the seed on screen.
-- **`odca-evolve <file.odca> --cells N --time SECONDS [--cap N]`** (Swift
+- **`odca-evolve <file.odca> --cells N --time SECONDS [--cap N] [--parity]`** (Swift
   only, for now) searches each rule in the file for the starting rows
   that keep it alive longest at a width of N cells: random rows evolved
   until a state dies out, the ten longest-lived kept and written back
@@ -104,6 +104,9 @@ the keyboard:
   opens no window. `odca` then starts a pair from its best seed whenever
   the file has one for exactly the width on screen. A recorded row that
   outlives the cap (100000 generations by default) is kept as `survived`.
+  `--parity` lets a rule far ahead give up its turn: when its shortest
+  recorded lifetime times 0.9 outlives the longest any other rule holds
+  at that width, it is skipped and the time goes to the rest.
 - **`odca-select <file.odca> [--longest] [--4 | --3 | --2 | --1]`** is the workbench that composes them: it
   shows screened random rules, you dress each in a color set, and `s`/`S`
   save the result as a pair in the named file (created if missing). `n`/`p`

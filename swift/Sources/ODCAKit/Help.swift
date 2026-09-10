@@ -133,7 +133,7 @@ the candidate stash.
 public let helpOdcaEvolve = """
 odca-evolve: search an odca file's rules for their longest-lived seeds
 
-usage: odca-evolve <file.odca> --cells N --time SECONDS [--cap N]
+usage: odca-evolve <file.odca> --cells N --time SECONDS [--cap N] [--parity]
        odca-evolve --help
 
 For every distinct rule in the file, in order, spends the time budget
@@ -150,6 +150,10 @@ holds one for exactly the width on screen.
   --time SECONDS  the budget per rule, in whole seconds
   --cap N         a row still alive after this many generations counts as
                   having survived and stops there; 100000 by default
+  --parity        a rule far ahead gives up its turn: when its shortest
+                  recorded lifetime at this width, times 0.9, outlives the
+                  longest any other rule of the file holds, it is skipped
+                  with a line saying so, and the time goes to the rest
 
 Output: a line as each rule is taken up, a line for every row that joins
 the ten (its generations, its rank, how it ended), and when the rule is

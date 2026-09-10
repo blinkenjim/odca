@@ -3,8 +3,9 @@
 import Foundation
 import ODCAKit
 
-let (files, _, options) = parseArguments(program: "odca-evolve", help: helpOdcaEvolve,
-                                         options: ["--cells", "--time", "--cap"])
+let (files, flags, options) = parseArguments(program: "odca-evolve", help: helpOdcaEvolve,
+                                             flags: ["--parity"], options: ["--cells", "--time", "--cap"])
+let parity = flags.contains("--parity")  // R-E5
 let file = files[0]
 let cells = wholeNumber(program: "odca-evolve", options: options, "--cells", unit: "cells", minimum: Session.minCols)  // R-E1
 let budget = wholeNumber(program: "odca-evolve", options: options, "--time", unit: "seconds")  // R-E1
@@ -55,6 +56,12 @@ func countdown(_ text: String) {
 for (index, id) in rules.enumerated() {
     let rule = try! Rule(id: id)  // loadOdcaFile keeps only valid rule IDs
     let deadline = Date().addingTimeInterval(Double(budget))
+    // R-E5: under --parity a rule far ahead of every other gives up its
+    // turn, judged on the seeds as they stand now, this run's included.
+    if parity, let (shortest, longest) = Evolve.givesUpTurn(rule: id, width: cells, seeds: seeds, rules: rules) {
+        say("rule \(id) (\(index + 1)/\(rules.count)): \(cells) cells, skipped: shortest \(shortest) × 0.9 outlives \(longest)", at: deadline)
+        continue
+    }
     say("rule \(id) (\(index + 1)/\(rules.count)): \(cells) cells", at: deadline)  // opens with the whole budget
     let search = SeedSearch(rule: rule, cells: cells, cap: cap, kept: seeds[id]?[cells] ?? [])
     search.onKept = { seed, rank in

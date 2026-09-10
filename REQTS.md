@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.56.0 — 2026-09-10
+Version 3.58.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -81,7 +81,8 @@ counter on screen in full screen — R-U11. 3.52.1: at 12 points — R-U11. 3.52
 every frame — R-U11. 3.54.0: the on-screen count in any window, `o`
 hides it — R-U11, R-K20; a title-bar double-click returns a resized
 window to its natural size — R-U12. 3.56.0: `odca-select --longest`,
-curating the pairs with seeds — R-W9, R-W1, R-O12, R-U9, section 10.)
+curating the pairs with seeds — R-W9, R-W1, R-O12, R-U9, section 10.
+3.58.0: `odca-evolve --parity` — R-E5, R-E1, R-O16, section 10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -938,7 +939,7 @@ instead.)
 The search: which starting rows keep a rule alive longest?
 
 **R-E1 (entry).** `odca-evolve <file.odca> --cells N --time SECONDS
-[--cap N]` — the file is the one required argument and must exist and
+[--cap N] [--parity]` — the file is the one required argument and must exist and
 hold at least one pair (else `error: <file> does not exist` / `error:
 <file>: no pairs`, exit 1); `--cells`, the width of the rows, a whole
 number of 3 or more (R-M2), and `--time`, the budget per rule in whole
@@ -976,6 +977,21 @@ not join. Each join is printed (R-O16). When the budget ends the file is
 rewritten (R-P3): its pairs unchanged, this rule's list at this width
 replaced by the ten, every other rule's and width's seeds untouched.
 Then the next rule.
+
+**R-E5 (`--parity`).** With the flag, each rule is judged as its turn
+comes (R-E2), on the seeds as they stand at that moment — the file's,
+and those this run has found and written for the rules before it: if
+the rule's *shortest* recorded lifetime at the run's width, times 0.9,
+is longer than the *longest* lifetime any other rule of the file's
+pairs holds at that width, the rule gives up its turn — it prints its
+line with `, skipped: shortest <s> × 0.9 outlives <l>` (R-O16), no
+seeds line, and the program takes up the next rule at once, the time
+going to the rest. Lifetimes count as recorded, a survivor's as the
+cap, so a rule holding nothing but survivors gives up its turn for as
+long as another rule holds anything shorter. A rule with fewer than
+ten seeds is judged on those it has; one with none never gives up its
+turn, and neither does any rule when no other rule holds seeds at the
+width. Seeds of rules not among the file's pairs do not count.
 
 **R-E4 (countdown and interruption).** While a rule is searched and
 standard output is a terminal, the time left in its budget is shown as
@@ -1122,7 +1138,10 @@ The program prints single-line, human-readable status to standard output:
   and with the countdown: as each rule is taken up, `rule <id>
   (<i>/<n>): <cells> cells` (opening with the whole budget); as each row
   joins the ten, `kept <generations> generations, rank <r> (<end>)` with
-  its 1-based place at the moment it joined; when the rule is done
+  its 1-based place at the moment it joined; under `--parity` (R-E5), a
+  rule that gives up its turn prints `rule <id> (<i>/<n>): <cells>
+  cells, skipped: shortest <s> × 0.9 outlives <l>` and nothing else;
+  when the rule is done
   (budget spent or interrupted), before the file is written and the next
   rule taken up, the ages of the kept rows in generations, longest first,
   as bare numbers separated by `, ` (`4821, 3990, 2210, ...`; no line
@@ -1244,7 +1263,7 @@ loses one update (loaders already tolerate malformed content, R-P).
   `odca-select`, `--longest` (R-W9), and,
   for `odca`, `--shuffle` (R-X1), `--fullscreen` (R-U2), `--watchdog`
   (R-X2), `--grace` (R-X3), `--longest` and `--cells` (R-X8), and for `odca-evolve`, `--cells`,
-  `--time`, and `--cap` (R-E1); no configuration files or menus. No other flags exist (the 2.x developer flags
+  `--time`, `--cap` (R-E1), and `--parity` (R-E5); no configuration files or menus. No other flags exist (the 2.x developer flags
   `--colorset-review`, `--screensaver-review`, `--consistency-check`, and
   `--screensaver` are gone: the last two became `odca-select` and `odca`,
   the consistency check became `R`, and color set review is on hold).

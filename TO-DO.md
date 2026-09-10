@@ -1,7 +1,11 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.56.0, Swift 3.56.0, Python
-3.57.0: `odca-select --longest` (R-W9) presents only the pairs whose
+**YOU ARE HERE (2026-09-10):** Spec 3.58.0, Swift 3.58.0, Python
+3.57.0. Swift 3.58.0: `odca-evolve --parity` (R-E5): a rule whose
+shortest lifetime × 0.9 outlives every other rule's longest at the
+width gives up its turn (judged on the seeds as they stand, this run's
+included; the file's pairs' rules only; the user's three answers).
+Before that, 3.56.0 / 3.57.0: `odca-select --longest` (R-W9) presents only the pairs whose
 rule has seeds (any width, survivors included), `X` deletes the rule's
 seeds instead of the pair, appended pairs are saved but not shown and
 the position stays (the user's four answers: any; confirmed; keep;

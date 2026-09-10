@@ -8,6 +8,19 @@ public enum Evolve {
     public static let keep = 10  // the seeds kept per rule and width (R-E3)
     public static let defaultCap = 100_000  // generations a row may live before it counts as surviving (R-E2)
     public static let rateWindow = 10  // seconds the countdown's rows-per-second looks back over (R-E4)
+    public static let parityMargin = 0.9  // --parity: a rule gives up its turn when its shortest × this outlives the rest (R-E5)
+
+    /// `--parity` (R-E5): whether `rule` gives up its turn at `width` — its
+    /// shortest recorded lifetime times the margin outlives the longest
+    /// lifetime any other rule among `rules` holds at that width. Returns
+    /// the two lifetimes for the message, or nil when the rule runs: it has
+    /// no seeds, no other rule has any, or it is not that far ahead.
+    public static func givesUpTurn(rule: String, width: Int, seeds: Seeds, rules: [String]) -> (shortest: Int, longest: Int)? {
+        guard let shortest = seeds[rule]?[width]?.map(\.generations).min() else { return nil }
+        let others = rules.filter { $0 != rule }.compactMap { seeds[$0]?[width]?.map(\.generations).max() }
+        guard let longest = others.max(), Double(shortest) * parityMargin > Double(longest) else { return nil }
+        return (shortest, longest)
+    }
 
     /// A span of seconds as `hh:mm:ss`, rounded up to the second: the
     /// countdown, and the time left that opens every status line (R-E4, R-O16).
