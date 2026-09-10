@@ -1,6 +1,10 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.52.2, Swift 3.52.2, Python
+**YOU ARE HERE (2026-09-10):** Spec 3.54.0, Swift 3.54.0, Python
+3.55.0: the on-screen count in any window with `o` to hide it (R-U11,
+R-K20), and a title-bar double-click returns a resized window to its
+natural size, then zooms as usual (R-U12; Python acts on the maximize
+event since SDL reports no title-bar clicks). Before that, 3.52.2 /
 3.53.2 (the on-screen counter at 18 points bold, refreshed every frame;
 12 was "too small", 36 "way too big").
 3.52.0 / 3.53.0: in full screen under `--longest` the counter is also drawn in

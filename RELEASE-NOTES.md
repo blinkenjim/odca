@@ -5,6 +5,18 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.54.0 (Swift, spec) and 3.55.0 (Python) — 2026-09-10
+
+Two window manners. The on-screen generation count now stands in the
+lower-left corner of the ordinary window too, not only full screen;
+`o` hides it and brings it back. And a double-click on the title bar
+of a window you have dragged out of shape returns it to its natural
+size, 1200 × 800 (or the seeds' width under `--longest`), top-left
+corner where it was; double-click a window already that size and it
+zooms as the Mac always has. (Python, which cannot see the double-click
+itself, undoes the maximize the platform performs when the window was
+not its natural size; a window that was stays maximized.)
+
 ## 3.52.2 (Swift, spec) and 3.53.2 (Python) — 2026-09-10
 
 The on-screen counter is 18 points bold (12 was too small) and follows

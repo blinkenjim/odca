@@ -24,6 +24,11 @@ public final class ViewerModel: ObservableObject {
     public static var fixedCols: Int?  // `--longest`: the seeds' width, the window's too (R-X8)
     public static var defaultCols: Int { fixedCols ?? 1200 / cellSize }
     public static var defaultRows: Int { 800 / cellSize }
+    /// The window's natural content size (R-U2, R-U12): the default grid at the cell size.
+    public static var naturalSize: NSSize {
+        NSSize(width: CGFloat(defaultCols * cellSize), height: CGFloat(defaultRows * cellSize))
+    }
+    var showCounter = true  // R-U11: the on-screen generation count, `o` toggles
     var cols: Int { session.cols }
     var rows: Int { session.rows }
 
@@ -45,6 +50,10 @@ public final class ViewerModel: ObservableObject {
             guard let self else { return event }
             if Self.isFullScreenKey(event) {  // R-K18: a window key, live in every mode and while paused
                 (event.window ?? NSApp.keyWindow)?.toggleFullScreen(nil)
+                return nil
+            }
+            if Self.isCounterKey(event) {  // R-K20: `o` shows / hides the on-screen count, live likewise
+                self.showCounter.toggle()
                 return nil
             }
             guard let key = Self.mapKey(event) else { return event }
@@ -132,6 +141,10 @@ public final class ViewerModel: ObservableObject {
 
     private static func isFullScreenKey(_ event: NSEvent) -> Bool {
         !event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "F"  // shift-f
+    }
+
+    private static func isCounterKey(_ event: NSEvent) -> Bool {
+        !event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "o"
     }
 
     private static func mapKey(_ event: NSEvent) -> Session.Key? {
@@ -245,8 +258,7 @@ final class AutomatonView: NSView {
             lastTimestamp = link.timestamp
             model.frameTick(dt: dt)
             // R-U11: the on-screen counter follows every frame (the terminal's, five times a second).
-            let fullScreen = window?.styleMask.contains(.fullScreen) ?? false
-            counterView.text = fullScreen ? model.session.counter : nil
+            counterView.text = model.showCounter ? model.session.counter : nil
         }
         var cell = CGFloat(ViewerModel.cellSize)
         if model.session.longest {
@@ -279,8 +291,8 @@ final class AutomatonView: NSView {
 
 
 /// The generation counter on screen (R-U11): `<n>/<m>` in the lower-left
-/// corner, yellow with a black outline, shown in full screen only. Sits
-/// over the grid, transparent, and never takes events.
+/// corner, yellow with a black outline, in any window until `o` hides it.
+/// Sits over the grid, transparent, and never takes events.
 @MainActor
 final class CounterView: NSView {
     static let inset: CGFloat = 12

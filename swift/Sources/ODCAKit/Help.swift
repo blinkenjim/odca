@@ -70,6 +70,7 @@ Keys:
   0-9   color set (the hot ten)         [ / ]   walk the whole color set pool
   c / C arrange colors forward / back
   F     toggle full screen (also while paused)
+  o     show / hide the generation count on screen (--longest; also paused)
 
 Files: the files named on the command line and the odca files they
 import are read only; color sets come from library.json at the repository

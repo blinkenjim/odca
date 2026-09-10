@@ -5,6 +5,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `odca --fullscreen`: enter full screen as soon as the window exists (R-U2).
     nonisolated(unsafe) static var fullScreenAtLaunch = false
     private var observers: [Any] = []
+    private var clickMonitor: Any?
+
+    /// R-U12: a double-click on the title bar of a window that is not its
+    /// natural size returns it there (top-left corner kept) instead of
+    /// zooming; at its natural size the double-click zooms as ever.
+    private func installTitleBarDoubleClick() {
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+            guard event.clickCount == 2, let window = event.window,
+                  !window.styleMask.contains(.fullScreen),
+                  event.locationInWindow.y > window.contentLayoutRect.maxY,  // the title bar
+                  let content = window.contentView?.frame.size else { return event }
+            let natural = ViewerModel.naturalSize
+            if abs(content.width - natural.width) < 0.5 && abs(content.height - natural.height) < 0.5 { return event }
+            var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: natural))
+            frame.origin = NSPoint(x: window.frame.minX, y: window.frame.maxY - frame.height)
+            window.setFrame(frame, display: true, animate: true)
+            return nil  // consumed: no zoom
+        }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide the pointer in full screen, show it again on exit (R-U2).
@@ -19,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // regular, focusable app and take the foreground.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        installTitleBarDoubleClick()
         DispatchQueue.main.async {  // the window exists by now (R-U2, R-U8)
             for window in NSApp.windows {
                 if ViewerModel.fixedCols == nil {  // R-X8: a scaled grid needs no snapping

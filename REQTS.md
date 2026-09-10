@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.52.2 — 2026-09-10
+Version 3.54.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -78,7 +78,9 @@ R-U6. 3.48.0: the counter moves to standard output, in place on a
 terminal — R-O17, R-U6. 3.50.0: the `--longest` grid is stretched to the
 window's width, aspect kept — R-X8, R-U2. 3.52.0: the generation
 counter on screen in full screen — R-U11. 3.52.1: at 12 points — R-U11. 3.52.2: at 18 points, bold, refreshed
-every frame — R-U11.)
+every frame — R-U11. 3.54.0: the on-screen count in any window, `o`
+hides it — R-U11, R-K20; a title-bar double-click returns a resized
+window to its natural size — R-U12.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -319,15 +321,28 @@ standard output, R-O17.)
 **R-U7 (shutdown).** Pressing `q` or closing the window exits the program
 cleanly, stopping all background workers.
 
-**R-U11 (on-screen counter).** Under `odca --longest` (R-X8), while the
-window is full screen, the generation counter of R-O17, `<n>/<m>`, is
-also drawn on the picture: in the lower-left corner, inset from the
-edges, in yellow with a black outline about a point wide around the
-glyphs, in a bold monospaced-digit face of 18 points, over whatever
-cells are there. It is refreshed every frame, at the display's rate,
-while the terminal counter keeps its five times a second; it is not
-drawn in a window that is not full screen, and the terminal counter
-goes on regardless.
+**R-U11 (on-screen counter).** Under `odca --longest` (R-X8) the
+generation counter of R-O17, `<n>/<m>`, is also drawn on the picture,
+full screen or not: in the lower-left corner, inset from the edges, in
+yellow with a black outline about a point wide around the glyphs, in a
+bold monospaced-digit face of 18 points, over whatever cells are there.
+It is refreshed every frame, at the display's rate, while the terminal
+counter keeps its five times a second and goes on regardless. It is
+shown at startup; `o` (R-K20) hides and shows it. (3.52.0 to 3.52.2
+drew it in full screen only.)
+
+**R-U12 (title-bar double-click).** A double-click on the window's
+title bar, which the platform treats as zoom (maximize or restore),
+first returns a window that is not its natural size — the default
+window of R-U2, or under `--longest` the seeds' width by the default
+height — to that size, keeping its top-left corner where it was, and
+does nothing else; a window already at its natural size zooms as the
+platform would. So the first double-click on a resized window puts it
+right, and the next toggles the zoomed state as ever. (The Python
+implementation cannot see the double-click itself and acts on the
+platform's maximize instead: a window that was not its natural size
+when maximized is restored to that size at once; one that was stays
+maximized, and the platform's next double-click restores it.)
 
 **R-U9 (`--help`).** When `--help` appears anywhere on the command line the
 program prints its help text to standard output and exits with status 0,
@@ -471,6 +486,10 @@ window is not in it, by whatever route it got there, and leave it if it
 is (R-U2). A window key, not a session key: nothing about the automaton,
 the undo stack, or the pair cycle changes, and it is live while paused
 (R-K10). The platform's own controls keep working alongside it.
+
+**R-K20 (`o` — on-screen count).** Under `odca --longest` (R-X8) hide
+or show the on-screen generation counter (R-U11); shown at startup, not
+persisted. Live while paused, like `F` (R-K18); nothing elsewhere.
 
 **R-K19 (`U` — undo all).** Undo, in one step, every rule change made
 since the last *arrival*: the pair under review being selected (R-B2),

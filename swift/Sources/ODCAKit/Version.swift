@@ -1,2 +1,2 @@
 /// Code-base version (semver), shared by the spec and all implementations.
-public let odcaVersion = "3.52.2"
+public let odcaVersion = "3.54.0"
