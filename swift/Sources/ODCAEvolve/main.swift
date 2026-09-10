@@ -91,8 +91,13 @@ while true {
     // flight (one per worker) as a deficit that shrinks like 1/t, so it
     // would creep upward long after the search had settled.
     var samples: [(elapsed: Double, tried: Int)] = []
+    var cutShort = false
     let kept = search.run(until: deadline) { remaining in
         if interrupted { search.stop() }
+        if !cutShort && Evolve.allSurvived(search.kept) {  // R-E3: nothing left to improve
+            cutShort = true
+            search.stop()
+        }
         let elapsed = Double(budget) - remaining
         samples.append((elapsed, search.tried))
         if samples.count > Evolve.rateWindow + 1 { samples.removeFirst() }
@@ -104,6 +109,7 @@ while true {
     outputLock.lock()
     clearCountdown()
     outputLock.unlock()
+    if cutShort { say("all ten survived the cap: turn ended early", at: deadline) }  // R-O16
     if !kept.isEmpty {  // R-O16: the ages of the ten, longest first, before moving on
         say(kept.map { String($0.generations) }.joined(separator: ", "), at: deadline)
     }

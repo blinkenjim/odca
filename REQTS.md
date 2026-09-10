@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.64.0 — 2026-09-10
+Version 3.66.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -88,7 +88,8 @@ a confirmed cycle ends a row in `odca-evolve` and an item in `odca
 `--parity` judges against the other rule furthest behind, not the one
 furthest ahead — R-E5. 3.64.0: `odca-evolve` round trips until
 interrupted; the parity plan is made as each round trip starts, at most
-`--limit` skips — R-E2, R-E4, R-E5, R-E1, R-O16, section 10.)
+`--limit` skips — R-E2, R-E4, R-E5, R-E1, R-O16, section 10. 3.66.0:
+ten survivors end a turn early — R-E3, R-O16.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -998,7 +999,11 @@ shortest kept, which it displaces; a lifetime equal to the shortest does
 not join. Each join is printed (R-O16). When the budget ends the file is
 rewritten (R-P3): its pairs unchanged, this rule's list at this width
 replaced by the ten, every other rule's and width's seeds untouched.
-Then the next rule.
+Then the next rule. Once the ten held for the rule and width are all survivors of the cap
+(R-E2) the search has nothing left to improve, and the turn ends at
+that moment rather than at the budget: the workers are stopped as for
+an interruption (R-E4), the program prints `all ten survived the cap:
+turn ended early` (R-O16), writes the ten, and takes up the next rule.
 
 **R-E5 (`--parity`).** With the flag, every rule is judged as each
 round trip (R-E2) starts, on the seeds as they stand at that moment —
@@ -1177,7 +1182,8 @@ The program prints single-line, human-readable status to standard output:
   its 1-based place at the moment it joined; under `--parity` (R-E5), a
   rule that gives up its turn prints `rule <id> (<i>/<n>): <cells>
   cells, skipped: shortest <s> × 0.9 outlives <l>` and nothing else;
-  when the rule is done
+  when a turn ends early on ten survivors (R-E3), `all ten survived the
+  cap: turn ended early`; when the rule is done
   (budget spent or interrupted), before the file is written and the next
   rule taken up, the ages of the kept rows in generations, longest first,
   as bare numbers separated by `, ` (`4821, 3990, 2210, ...`; no line

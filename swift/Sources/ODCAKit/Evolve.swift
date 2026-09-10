@@ -24,6 +24,12 @@ public enum Evolve {
         return (shortest, behind)
     }
 
+    /// R-E3: ten survivors of the cap leave the search nothing to improve:
+    /// the turn ends early.
+    public static func allSurvived(_ kept: [Seed]) -> Bool {
+        kept.count == keep && kept.allSatisfy { $0.end == Seed.survived }
+    }
+
     /// The plan for one round trip under `--parity` (R-E5), made up front on
     /// the seeds as they stand: the rules that give up their turn, with the
     /// lifetimes for their lines, and how many qualified. With `limit` above

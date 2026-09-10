@@ -152,7 +152,8 @@ holds one for exactly the width on screen.
   --cells N       the width of the rows, in cells (3 or more)
   --time SECONDS  the budget per rule, in whole seconds
   --cap N         a row still alive after this many generations counts as
-                  having survived and stops there; 100000 by default
+                  having survived and stops there; 100000 by default. Once
+                  a rule's ten are all survivors its turn ends early
   --parity        a rule far ahead gives up its turn: when its shortest
                   recorded lifetime at this width, times 0.9, outlives the
                   longest of some other rule of the file, it is skipped

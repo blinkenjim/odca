@@ -5,6 +5,13 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.66.0 (Swift, spec) — 2026-09-10
+
+Once a rule's ten seeds are all survivors of the cap, its turn ends
+there and then, with `all ten survived the cap: turn ended early`,
+instead of burning the rest of the budget on rows it has no room to
+keep.
+
 ## 3.64.0 (Swift, spec) — 2026-09-10
 
 `odca-evolve` now runs round trip after round trip through the file's

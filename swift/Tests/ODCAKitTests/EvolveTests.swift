@@ -219,4 +219,14 @@ final class EvolveTests: XCTestCase {
         XCTAssertEqual(plan.skips.count, 4)  // a limit above the qualifiers changes nothing
         XCTAssertTrue(Evolve.parityPlan(rules: rules, width: 8, seeds: ["b": [8: seeds([400])]], limit: 0).skips.isEmpty)  // one rule with seeds
     }
+
+    func testTenSurvivorsEndTheTurn() {  // PT-41, R-E3
+        func seeds(_ ends: [String]) -> [Seed] {
+            ends.enumerated().map { Seed(row: [UInt8](repeating: UInt8($0.offset % 4), count: 8) + [UInt8(($0.offset / 4) % 4)], generations: 100, end: $0.element) }
+        }
+        XCTAssertTrue(Evolve.allSurvived(seeds(Array(repeating: Seed.survived, count: 10))))
+        XCTAssertFalse(Evolve.allSurvived(seeds(Array(repeating: Seed.survived, count: 9))))  // not yet ten
+        XCTAssertFalse(Evolve.allSurvived(seeds(Array(repeating: Seed.survived, count: 9) + ["state 1 extinct"])))
+        XCTAssertFalse(Evolve.allSurvived([]))
+    }
 }
