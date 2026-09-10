@@ -15,10 +15,20 @@ final class ConformanceTests: XCTestCase {
             let expected: [String]
         }
 
+        struct LifetimeCase: Decodable {
+            let name: String
+            let rule: String
+            let initial: String
+            let cap: Int
+            let generations: Int
+            let end: String
+        }
+
         let count_vectors: [[Int]]
         let valid_rule_ids: [String]
         let invalid_rule_ids: [String]
         let evolution: [EvolutionCase]
+        let lifetimes: [LifetimeCase]
     }
 
     static let vectors: Vectors = {
@@ -60,6 +70,15 @@ final class ConformanceTests: XCTestCase {
                     actual, expected,
                     "\(testCase.name): generation \(generation + 1) diverged")
             }
+        }
+    }
+
+    func testLifetimes() throws {  // R-E2: the seed lifetimes odca-evolve measures
+        for testCase in Self.vectors.lifetimes {
+            let initial = testCase.initial.map { UInt8($0.wholeNumberValue!) }
+            let seed = Evolve.lifetime(rule: try Rule(id: testCase.rule), row: initial, cap: testCase.cap)
+            XCTAssertEqual(seed?.generations, testCase.generations, testCase.name)
+            XCTAssertEqual(seed?.end, testCase.end, testCase.name)
         }
     }
 }

@@ -6,14 +6,15 @@
 #
 #   swift/run odca show.play [more files] [--shuffle] [--fullscreen]
 #   swift/run odca-select my-pairs.odca
+#   swift/run odca-evolve my-pairs.odca --cells 600 --time 300
 #   swift/run test               # the test suite
 set -e
 dir="$(cd "$(dirname "$0")" && pwd)"
 prog="$1"
 case "$prog" in
-  odca|odca-select) shift ;;
+  odca|odca-select|odca-evolve) shift ;;
   test) exec swift test --package-path "$dir" ;;
-  *) echo "usage: swift/run odca|odca-select|test [arguments]"; exit 2 ;;
+  *) echo "usage: swift/run odca|odca-select|odca-evolve|test [arguments]"; exit 2 ;;
 esac
 # Quiet when there is nothing to compile; compiler output and errors still show.
 swift build --package-path "$dir" -c release --product "$prog" 2>&1 \

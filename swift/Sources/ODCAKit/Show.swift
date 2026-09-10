@@ -8,11 +8,13 @@ public struct Segment: Equatable {
     public let file: String
     public let pairs: [Pair]
     public let shuffle: Bool
+    public let seeds: Seeds  // recorded seeds of every odca file behind the segment (R-X4)
 
-    public init(file: String, pairs: [Pair], shuffle: Bool = false) {
+    public init(file: String, pairs: [Pair], shuffle: Bool = false, seeds: Seeds = [:]) {
         self.file = file
         self.pairs = pairs
         self.shuffle = shuffle
+        self.seeds = seeds
     }
 }
 
@@ -65,13 +67,14 @@ public enum Show {
     /// `shuffle`, and which of the two it said. Imports are relative to the
     /// script's directory. Messages name the script as it was given (a
     /// relative path stays relative, as in Python).
-    public static func loadScript(_ url: URL) throws -> (pairs: [Pair], shuffle: Bool) {
+    public static func loadScript(_ url: URL) throws -> (pairs: [Pair], shuffle: Bool, seeds: Seeds) {
         guard let text = try? String(contentsOf: url, encoding: .utf8) else {
             throw ShowError("\(url.relativePath): cannot read")
         }
         let statements: [Statement]
         do { statements = try parse(text) } catch let e as ShowError { throw ShowError("\(url.relativePath):\(e)") }
         var pairs: [Pair] = []
+        var seeds: Seeds = [:]
         var plays = false, shuffle = false
         for statement in statements {
             switch statement {
@@ -82,6 +85,7 @@ public enum Show {
                 }
                 guard isOdcaFile(target) else { throw ShowError("\(url.relativePath):\(line): \(name) is not an odca file") }
                 pairs += Store.loadOdcaFile(target) ?? []
+                seeds = Evolve.merge(seeds, Store.loadSeeds(target))
             case .play:
                 plays = true
             case .shuffle:
@@ -89,7 +93,7 @@ public enum Show {
                 shuffle = true
             }
         }
-        return plays ? (pairs, shuffle) : ([], false)
+        return plays ? (pairs, shuffle, seeds) : ([], false, [:])
     }
 
     /// The show for odca's command line (R-X1): one segment per file, in
@@ -99,10 +103,10 @@ public enum Show {
         try files.map { file in
             if file.pathExtension == "odca" {
                 guard let pairs = Store.loadOdcaFile(file) else { throw ShowError("\(file.relativePath): cannot read") }
-                return Segment(file: file.lastPathComponent, pairs: pairs)
+                return Segment(file: file.lastPathComponent, pairs: pairs, seeds: Store.loadSeeds(file))
             }
             let script = try loadScript(file)
-            return Segment(file: file.lastPathComponent, pairs: script.pairs, shuffle: script.shuffle)
+            return Segment(file: file.lastPathComponent, pairs: script.pairs, shuffle: script.shuffle, seeds: script.seeds)
         }
     }
 }

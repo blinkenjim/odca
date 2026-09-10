@@ -103,3 +103,35 @@ library.json at the repository root; ~/.odca/ holds the current rule and
 the candidate stash.
 
 """
+
+public let helpOdcaEvolve = """
+odca-evolve: search an odca file's rules for their longest-lived seeds
+
+usage: odca-evolve <file.odca> --cells N --time SECONDS [--cap N]
+       odca-evolve --help
+
+For every distinct rule in the file, in order, spends the time budget
+drawing random rows of N cells and evolving each, in wrap mode, until a
+state the rule can produce has died out with no other state left in a
+minority (the extinction that makes odca re-seed), or until the cap. The
+ten longest-lived rows are kept, merged with any the file already holds
+for that rule and width, and written back to the file as the budget runs
+out; then the next rule. Every processor works at once, each on rows of
+its own. odca plays a pair from its longest-lived seed when the file
+holds one for exactly the width on screen.
+
+  --cells N       the width of the rows, in cells (3 or more)
+  --time SECONDS  the budget per rule, in whole seconds
+  --cap N         a row still alive after this many generations counts as
+                  having survived and stops there; 100000 by default
+
+Output: a line as each rule is taken up, a line for every row that joins
+the ten (its generations, its rank, how it ended), and on a terminal the
+time left on the rule, counted down in place. Ctrl-C writes what the
+current rule has so far and exits.
+
+Files: the odca file is rewritten with its pairs unchanged and a seeds
+section by rule and width; nothing under ~/.odca is touched, and no
+window opens.
+
+"""

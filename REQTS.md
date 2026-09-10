@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.32.0 — 2026-09-08
+Version 3.36.0 — 2026-09-09
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -62,7 +62,10 @@ the files — R-X1, R-X7, R-U1, R-U9, R-O13, section 10; the 3.12.0
 pair-level shuffle withdrawn. 3.30.0: a script's pairs drawn afresh each
 pass under the 3.12.0 constraints — R-X7, R-X1, R-O13. 3.32.0: that is
 spelled `shuffle`, a statement in its own right beside `play`, not a
-word after it — R-X7.)
+word after it — R-X7. 3.36.0: `odca-evolve`, the search for a rule's
+longest-lived seeds — section 4e, R-P3 (the `seeds` section), R-X4
+(`odca` plays a pair from its best seed), R-O16, R-U9, section 10;
+conformance vectors 1.1 (`lifetimes`).)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -75,7 +78,9 @@ cellular automaton presented as art, in sufficient detail to re-create the
 programs from scratch in any language. There are two programs sharing one
 engine and one keyboard vocabulary: `odca <file> ...` plays a show, the
 *pairs* (rule + color set) of play scripts and odca files (section 4d),
-and `odca-select <file.odca>` composes them (section 4c). "The program" below means either
+and `odca-select <file.odca>` composes them (section 4c); a third,
+`odca-evolve`, has no window and searches a file's rules for their
+longest-lived seeds (section 4e). "The program" below means either
 unless a section says which. It is
 language-independent; it assumes a unix-like environment (macOS, Ubuntu,
 or similar) with a per-user home directory and a graphical display.
@@ -300,7 +305,8 @@ program prints its help text to standard output and exits with status 0,
 before reading or writing any persisted state (R-P), starting the
 background search (R-S), or opening a window; nothing else is printed and
 every other argument is ignored. The texts are the files
-`conformance/help-odca.txt` and `conformance/help-odca-select.txt`,
+`conformance/help-odca.txt`, `conformance/help-odca-select.txt`, and
+`conformance/help-odca-evolve.txt`,
 reproduced byte for byte (each ends with a single newline); they name
 every flag and key. Changing a text is a spec change made in that file.
 Other command-line errors: a missing positional argument (or, for
@@ -711,7 +717,12 @@ auto-initialization off (R-K12), only (a) applies.
 **R-X4 (playing a pair).** Playing a pair sets its rule (a rule change,
 R-B1, printed and persisted, but not pushed on the undo stack), makes its
 stored colors the active color set at arrangement 1, re-seeds the cells
-as `i` does (R-K6), and starts both clocks. There is no screen fill: the
+as `i` does (R-K6) — except that when the file (or, in a script show,
+any odca file the script imported) records seeds for the pair's rule at
+exactly the current width (R-P3, section 4e), the cells are the
+longest-lived of those seeds instead of random; every other
+initialization, `i` or auto-init, is random as ever — and starts both
+clocks. There is no screen fill: the
 previous pair scrolls off the top as the new one grows in from its fresh
 field — the transition, until cross-fades exist. Every ordinary key keeps
 its meaning; `s`, `S`, `X`, and `R` do nothing.
@@ -790,6 +801,60 @@ requirement.
 
 ---
 
+## 4e. odca-evolve (R-E)
+
+The search: which starting rows keep a rule alive longest?
+
+**R-E1 (entry).** `odca-evolve <file.odca> --cells N --time SECONDS
+[--cap N]` — the file is the one required argument and must exist and
+hold at least one pair (else `error: <file> does not exist` / `error:
+<file>: no pairs`, exit 1); `--cells`, the width of the rows, a whole
+number of 3 or more (R-M2), and `--time`, the budget per rule in whole
+seconds, are required; `--cap` (R-E2) is a whole number of generations,
+100000 by default (R-U9 for `--help` and the usage errors: a missing
+required option prints `odca-evolve: --cells is required`, exit 2). The
+program opens no window, starts no background search (R-S), and neither
+reads nor writes `$HOME/.odca` (R-P1, R-P2).
+
+**R-E2 (the search).** The program takes up each distinct rule of the
+file's pairs in order of first appearance and prints its line (R-O16).
+For the budget, one worker per processor repeats independently of the
+others: draw a row of `--cells` cells, each uniformly random over the
+four states (R-N1), and evolve it in wrap mode generation by generation
+until either the first generation that is boring *by extinction* — R-A1's
+first clause exactly, some producible state with no cells and no other
+producible state a living minority, the seed row itself unclassified —
+which gives the row's *lifetime*, the count of generations computed,
+and its *end*, the extinction text of R-O6 (`state 3 extinct`, `states
+1, 2 extinct`); or the cap, `--cap` generations computed without that,
+which gives lifetime `--cap` and end `survived`. Repetition and
+stagnation (R-A1) play no part: a row that settles into a cycle with
+every producible state alive lives to the cap. A row still evolving
+when the budget ends, or when the program is interrupted (R-E4), is
+discarded. The conformance vectors (TESTS.md, `lifetimes`) fix the
+measure.
+
+**R-E3 (the ten).** For the rule and width in hand the program keeps at
+most ten seeds, longest first, ties broken by the row text ascending,
+each row at most once. It starts from the seeds the file already
+records for that rule and width (R-P3), so runs accumulate: a measured
+row joins when fewer than ten are kept or its lifetime exceeds the
+shortest kept, which it displaces; a lifetime equal to the shortest does
+not join. Each join is printed (R-O16). When the budget ends the file is
+rewritten (R-P3): its pairs unchanged, this rule's list at this width
+replaced by the ten, every other rule's and width's seeds untouched.
+Then the next rule.
+
+**R-E4 (countdown and interruption).** While a rule is searched and
+standard output is a terminal, the time left in its budget is shown as
+`  m:ss left`, redrawn in place about once a second and cleared before
+any other line is printed; when output is not a terminal it is not
+shown. On SIGINT (Ctrl-C) the workers are stopped, the rule in hand is
+written as R-E3 says with the seeds it has so far, and the program exits
+with status 130 without taking up the next rule.
+
+---
+
 ## 5. Persistence (R-P)
 
 All per-user state lives in the directory `$HOME/.odca/`, created on
@@ -817,7 +882,17 @@ in use in the file, four digits and more once they are needed
 to every appended pair; the file records them at its next write, at exit
 at the latest. `odca` never writes, so a hand-made file's pairs may be
 nameless there. Until 3.26.0 the array key was `looks` and the pairs were
-called looks; the old key is still read, never written. Malformed pairs
+called looks; the old key is still read, never written. Since 3.36.0 the
+object may also hold `seeds` (section 4e): an object keyed by rule ID,
+each an object keyed by width (a whole number as a string), each an
+array of at most ten seeds, longest first, each `row` (one digit per
+cell, as many as the width), `generations` (the lifetime, R-E2), and
+`end` (the extinction text, or `survived`). `odca-evolve` writes it;
+`odca` reads it (R-X4); `odca-select` carries it through unchanged when
+it rewrites the file. The section is omitted when there are no seeds,
+and its rule keys are written sorted, its widths ascending. Malformed
+seeds — a row of the wrong width or with a bad digit, a width below 3, a
+key that is not a rule ID — are skipped. Malformed pairs
 are skipped; an unparseable file loads as empty;
 a missing file is distinguishable from an empty one (R-W1). Written in the
 layout of R-P4. The repository ships `interesting.odca`, the collection of
@@ -889,6 +964,12 @@ The program prints single-line, human-readable status to standard output:
   <g>/<G> ---` before an activation that enters a different rule's group.
   Arrangement messages (R-O9) name the set.
 - **R-O14.** On a geometry change (R-U8): `resized <cols>x<rows>`.
+- **R-O16.** In `odca-evolve` (section 4e), and nothing else: as each
+  rule is taken up, `rule <id> (<i>/<n>): <cells> cells, <m>:<ss>` with
+  the budget as minutes and seconds; as each row joins the ten, `kept
+  <generations> generations, rank <r> (<end>)` with its 1-based place at
+  the moment it joined; and on a terminal the countdown of R-E4. The
+  R-O1 rule line is not printed: no rule becomes current.
 - **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> pairs`
   for each file in command-line order, `, shuffled` appended when its
   script said `shuffle` (R-X7); in a show of two or more files
@@ -995,11 +1076,12 @@ loses one update (loaders already tolerate malformed content, R-P).
 ## 10. Explicit non-requirements
 
 - The command line is the file arguments (one odca file for
-  `odca-select`; one or more play scripts or odca files for `odca`,
-  R-X1) plus
+  `odca-select` and `odca-evolve`; one or more play scripts or odca
+  files for `odca`, R-X1) plus
   `--help` (R-U9), the cell size flags `--4` / `--3` / `--2` / `--1` (R-U2), and,
   for `odca`, `--shuffle` (R-X1), `--fullscreen` (R-U2), `--watchdog`
-  (R-X2), and `--grace` (R-X3); no configuration files or menus. No other flags exist (the 2.x developer flags
+  (R-X2), and `--grace` (R-X3), and for `odca-evolve`, `--cells`,
+  `--time`, and `--cap` (R-E1); no configuration files or menus. No other flags exist (the 2.x developer flags
   `--colorset-review`, `--screensaver-review`, `--consistency-check`, and
   `--screensaver` are gone: the last two became `odca-select` and `odca`,
   the consistency check became `R`, and color set review is on hold).

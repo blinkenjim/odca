@@ -51,7 +51,7 @@ final class ShowTests: XCTestCase {
         Store.saveOdcaFile([pair, pair], to: sub.appendingPathComponent("two pairs.odca"))
         let scriptURL = sub.appendingPathComponent("show.play")
         func write(_ text: String) throws { try text.write(to: scriptURL, atomically: true, encoding: .utf8) }
-        func script(_ text: String) throws -> (pairs: [Pair], shuffle: Bool) {
+        func script(_ text: String) throws -> (pairs: [Pair], shuffle: Bool, seeds: Seeds) {
             try write(text)
             return try Show.loadScript(scriptURL)
         }

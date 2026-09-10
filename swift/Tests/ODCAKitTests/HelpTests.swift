@@ -14,6 +14,7 @@ final class HelpTests: XCTestCase {
     func testHelpTextsMatchTheSharedCopies() throws {
         XCTAssertEqual(helpOdca, try conformance("help-odca.txt"))
         XCTAssertEqual(helpOdcaSelect, try conformance("help-odca-select.txt"))
-        XCTAssertTrue(helpOdca.hasSuffix("\n") && helpOdcaSelect.hasSuffix("\n"))
+        XCTAssertEqual(helpOdcaEvolve, try conformance("help-odca-evolve.txt"))
+        XCTAssertTrue(helpOdca.hasSuffix("\n") && helpOdcaSelect.hasSuffix("\n") && helpOdcaEvolve.hasSuffix("\n"))
     }
 }

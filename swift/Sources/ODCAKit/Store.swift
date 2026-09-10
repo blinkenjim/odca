@@ -145,8 +145,31 @@ public struct Store {
         Store.write(text, to: libraryFile)
     }
 
+    // A JSON value tree rendered exactly as Python's json.dumps(indent=1)
+    // renders it, so both implementations write shared files byte for byte.
+    indirect enum JSON {
+        case string(String), int(Int), array([JSON]), object([(String, JSON)])
+    }
+
+    static func render(_ value: JSON, indent: Int = 0) -> String {
+        let pad = String(repeating: " ", count: indent)
+        let inner = pad + " "
+        switch value {
+        case .string(let s): return quoted(s)
+        case .int(let n): return String(n)
+        case .array(let items):
+            if items.isEmpty { return "[]" }
+            return "[\n" + items.map { inner + render($0, indent: indent + 1) }.joined(separator: ",\n") + "\n" + pad + "]"
+        case .object(let members):
+            if members.isEmpty { return "{}" }
+            return "{\n" + members.map { inner + quoted($0.0) + ": " + render($0.1, indent: indent + 1) }
+                .joined(separator: ",\n") + "\n" + pad + "}"
+        }
+    }
+
     // R-P3: an odca file — an ordered list of pairs (rule + color set), each
-    // named when the file names it. The 3.0.0 key `looks` is still read.
+    // named when the file names it, and the seeds odca-evolve has recorded
+    // (section 4e) by rule and width. The 3.0.0 key `looks` is still read.
     /// nil when the file is missing, [] when unparseable; malformed pairs skipped.
     public static func loadOdcaFile(_ url: URL) -> [Pair]? {
         guard let data = try? Data(contentsOf: url) else { return nil }  // missing
@@ -164,14 +187,62 @@ public struct Store {
         return pairs
     }
 
-    /// Layout: name (when the pair has one), rule, colorset, colors.
-    public static func saveOdcaFile(_ pairs: [Pair], to url: URL) {
-        let entries = pairs.map { p -> String in
-            "{\n" + (p.name.map { "   \"name\": \(quoted($0)),\n" } ?? "")
-            + "   \"rule\": \(quoted(p.rule)),\n   \"colorset\": \(quoted(p.colorset)),\n"
-            + "   \"colors\": " + list(p.colors.map(quoted), indent: "   ") + "\n  }"
+    /// The file's seeds (R-P3, section 4e): rule ID -> width -> seeds, longest
+    /// first. Empty when the file is missing, unparseable, or has none;
+    /// malformed entries are skipped.
+    public static func loadSeeds(_ url: URL) -> Seeds {
+        guard let data = try? Data(contentsOf: url),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let section = root["seeds"] as? [String: Any] else { return [:] }
+        var seeds: Seeds = [:]
+        for (id, byWidth) in section {
+            guard (try? Rule(id: id)) != nil, let byWidth = byWidth as? [String: Any] else { continue }
+            for (key, entries) in byWidth {
+                guard let width = Int(key), width >= Session.minCols, let entries = entries as? [Any] else { continue }
+                var list: [Seed] = []
+                for case let dict as [String: Any] in entries {
+                    guard let text = dict["row"] as? String, text.count == width,
+                          let generations = dict["generations"] as? Int, generations >= 0,
+                          let end = dict["end"] as? String else { continue }
+                    let row = text.compactMap { $0.wholeNumberValue }.filter { $0 < Rule.stateCount }.map(UInt8.init)
+                    guard row.count == width else { continue }
+                    list.append(Seed(row: row, generations: generations, end: end))
+                }
+                if !list.isEmpty { seeds[id, default: [:]][width] = Evolve.merge(list) }
+            }
         }
-        write("{\n \"pairs\": " + list(entries, indent: " ") + "\n}\n", to: url)
+        return seeds
+    }
+
+    /// Write pairs and seeds (R-P3). Layout: each pair as name (when it has
+    /// one), rule, colorset, colors; then, when there are any, `seeds` by
+    /// rule ID (sorted) and width (ascending, as a string), each seed as
+    /// row, generations, end.
+    public static func saveOdcaFile(_ pairs: [Pair], seeds: Seeds, to url: URL) {
+        let entries = pairs.map { p -> JSON in
+            .object((p.name.map { [("name", JSON.string($0))] } ?? [])
+                    + [("rule", .string(p.rule)), ("colorset", .string(p.colorset)),
+                       ("colors", .array(p.colors.map(JSON.string)))])
+        }
+        var root: [(String, JSON)] = [("pairs", .array(entries))]
+        let rules = seeds.filter { !$0.value.values.allSatisfy(\.isEmpty) }.keys.sorted()
+        if !rules.isEmpty {
+            root.append(("seeds", .object(rules.map { id in
+                (id, .object(seeds[id]!.filter { !$0.value.isEmpty }.keys.sorted().map { width in
+                    (String(width), .array(Evolve.merge(seeds[id]![width]!).map { seed in
+                        .object([("row", .string(seed.rowText)), ("generations", .int(seed.generations)),
+                                 ("end", .string(seed.end))])
+                    }))
+                }))
+            })))
+        }
+        write(render(.object(root)) + "\n", to: url)
+    }
+
+    /// Write pairs, carrying the file's existing seeds through unchanged
+    /// (odca-select never touches them, R-P3).
+    public static func saveOdcaFile(_ pairs: [Pair], to url: URL) {
+        saveOdcaFile(pairs, seeds: loadSeeds(url), to: url)
     }
 
     /// The next generated name, `pair-NNNN` (R-P3): one past the highest number
@@ -251,6 +322,27 @@ public struct ColorSetFile: Equatable {
         self.dropped = dropped
     }
 }
+
+/// A recorded seed (R-P3, section 4e): a row for one rule at one width, the
+/// generations it lived before the extinction that makes odca re-seed, and
+/// how it ended — the extinction text, or `survived` for the cap.
+public struct Seed: Equatable {
+    public var row: [UInt8]
+    public var generations: Int
+    public var end: String
+
+    public init(row: [UInt8], generations: Int, end: String) {
+        self.row = row
+        self.generations = generations
+        self.end = end
+    }
+
+    /// The row as the file writes it: one digit per cell.
+    public var rowText: String { row.map(String.init).joined() }
+}
+
+/// Seeds by rule ID, then by width (R-P3), each list longest first.
+public typealias Seeds = [String: [Int: [Seed]]]
 
 /// One pair: a rule with a color set, colors already arranged, and its name
 /// when the file gives one (R-P3).

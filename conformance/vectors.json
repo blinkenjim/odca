@@ -1,6 +1,6 @@
 {
- "version": "1.0",
- "description": "ODCA engine conformance vectors. Normative: see TESTS.md. Rows are strings of state digits 0-3; 'expected' lists the rows produced by each of 'generations' successive steps from 'initial'.",
+ "version": "1.1",
+ "description": "ODCA engine conformance vectors. Normative: see TESTS.md. Rows are strings of state digits 0-3; 'expected' lists the rows produced by each of 'generations' successive steps from 'initial'. 'lifetimes' (1.1, R-E2): from 'initial' in wrap mode, the number of generations before the first one that is boring by extinction (R-A1), and the reason text, or 'cap' and 'survived' when none comes first.",
  "count_vectors": [
   [
    0,
@@ -284,6 +284,80 @@
     "23321123332233332332112333223333",
     "22230032123321122223003212332112"
    ]
+  }
+ ],
+ "lifetimes": [
+  {
+   "name": "only state 0 is producible, so nothing can go extinct: the cap ends it",
+   "requirement": "R-E2",
+   "rule": "00000000000000000000",
+   "initial": "333113103210",
+   "cap": 40,
+   "generations": 40,
+   "end": "survived"
+  },
+  {
+   "name": "a block of 3s under a rule that keeps a 3 only between 3s shrinks by two a generation and dies at four",
+   "requirement": "R-E2",
+   "rule": "31111111111111111111",
+   "initial": "3333333311111111",
+   "cap": 100,
+   "generations": 4,
+   "end": "state 3 extinct"
+  },
+  {
+   "name": "the same block in a wider row: two cells are a tenth of twenty, not a minority, so the death counts at once",
+   "requirement": "R-E2",
+   "rule": "31111111111111111111",
+   "initial": "33333333331111111111",
+   "cap": 100,
+   "generations": 5,
+   "end": "state 3 extinct"
+  },
+  {
+   "name": "a lone 3 is a minority of sixteen at generation 1, so its death counts only at generation 2",
+   "requirement": "R-E2",
+   "rule": "31111111111111111111",
+   "initial": "1111113331111111",
+   "cap": 100,
+   "generations": 2,
+   "end": "state 3 extinct"
+  },
+  {
+   "name": "a real rule, a random row",
+   "requirement": "R-E2",
+   "rule": "33233022210132010013",
+   "initial": "033100001103231123003230",
+   "cap": 400,
+   "generations": 33,
+   "end": "state 1 extinct"
+  },
+  {
+   "name": "the same rule, another row",
+   "requirement": "R-E2",
+   "rule": "33233022210132010013",
+   "initial": "221200030230001103333012",
+   "cap": 400,
+   "generations": 23,
+   "end": "state 1 extinct"
+  },
+  {
+   "name": "another real rule, a random row",
+   "requirement": "R-E2",
+   "rule": "32332010022312200210",
+   "initial": "202203011000331131133033",
+   "cap": 400,
+   "generations": 19,
+   "end": "state 3 extinct"
+  },
+  {
+   "name": "the same rule, capped short",
+   "requirement": "R-E2",
+   "rule": "32332010022312200210",
+   "initial": "102201130011320223000110",
+   "cap": 6,
+   "generations": 2,
+   "end": "state 3 extinct"
   }
  ]
 }

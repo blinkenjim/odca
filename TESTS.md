@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.32.0 — 2026-09-08
+Version 3.36.0 — 2026-09-09
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -45,9 +45,16 @@ note the reason in this file's history.
     the row width
   - `generations` — number of steps to run
   - `expected` — the rows after each successive step, same encoding
+- `lifetimes` (vectors 1.1, R-E2): an array of cases, each with `name`,
+  `requirement`, `rule`, `initial` (as above, wrap mode), `cap`, and the
+  expected `generations` and `end` — the seed lifetime `odca-evolve`
+  measures: the count of generations before the first one boring by
+  extinction (R-A1's first clause) with the R-O6 extinction text, or
+  `cap` and `survived`. Run by every implementation that has section 4e.
 
 **Runner contract.** Each implementation provides a runner that loads the
-file, executes every case (no skips), and fails with the case `name` on
+file, executes every case (no skips, `lifetimes` aside where section 4e
+is not implemented), and fails with the case `name` on
 any mismatch, exiting nonzero. The runner should be part of the
 implementation's normal test suite. Reference:
 `python/tests/test_conformance.py` (~50 lines).
@@ -121,11 +128,15 @@ user's real state — see the warning in `REQ-python.md`).
 | PT-32 | R-U8 | After 40 generations at 32 × 16: narrowing to 20 keeps the middle 20 cells of the live row and of every remembered row, keeps the history, resets the boring count, and prints `resized 20x16`; widening to 30 keeps those 20 centered with state-0 padding in old rows and random cells in the live row; a taller window shows the last rows + 1 remembered rows; a no-op resize returns false; sizes clamp to the minimum. The history never exceeds 2048 rows. |
 | PT-34 | R-K5, R-B2, R-B3 | In `odca-select`, `S` appends the current rule with the active set's name and arranged colors and prints it; `n` onto that pair restores both the rule and the colors; stepping onto the unsaved slot restores the unsaved rule with the set that was active when it arrived. Opening on pair 1 of a two-pair file, a digit and `s` rewrite pair 1's colors in place (`saved pair 1/2`); `m` keeps the position on pair 1 and leaves the unsaved slot empty, `u` walks it back there; a second `m`, a digit, and `s` append the screen as pair 3 with the mutated rule and the new set (`added pair 3/3`), pair 1 keeping its rule, and the position moves onto pair 3 where `U` has nothing to unwind and a digit and `s` refine it in place (`saved pair 3/3`); a further `m` is discarded by `n` then `p`; `r` moves to the unsaved slot as before, and `m` there stays there. |
 | PT-17 | R-A3, R-K12 | The boring count resets on a rule change; `a` toggles the mode and prints its state; the mode is on at startup. |
-| PT-35 | R-U9 | Each program's embedded help text equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1; `odca` with a missing file among several exits 1 naming it, and `odca-select` given two files exits 2 with its usage line; `odca` accepts `--shuffle` and `--fullscreen` in either position and `odca-select` rejects both as unknown; both accept one of `--4` / `--3` / `--2` / `--1` in either position, and two of them exit 2 with a one-line message (R-U2); `odca` takes `--watchdog N` and `--grace N` in either position, and a missing value, a non-number, `0`, or a fraction exits 2 with a one-line message; `odca-select` rejects them as unknown. |
+| PT-35 | R-U9 | Each of the three programs' embedded help texts equals its conformance file byte for byte and ends with a newline; `--help` among other arguments prints exactly that text, exits 0, and leaves the state directory untouched; a missing file argument or an unknown option exits 2 with a usage line; `odca` on a missing file exits 1; `odca` with a missing file among several exits 1 naming it, and `odca-select` given two files exits 2 with its usage line; `odca` accepts `--shuffle` and `--fullscreen` in either position and `odca-select` rejects both as unknown; both accept one of `--4` / `--3` / `--2` / `--1` in either position, and two of them exit 2 with a one-line message (R-U2); `odca` takes `--watchdog N` and `--grace N` in either position, and a missing value, a non-number, `0`, or a fraction exits 2 with a one-line message; `odca-select` rejects them as unknown. |
 | PT-37 | R-U4, R-P4 | The digit-bound sets of the shipped `library.json` equal the R-U4 table of `REQTS.md`: same slots, names, and colors in state order. |
 | PT-36 | R-X1, R-O13 | With three odca files of two, one, and three pairs, `--shuffle`: entry prints `odca <file>: <n> pairs` for each in command-line order, then `playing <file>` before the first pair line; over ten passes (`N` fifty-nine times) every pass plays every file once, each file whole with its pairs in file order, no pass opens with the file that closed the one before, the orders differ between passes, and `playing <file>` precedes every change of file; `P` steps back within the pass. Without the flag the order is command-line order. With one file with pairs between two empty ones, it plays on. With a single file, `playing` is never printed and every pass is file order. |
 | PT-38 | R-X7, R-X1 | The parser gives `import a.odca` / `play` / `shuffle` as statements with their line numbers, an empty or comment-only script as none, a second `play` as the error `3:1: play given twice`, and a `shuffle` after a `play` as `3:1: shuffle after play`. A script in a subdirectory imports `../one.odca` and `"two pairs.odca"` relative to itself and plays their pairs in import order; imports without `play`, and `play` without imports, play nothing; a missing import fails as `<script>:<line>: cannot read <file>`, a text file as `<script>:<line>: <file> is not an odca file`, an import after `shuffle` as `<script>:3:1: import after shuffle`, and an unreadable script as `<script>: cannot read`. `load` gives one segment per command-line file in order — a script's pairs, an odca file's own pairs, an empty file's none — and reads any extension but `.odca` as a script. `odca` given a script and an odca file passes both segments to the session in order; a script error exits 1 with `error: <script>:<line>: cannot read <file>`, a syntax error with `error: <script>:<line>:<column>: <message>`, before any window. |
 | PT-39 | R-X7, R-X1, R-O13 | With six pairs on three rules, two each, and three color sets, two each (one of them arranged differently in its second pair), imported by a script that says `shuffle`: the entry line reads `odca <script>: 6 pairs, shuffled`, the session's own shuffle flag is off (the script asked, not the command line), and over ten passes every pass plays each pair exactly once with no two consecutive pairs in the whole sequence, pass seams included, sharing a rule or a color set in any arrangement; `P` steps back within the pass; with `play` instead the order is file order and nothing is called shuffled. With two pairs on one rule, every pass is still a permutation and play continues (the requirement is dropped after a hundred draws). In a show of a plain file whose only pair clashes with one of a shuffled script's two, that pair never opens the script's pass, twenty passes running. |
+| PT-40 | R-E2 | `lifetime`: a block of eight 3s in sixteen cells under a rule that keeps a 3 only between 3s lives 4 generations and ends `state 3 extinct`; capped at 3 it lives 3 and ends `survived`; under the all-zero rule (only state 0 producible) a row survives to the cap; a stop asked for at the first look abandons the row (nil), and a row narrower than three cells is refused. |
+| PT-41 | R-E3, R-E2, R-E4 | Merging twelve distinct rows keeps the ten longest, longest first; merging a list with itself changes nothing; equal lifetimes order by row text; a row would rank first when longest, sixth between the sixth and seventh, nowhere when equal to the shortest of ten, tenth when nine are kept, and nowhere when already kept; merging seeds by rule and width keeps every list. A search of a fast-dying rule at twelve cells with a 1.5 s budget and two workers, started from one recorded seed: measures many rows, ticks at least once with the time left, keeps at most ten longest first with the recorded seed still on top and no row twice, reports every join with a rank in 1–10, the last of the ten having arrived by a join, and is stopped when done; a search of an immortal rule stopped from its first tick returns within seconds with nothing kept (the rows in flight discarded). |
+| PT-42 | R-X4 | With seeds recorded for pair 1's rule at 32 and 33 cells (a longer and a shorter at 32, one at 33) and none for pair 2: arriving on pair 1 at 32 cells gives exactly the longest 32-cell seed at generation 0; pair 2 is random; back on pair 1 the seed again; `i` is random; after a resize to 33 cells, pair 1 gives the 33-cell seed; a script show importing the file seeds the same way. |
+| PT-43 | R-P3 | Writing a pair with seeds for two rules at width 8 produces exactly the reference layout (Python's `json.dumps(indent=1)`: rules sorted, widths as strings, each seed as row, generations, end); reading it back gives the pairs and the seeds longest first; rewriting the pairs alone (odca-select's path) carries the seeds through; writing with no seeds omits the section; a row of the wrong width, a bad digit, a width below 3, and a key that is not a rule ID are skipped. |
 
 ---
 
@@ -163,6 +174,12 @@ from `REQTS.md`.
   each with the old rows keeping their colors; `odca a.play b.odca
   --shuffle` plays the files in a different order each pass, each file's
   pairs in order, announcing `playing <file>` at each change (R-X).
+- **M-14** `odca-evolve my.odca --cells 600 --time 60` on a terminal:
+  each rule's line, the countdown ticking in place below it, the `kept`
+  lines scrolling up as rows join, Ctrl-C writing the rule in hand; then
+  `odca my.odca` in a 1200-point-wide window (600 cells at the default
+  size) opens each pair from its best seed and lives visibly longer than
+  a random start (R-E, R-X4).
 - **M-13** The default run holds 600 × 400 cells in the 1200×800 window;
   `--4`, `--3`, and `--1` hold 300 × 200, 400 × 266 (a 1-point margin
   top and bottom), and 1200 × 800, crisp at every size and in full

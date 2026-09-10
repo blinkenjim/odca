@@ -702,7 +702,9 @@ public final class Session {
         if let rule = try? Rule(id: pair.rule), rule != automaton.rule { setRule(rule) }
         undoMark = undoStack.count  // R-K19: U returns to the pair as played
         showColors(name: pair.colorset, colors: pair.colors)
-        initCells()
+        // R-X4: the longest-lived recorded seed for this rule at exactly this
+        // width, when the file has one; a random row otherwise.
+        initCells(with: show![segment].seeds[pair.rule]?[cols]?.first?.row)
         playElapsed = 0  // the pair's screen time starts now
         if entered && show!.count > 1 { output("playing \(show![segment].file)") }  // R-O13: another file
         let why = reason.map { " (\($0))" } ?? ""
@@ -838,14 +840,8 @@ public final class Session {
             }
         }
         // Census: extinction with living-minority patience, and stagnation.
-        var census = [Int](repeating: 0, count: Rule.stateCount)
-        for c in row { census[Int(c)] += 1 }
-        let producible = Set(automaton.rule.states.map { Int($0) }).sorted()
-        let extinct = producible.filter { census[$0] == 0 }
-        let minority = producible.filter {
-            census[$0] > 0 && Double(census[$0]) < Session.minorityFraction * Double(row.count)
-        }
-        minorityCounts.append(minority.reduce(0) { $0 + census[$1] })
+        let (extinction, minorityPopulation) = Session.census(of: row, rule: automaton.rule)
+        minorityCounts.append(minorityPopulation)
         let window = Session.stagnationScreens * rows
         if minorityCounts.count > window { minorityCounts.removeFirst() }
         var stagnant = false
@@ -856,9 +852,8 @@ public final class Session {
         }
 
         let reason: String?
-        if !extinct.isEmpty && minority.isEmpty {
-            let names = extinct.map(String.init).joined(separator: ", ")
-            reason = "state\(extinct.count > 1 ? "s" : "") \(names) extinct"
+        if let extinction = extinction {
+            reason = extinction
         } else if let period = cyclePeriod {
             reason = "repeating (period \(period))"
         } else if repeating {
@@ -870,6 +865,30 @@ public final class Session {
         }
         boringStreak = reason == nil ? 0 : boringStreak + 1
         boringReason = reason
+    }
+
+    /// The extinction clause of R-A1 on one row: the reason text when some
+    /// producible state has no cells and no other is a living minority, else
+    /// nil; and the living-minority population, for the stagnation test.
+    /// Shared with odca-evolve, whose whole notion of boring this is (R-E2).
+    static func census(of row: [UInt8], rule: Rule) -> (extinction: String?, minorityPopulation: Int) {
+        var census = [Int](repeating: 0, count: Rule.stateCount)
+        for c in row { census[Int(c)] += 1 }
+        let producible = Set(rule.states.map { Int($0) }).sorted()
+        let extinct = producible.filter { census[$0] == 0 }
+        let minority = producible.filter {
+            census[$0] > 0 && Double(census[$0]) < Session.minorityFraction * Double(row.count)
+        }
+        let population = minority.reduce(0) { $0 + census[$1] }
+        guard !extinct.isEmpty && minority.isEmpty else { return (nil, population) }
+        let names = extinct.map(String.init).joined(separator: ", ")
+        return ("state\(extinct.count > 1 ? "s" : "") \(names) extinct", population)
+    }
+
+    /// R-A1's extinction clause alone: the reason a row is boring by
+    /// extinction, or nil.
+    public static func extinction(in row: [UInt8], rule: Rule) -> String? {
+        census(of: row, rule: rule).extinction
     }
 
     private func resetBoredom() {  // R-A3
@@ -990,8 +1009,14 @@ public final class Session {
         if selectMode && pairIndex == nil { unsavedRule = rule }  // the slot's mutations are undone with it
     }
 
-    private func initCells() {  // R-K6
-        automaton.resetRandom(using: &rng)
+    /// Re-seed (R-K6): random cells, or `row` when given and it fits the
+    /// width — a recorded seed on arriving at a pair (R-X4).
+    private func initCells(with row: [UInt8]? = nil) {
+        if let row = row, row.count == cols, (try? automaton.reset(cells: row)) != nil {
+            // seeded
+        } else {
+            automaton.resetRandom(using: &rng)
+        }
         pushRow(automaton.cells)
         resetBoredom()
         sinceInit = 0  // R-X3: any initialization restarts the grace period

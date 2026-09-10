@@ -1029,6 +1029,37 @@ final class SessionTests: XCTestCase {
         }
     }
 
+    func testArrivalUsesTheLongestRecordedSeedAtTheScreenWidth() throws {  // PT-42, R-X4
+        let store = try reviewStore()
+        let file = odcaFile(store, rules: [allZero, allProducible], name: "seeded.odca")
+        let best = [UInt8](repeating: 3, count: 32), second = [UInt8](repeating: 2, count: 32)
+        let wrongWidth = [UInt8](repeating: 1, count: 33)
+        Store.saveOdcaFile(Store.loadOdcaFile(file)!, seeds: [
+            allZero.id: [32: [Seed(row: second, generations: 5, end: "state 1 extinct"),
+                              Seed(row: best, generations: 9, end: "survived")],
+                         33: [Seed(row: wrongWidth, generations: 99, end: "survived")]],
+        ], to: file)
+        let session = makeSession(store, show: try Show.load([file]))
+        XCTAssertEqual(session.automaton.cells, best)  // pair 1: its longest seed at 32 cells, not a random row
+        XCTAssertEqual(session.automaton.generation, 0)
+        _ = session.handleKey(.N)  // pair 2 has no seeds: random
+        XCTAssertNotEqual(session.automaton.cells, best)
+        XCTAssertEqual(session.automaton.cells.count, 32)
+        _ = session.handleKey(.N)  // back to pair 1: the seed again
+        XCTAssertEqual(session.automaton.cells, best)
+        _ = session.handleKey(.i)  // a manual re-seed is random, as ever
+        XCTAssertNotEqual(session.automaton.cells, best)
+        XCTAssertTrue(session.resize(cols: 33, rows: 16))
+        _ = session.handleKey(.N)
+        _ = session.handleKey(.N)  // pair 1 at 33 cells: that width's seed
+        XCTAssertEqual(session.automaton.cells, wrongWidth)
+        // A script show carries the seeds of every file it imports.
+        let script = file.deletingLastPathComponent().appendingPathComponent("seeded.play")
+        try "import seeded.odca\nplay\n".write(to: script, atomically: true, encoding: .utf8)
+        let scripted = makeSession(store, show: try Show.load([script]))
+        XCTAssertEqual(scripted.automaton.cells, best)
+    }
+
     func testRowsKeepTheirColorsThroughQuickTransitions() throws {  // PT-31, R-X5
         let store = try reviewStore()
         let file = odcaFile(store, name: "saver.odca")

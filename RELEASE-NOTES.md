@@ -5,6 +5,45 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.36.0 (Swift, spec) — 2026-09-09
+
+A third program, and the first side path: **`odca-evolve`** looks for
+the starting rows that keep a rule alive longest.
+
+```
+odca-evolve my-pairs.odca --cells 600 --time 300
+```
+
+For each rule in the file it spends five minutes (here) drawing random
+rows of 600 cells and evolving each until a state dies out, the
+extinction that makes `odca` re-seed, then keeps the ten longest-lived
+and writes them into the file. Every processor works at once. It
+prints a line as each rule comes up, a line each time a row joins the
+ten (`kept 4821 generations, rank 2 (state 3 extinct)`), and on a
+terminal a countdown ticking in place. Ctrl-C writes what the current
+rule has and stops. Runs add up: a second run starts from the ten
+already in the file and only ever improves them. A row that outlives
+the cap, 100000 generations by default (`--cap`), is kept as
+`survived`, which is the most interesting thing it can find.
+
+The payoff is in the player: **`odca` now starts a pair from its
+longest-lived seed** whenever the file records one for exactly the
+width on screen, so a pair you have searched lives its whole two
+minutes instead of re-seeding. Every other start, `i` or auto-init, is
+random as before. Scripts pass the seeds of the files they import.
+
+The file gains a `seeds` section, by rule and width; `odca-select`
+carries it through untouched when it rewrites the file. Boring, for
+this program, means extinction only: a row that settles into a cycle
+with every state alive counts as immortal. That is deliberate and may
+widen later.
+
+Swift only for now; the Python player catches up next, and a Python
+search is a later decision. The Swift package grew a target for the
+program, and command-line parsing moved into the kit so it needs no
+AppKit. The conformance vectors are at 1.1 with `lifetimes`, so any
+implementation of the search must measure exactly the same numbers.
+
 ## 3.35.0 (Python) — 2026-09-09
 
 The Python version now depends on **pygame-ce**, the community fork,

@@ -1,7 +1,18 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-09):** Spec 3.32.0, Swift 3.32.0, Python
-3.35.0. Python 3.35.0 (today) swaps upstream `pygame` for `pygame-ce`:
+**YOU ARE HERE (2026-09-09):** Spec 3.36.0, Swift 3.36.0, Python
+3.35.0. Swift 3.36.0: `odca-evolve` (section 4e), the user's side path
+— for each rule in an odca file, random rows of `--cells` evolved until
+extinction (R-A1's first clause only, by the user's decision; a cap,
+`--cap`, default 100000, for immortals), the ten longest-lived kept and
+written into the file's new `seeds` section by rule and width, `--time`
+seconds per rule, a worker per processor, a countdown on a terminal,
+Ctrl-C writes and stops; `odca` opens a pair from its best seed at the
+exact screen width (R-X4). Swift only at the user's direction; Python's
+player catches up next (read seeds on arrival, carry the section
+through odca-select's rewrite), a Python search is a later call. The
+user is working from a copy of the file. Earlier today, Python 3.35.0
+swapped upstream `pygame` for `pygame-ce`:
 the user's fresh clone on Ubuntu with Python 3.14 could not install,
 because upstream has shipped no wheel since 3.13 and the source build
 wants SDL headers; the fork has wheels through 3.15 and a newer SDL
@@ -312,25 +323,18 @@ viewer sees. Roadmap, roughly in order:
       there never was one — the screen fill was what `n`/`p` did in
       odca-select from 2.24.1 to 3.24.0. Proposed `b`, a screenful at
       once in every mode (R-K20); awaiting the user's word.
-- [ ] odca-evolve (user, 2026-09-09; under discussion, not yet
-      specified): a third program that, for every distinct rule in an
-      odca file, spends a time budget (`--time SECONDS`) drawing random
-      rows of a given width (`--cells N`), evolving each in wrap mode
-      until the boring detector fires, and keeping the ten longest-lived;
-      writes them to the file per rule as the budget runs out, then the
-      next rule. Workers in parallel on independent vectors (processes in
-      Python, threads in Swift, as the candidate search does). Proposed:
-      the detector pulled out of Session into a shared piece with rows as
-      a parameter (`--rows N`, default 400) so a seed's score is the
-      generation at which odca would have re-seeded; a generation cap,
-      with a seed that reaches it recorded as having survived; seeds in
-      one top-level file section keyed by rule ID then cell count (row as
-      a digit string, generations, reason, rows), runs merging to keep the
-      best ten; odca-select's writers on both sides must carry the section
-      through (R-P3), since they rewrite the whole file. Open: whether
-      odca then plays a pair from its best seed for the current width;
-      both languages (recommended: yes, the Pi can only run Python);
-      writing the current rule's seeds on Ctrl-C.
+- [x] (3.36.0, Swift) odca-evolve (user, 2026-09-09): section 4e. What
+      changed from the proposal in discussion: boring is extinction only
+      (the user narrowed it; periodicity "maybe later"), so no `--rows`;
+      Swift only for now; the user works from a copy, so odca-select
+      carrying the `seeds` section through is done on the Swift side
+      but was not required. Still open under this heading:
+  - [ ] Python: the player reads seeds on arrival (R-X4) and odca-select
+        carries the section through (R-P3) — due next.
+  - [ ] Python odca-evolve (worker processes), if the user wants the Pi
+        grinding overnight.
+  - [ ] Periodicity as a second kind of boring for the search, when the
+        user asks.
 - [ ] Scriptable screensaver mode (the interactive mode absorbs the same
       ability). In progress since 3.28.0: play scripts (`import`,
       `play`, `shuffle`; R-X7) on a flex/bison C parser shared by both

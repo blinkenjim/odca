@@ -64,7 +64,8 @@ git-tagged (`v2.0.0`, `v2.1.0`, …).
 
 ## Using the programs
 
-There are two programs, sharing the engine and most of the keyboard:
+There are three programs sharing one engine, two of them sharing most of
+the keyboard:
 
 - **`odca <file> [<file> ...] [--shuffle] [--fullscreen] [--4 | --3 | --2 | --1] [--watchdog N] [--grace N]`** plays a *show*: the
   *pairs* of one or more files, one after another, looping. A pair is a
@@ -81,6 +82,14 @@ There are two programs, sharing the engine and most of the keyboard:
   `--watchdog` and `--grace` set the two clocks in whole seconds (120 and
   60 by default).
   `N`/`P` (or `n`/`p`) step by hand. No file is written.
+- **`odca-evolve <file.odca> --cells N --time SECONDS [--cap N]`** (Swift
+  only, for now) searches each rule in the file for the starting rows
+  that keep it alive longest at a width of N cells: random rows evolved
+  until a state dies out, the ten longest-lived kept and written back
+  into the file, `--time` seconds per rule, every processor at work. It
+  opens no window. `odca` then starts a pair from its best seed whenever
+  the file has one for exactly the width on screen. A recorded row that
+  outlives the cap (100000 generations by default) is kept as `survived`.
 - **`odca-select <file.odca> [--4 | --3 | --2 | --1]`** is the workbench that composes them: it
   shows screened random rules, you dress each in a color set, and `s`/`S`
   save the result as a pair in the named file (created if missing). `n`/`p`
@@ -116,8 +125,8 @@ grows by increments (see
 `REQTS.md` R-X7 and `TO-DO.md`). The parser is one C program generated
 by flex and bison from `script/` and shared by both implementations.
 
-`odca --help` and `odca-select --help` print the flags and keys (the same
-text from both implementations). On startup the programs load the previous
+`--help` on any of the three prints its flags and keys (the same text
+from both implementations). On startup the programs load the previous
 rule (from `~/.odca/rule`, random on first run) and initialize all cells to
 random contents; `odca-select` on a file with pairs then opens on pair 1,
 and `odca` plays pair 1. Rule IDs are printed to the terminal at startup
@@ -182,5 +191,6 @@ library is also the pool of every kept color set, reached with `[` and
 until it returns as its own program.
 
 An odca file is JSON: `{"pairs": [{"rule": "<20 digits>", "colorset":
-"<name>", "colors": ["#RRGGBB", ...]}, ...]}`. `interesting.odca` at the
+"<name>", "colors": ["#RRGGBB", ...]}, ...]}`, plus a `seeds` section by
+rule and width once `odca-evolve` has written one. `interesting.odca` at the
 root holds the pairs kept so far; try `odca interesting.odca`.
