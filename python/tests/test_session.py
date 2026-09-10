@@ -767,6 +767,7 @@ def test_play_in_order_and_loops(make_store, odca_file, capsys):  # PT-31
                     {"rule": ALL_ZERO.id, "colorset": "B", "colors": grey(20)}], file)
     s = make_session(store, show=load_show([file]))
     assert s.play_mode and not s.select_mode and not s.review_mode
+    assert s.title == f"ODCA — rule {ALL_ZERO.id}"  # R-U6: no counter outside --longest
     assert s.pair_index == 0 and s.rule == ALL_ZERO
     assert s.palette[0] == rgb("#0A0A0A")
     assert s.automaton.generation == 0
@@ -1042,6 +1043,9 @@ def test_longest_plays_the_recorded_seeds_rank_by_rank(make_store, odca_file, ca
     # Every pair's longest, then every pair's second: A1, B1 (its survivor left out), A2; C has none.
     assert s.play_order == [(0, 0, 0), (0, 1, 0), (0, 0, 1)]
     assert list(s.automaton.cells) == block(16, 32) and s.rule == a
+    assert s.title == f"ODCA — rule {a.id} — 0/8"  # R-U6: the generation counter
+    s.tick(s.delay * 3)
+    assert s.title == f"ODCA — rule {a.id} — 3/8"
     for key in "rmuUa":  # the rule keys and auto-init are inert; the color keys are not
         s.handle_key(key)
     assert s.rule == a and s.auto_init and not s.undo_stack

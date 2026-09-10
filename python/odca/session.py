@@ -220,6 +220,18 @@ class Session:
         return self.automaton.rule
 
     @property
+    def title(self):
+        """The window title (R-U6): the rule, and under --longest (R-X8) the
+        generation counter `<n>/<m>`, this generation over the seed's recorded
+        lifetime. The viewer refreshes it five times a second."""
+        text = f"ODCA — rule {self.rule_id}"
+        if self.longest and self.play_position is not None and self.play_order[self.play_position][2] is not None:
+            segment, index, rank = self.play_order[self.play_position]
+            seed = self._playable_seeds(segment, index)[rank]
+            text += f" — {self.automaton.generation}/{seed['generations']}"
+        return text
+
+    @property
     def rule_id(self):
         return self.automaton.rule.id
 

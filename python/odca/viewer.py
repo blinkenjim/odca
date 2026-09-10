@@ -24,6 +24,7 @@ from pygame._sdl2.video import Renderer, Texture, Window  # noqa: E402
 from .session import Session  # noqa: E402
 
 FPS = 60  # refresh cap when the display cannot pace us (no vsync)
+TITLE_INTERVAL = 0.2  # the title (and its generation counter) refreshes five times a second (R-U6)
 VSYNC_FPS_CAP = 240  # with vsync the display paces; this only bounds a runaway loop
 MIN_WINDOW = (160, 120)  # the smallest window in pixels, whatever the cell size (R-U2)
 
@@ -162,6 +163,7 @@ class Viewer:
         pygame.mouse.set_visible(not self.is_full_screen(*window.size))  # R-U2
         clock = pygame.time.Clock()
         title = None
+        since_title = float("inf")
         running = True
         while running:
             resized = False
@@ -184,10 +186,13 @@ class Viewer:
                 dt = 0.0  # R-U8: frozen while resizing; time resumes now, no catch-up
             session.tick(dt)
             self.draw(renderer)
-            new_title = f"ODCA — rule {session.rule_id}"  # R-U6
-            if new_title != title:
-                window.title = new_title
-                title = new_title
+            since_title += dt
+            if since_title >= TITLE_INTERVAL:  # R-U6: five times a second, not every frame
+                since_title = 0.0
+                new_title = session.title
+                if new_title != title:
+                    window.title = new_title
+                    title = new_title
             renderer.present()  # blocks until the refresh when vsync is on
         session.finish()  # odca-select writes its file; review saves (R-V5)
         session.stop_search()
