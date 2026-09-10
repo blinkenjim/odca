@@ -31,8 +31,8 @@ public final class ViewerModel: ObservableObject {
     private(set) var frame: CGImage?
     private(set) var scrollOffset = 0.0  // cells, see Session.scrollOffset (R-U3)
     @Published var title = "ODCA"
-    static let titleInterval = 0.2  // the title (and its generation counter) refreshes five times a second (R-U6)
-    private var sinceTitle = Double.infinity
+    static let counterInterval = 0.2  // the generation counter on the terminal refreshes five times a second (R-O17)
+    private var sinceCounter = Double.infinity
 
     private var keyMonitor: Any?
 
@@ -79,11 +79,12 @@ public final class ViewerModel: ObservableObject {
         session.tick(dt)
         frame = renderImage()
         scrollOffset = session.scrollOffset
-        sinceTitle += dt
-        if sinceTitle >= Self.titleInterval {  // R-U6: five times a second, not every frame
-            sinceTitle = 0
-            let newTitle = session.title
-            if newTitle != title { title = newTitle }
+        let newTitle = session.title  // R-U6
+        if newTitle != title { title = newTitle }
+        sinceCounter += dt
+        if sinceCounter >= Self.counterInterval, let counter = session.counter {  // R-O17: five times a second
+            sinceCounter = 0
+            TerminalStatus.shared.show(counter)
         }
     }
 

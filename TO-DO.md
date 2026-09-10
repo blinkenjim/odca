@@ -1,11 +1,10 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.46.0, Swift 3.46.0, Python
-3.47.0: under `--longest` the window title carries a generation counter
-`<n>/<m>` refreshed five times a second (R-U6; the user asked for "a
-generation counter that updates five times per second, in simple n/m
-format" — placed in the title, beside the rule; say if the terminal was
-meant). Before that, 3.44.0 / 3.45.0: `odca --longest` (R-X8) plays the recorded seeds, every pair's
+**YOU ARE HERE (2026-09-10):** Spec 3.48.0, Swift 3.48.0, Python
+3.49.0: under `--longest` the generation counter `<n>/<m>` is redrawn
+in place on the terminal five times a second, cleared before any line
+(R-O17; 3.46.0 / 3.47.0 had put it in the title, the user: "I'd really
+prefer it to stdout"). Before that, 3.44.0 / 3.45.0: `odca --longest` (R-X8) plays the recorded seeds, every pair's
 longest then every pair's second and so on, each to its measured
 extinction with no watchdog, survivors of the cap left out (user:
 "lengths of 100,000 are IGNORED"), in a fixed-width window with black

@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.46.0 — 2026-09-10
+Version 3.48.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -74,7 +74,8 @@ second — R-E4. 3.42.1: that rate is over the last ten seconds, not
 cumulative — R-E4. 3.44.0: `odca --longest`, the show of the recorded
 seeds in a fixed-width window — R-X8, R-X1, R-U8, R-O13, R-U9, section
 10. 3.46.0: the generation counter in the title under `--longest` —
-R-U6.)
+R-U6. 3.48.0: the counter moves to standard output, in place on a
+terminal — R-O17, R-U6.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -306,12 +307,9 @@ frame changes); when the resize ends, time resumes from that moment with
 no catch-up.
 
 **R-U6 (window title).** The window title must show the current rule ID
-(format: `ODCA — rule <id>`), kept current as the rule changes. Under
-`odca --longest` (R-X8) it also carries a generation counter, `ODCA —
-rule <id> — <n>/<m>`: n the generation on screen (the seed's row is 0),
-m the seed's recorded lifetime. The title is refreshed five times a
-second, not every frame, so the counter reads in steps of about a fifth
-of a second of generations.
+(format: `ODCA — rule <id>`), kept current as the rule changes. (3.46.0
+put the `--longest` generation counter here; since 3.48.0 it is on
+standard output, R-O17.)
 
 **R-U7 (shutdown).** Pressing `q` or closing the window exits the program
 cleanly, stopping all background workers.
@@ -1038,6 +1036,14 @@ The program prints single-line, human-readable status to standard output:
   <g>/<G> ---` before an activation that enters a different rule's group.
   Arrangement messages (R-O9) name the set.
 - **R-O14.** On a geometry change (R-U8): `resized <cols>x<rows>`.
+- **R-O17.** In `odca --longest` (R-X8), on standard output when it is
+  a terminal: the generation counter `<n>/<m>`, n the generation on
+  screen (the seed's row is 0) and m the seed's recorded lifetime,
+  redrawn in place (carriage return, erase to the end of the line, no
+  newline) five times a second, and cleared before any other line is
+  printed, so the pair and rule lines stand alone; when standard output
+  is not a terminal the counter is not shown. Nothing else prints in
+  place.
 - **R-O16.** In `odca-evolve` (section 4e), and nothing else, every
   line opening with the time then left on the rule's budget in the
   `hh:mm:ss` of R-E4 and a space, so the lines compare with each other

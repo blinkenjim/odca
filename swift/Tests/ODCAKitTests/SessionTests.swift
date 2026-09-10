@@ -826,6 +826,7 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(session.playMode && !session.selectMode && !session.reviewMode)
         XCTAssertEqual(session.pairIndex, 0)
         XCTAssertEqual(session.automaton.rule, dies)
+        XCTAssertNil(session.counter)  // R-O17: no counter outside --longest
         XCTAssertEqual(session.palette[0], RGB(hex: "#0A0A0A"))
         XCTAssertEqual(session.automaton.generation, 0)  // freshly seeded
         var out = lines.take()
@@ -1106,9 +1107,10 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.playOrder.map { [$0.segment, $0.index, $0.seed!] }, [[0, 0, 0], [0, 1, 0], [0, 0, 1]])
         XCTAssertEqual(session.automaton.cells, block(16, in: 32))
         XCTAssertEqual(session.automaton.rule, a)
-        XCTAssertEqual(session.title, "ODCA — rule \(a.id) — 0/8")  // R-U6: the generation counter
+        XCTAssertEqual(session.title, "ODCA — rule \(a.id)")  // R-U6: the title is the rule's alone
+        XCTAssertEqual(session.counter, "0/8")  // R-O17: the generation counter
         session.tick(session.delay * 3)
-        XCTAssertEqual(session.title, "ODCA — rule \(a.id) — 3/8")
+        XCTAssertEqual(session.counter, "3/8")
         // The rule keys and auto-init are inert; the colors keys are not.
         for key in [Session.Key.r, .m, .u, .U, .a] { _ = session.handleKey(key) }
         XCTAssertEqual(session.automaton.rule, a)

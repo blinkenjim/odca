@@ -5,11 +5,21 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.48.0 (Swift, spec) and 3.49.0 (Python) — 2026-09-10
+
+The `--longest` generation counter moves from the title to the
+terminal, where the user wanted it: `1234/5947` redrawn in place below
+the last line five times a second, stepping aside whenever a pair or
+rule line is printed. It shows only when standard output is a
+terminal; piped or logged output stays clean. The title is the rule's
+alone again.
+
 ## 3.46.0 (Swift, spec) and 3.47.0 (Python) — 2026-09-10
 
 Under `--longest` the window title counts generations: `ODCA — rule
 <id> — 1234/5947`, the generation on screen over the seed's recorded
-lifetime, refreshed five times a second.
+lifetime, refreshed five times a second. (Moved to the terminal in
+3.48.0.)
 
 ## 3.44.0 (Swift, spec) and 3.45.0 (Python) — 2026-09-10
 

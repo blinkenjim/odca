@@ -43,6 +43,7 @@ MainActor.assumeIsolated {  // top-level code of an executable runs on the main 
     launch(fullScreen: flags.contains("--fullscreen"), cellSize: cellSize, cols: width) { cols, rows in  // R-U2
         Session(cols: cols, rows: rows, show: show, shuffle: flags.contains("--shuffle"), longest: longest,
                 initialDelay: Session.initialDelay * Double(cellSize) / 4,  // R-U5
-                playTimeout: watchdog, playGrace: grace)
+                playTimeout: watchdog, playGrace: grace,
+                output: { TerminalStatus.shared.line($0) })  // R-O17: lines clear the in-place counter
     }
 }
