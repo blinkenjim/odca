@@ -67,6 +67,7 @@ def load_odca_file(path):
 
 
 SEEDS_KEPT = 10  # seeds kept per rule and width (R-E3)
+SURVIVED = "survived"  # the `end` of a row that outlived the cap (R-E2); not played under --longest (R-X8)
 
 
 def merge_seeds(*lists):

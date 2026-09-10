@@ -12,7 +12,7 @@ import importlib.util
 import json
 from pathlib import Path
 
-from .store import load_odca_file, load_seeds, merge_seed_maps
+from .store import SURVIVED, load_odca_file, load_seeds, merge_seed_maps
 
 
 class ShowError(Exception):
@@ -93,6 +93,28 @@ def load_script(path):
         else:
             plays, shuffle = True, "shuffle" in statement
     return (pairs, shuffle, seeds) if plays else ([], False, {})
+
+
+def seed_width(segments, cells=None):
+    """The width of a --longest show (R-X8): the one width at which the files
+    record seeds for their pairs' rules that did not survive the cap, or the
+    --cells choice among several."""
+    widths = set()
+    for segment in segments:
+        for pair in segment["pairs"]:
+            for width, seeds in segment["seeds"].get(pair["rule"], {}).items():
+                if any(s["end"] != SURVIVED for s in seeds):
+                    widths.add(width)
+    listed = ", ".join(str(w) for w in sorted(widths))
+    if not widths:
+        raise ShowError("no seeds to play")
+    if cells is not None:
+        if cells not in widths:
+            raise ShowError(f"no seeds at {cells} cells ({listed})")
+        return cells
+    if len(widths) > 1:
+        raise ShowError(f"seeds at {listed} cells: choose one with --cells")
+    return next(iter(widths))
 
 
 def load_show(files):

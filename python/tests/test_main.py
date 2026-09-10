@@ -29,7 +29,7 @@ def test_help_prints_and_exits_zero(main, text, capsys, tmp_path, monkeypatch): 
 def test_usage_errors(capsys, tmp_path):  # R-W1, R-X1
     with pytest.raises(SystemExit) as e:
         play_main([])
-    assert e.value.code == 2 and "usage: odca <file> [<file> ...] [--shuffle] [--fullscreen] [--4] [--3] [--2] [--1] [--watchdog N] [--grace N]" in capsys.readouterr().out
+    assert e.value.code == 2 and "usage: odca <file> [<file> ...] [--shuffle] [--longest] [--fullscreen] [--4] [--3] [--2] [--1] [--watchdog N] [--grace N] [--cells N]" in capsys.readouterr().out
     with pytest.raises(SystemExit) as e:
         play_main([str(tmp_path / "nope.odca")])
     assert e.value.code == 1 and "does not exist" in capsys.readouterr().out
@@ -54,17 +54,17 @@ def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
     file = tmp_path / "show.odca"
     file.write_text('{"pairs": []}')
     calls = []
-    monkeypatch.setattr(play, "run", lambda kwargs, fullscreen=False, cell=4: calls.append((kwargs, fullscreen, cell)))
+    monkeypatch.setattr(play, "run", lambda kwargs, fullscreen=False, cell=4, cols=None: calls.append((kwargs, fullscreen, cell)))
     play.main([str(file), "--fullscreen"])
     play.main(["--shuffle", str(file)])
     play.main([str(file), "--1"])
     play.main(["--watchdog", "20", str(file), "--grace", "10"])
     clocks = {"play_timeout": 120.0, "play_grace": 60.0}  # the defaults (R-X2, R-X3)
     show = [{"file": "show.odca", "pairs": [], "shuffle": False, "seeds": {}}]
-    assert calls == [({"show": show, "shuffle": False, **clocks}, True, 2),  # 2-point cells by default
-                     ({"show": show, "shuffle": True, **clocks}, False, 2),
-                     ({"show": show, "shuffle": False, **clocks}, False, 1),
-                     ({"show": show, "shuffle": False, "play_timeout": 20, "play_grace": 10}, False, 2)]
+    assert calls == [({"show": show, "shuffle": False, "longest": False, **clocks}, True, 2),  # 2-point cells by default
+                     ({"show": show, "shuffle": True, "longest": False, **clocks}, False, 2),
+                     ({"show": show, "shuffle": False, "longest": False, **clocks}, False, 1),
+                     ({"show": show, "shuffle": False, "longest": False, "play_timeout": 20, "play_grace": 10}, False, 2)]
 
 
 def test_odca_takes_scripts_and_odca_files_in_order(monkeypatch, tmp_path, capsys):  # PT-38, R-X1, R-X7
@@ -78,7 +78,7 @@ def test_odca_takes_scripts_and_odca_files_in_order(monkeypatch, tmp_path, capsy
     script = tmp_path / "show.play"
     script.write_text("import one.odca\nimport two.odca\nplay\n")
     calls = []
-    monkeypatch.setattr(play, "run", lambda kwargs, fullscreen=False, cell=4: calls.append(kwargs["show"]))
+    monkeypatch.setattr(play, "run", lambda kwargs, fullscreen=False, cell=4, cols=None: calls.append(kwargs["show"]))
     play.main([str(script), str(tmp_path / "one.odca")])
     assert [(seg["file"], len(seg["pairs"])) for seg in calls[0]] == [("show.play", 3), ("one.odca", 1)]
     script.write_text("import one.odca\nimport three.odca\nplay\n")
@@ -91,6 +91,37 @@ def test_odca_takes_scripts_and_odca_files_in_order(monkeypatch, tmp_path, capsy
         play.main([str(script)])
     assert e.value.code == 1
     assert capsys.readouterr().out == f"error: {script}:2:6: syntax error, unexpected word now, expecting end of line\n"
+
+
+def test_longest_flags(monkeypatch, tmp_path, capsys):  # R-X8, R-U9
+    from odca import play
+    from odca.automaton import Rule
+    from odca.store import save_odca_file
+    rule = Rule.from_id("0123" * 5)
+    pair = {"rule": rule.id, "colorset": "ODCA default", "colors": ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]}
+    file = tmp_path / "seeded.odca"
+    save_odca_file([pair], file, seeds={rule.id: {40: [{"row": [1] * 40, "generations": 7, "end": "state 2 extinct"}],
+                                                   50: [{"row": [1] * 50, "generations": 7, "end": "survived"}]}})
+    calls = []
+    monkeypatch.setattr(play, "run", lambda kwargs, fullscreen=False, cell=4, cols=None: calls.append((kwargs["longest"], cols, cell)))
+    play.main([str(file), "--longest"])  # one playable width: 40 (the 50-cell seed survived)
+    play.main(["--longest", str(file), "--cells", "40", "--1", "--shuffle"])
+    play.main([str(file)])
+    assert calls == [(True, 40, 2), (True, 40, 1), (False, None, 2)]
+    for args, code, text in ((["--longest", "--watchdog", "5"], 2, "--watchdog does not apply with --longest"),
+                             (["--longest", "--grace", "5"], 2, "--grace does not apply with --longest"),
+                             (["--cells", "40"], 2, "--cells applies only with --longest"),
+                             (["--longest", "--cells", "2"], 2, "--cells needs a whole number of cells (3 or more)"),
+                             (["--longest", "--cells", "50"], 1, "error: no seeds at 50 cells (40)")):
+        with pytest.raises(SystemExit) as e:
+            play.main([str(file)] + args)
+        assert e.value.code == code, args
+        assert text in capsys.readouterr().out, args
+    script = tmp_path / "show.play"
+    script.write_text("import seeded.odca\nplay\n")
+    with pytest.raises(SystemExit) as e:
+        play.main([str(script), "--longest"])
+    assert e.value.code == 1 and f"error: {script}: --longest plays odca files only" in capsys.readouterr().out
 
 
 def test_watchdog_and_grace_need_whole_seconds(tmp_path, capsys):  # R-X2, R-X3, R-U9

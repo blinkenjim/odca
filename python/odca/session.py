@@ -64,7 +64,7 @@ import numpy as np
 from .automaton import N_STATES, Automaton, Rule
 from .classify import find_candidate
 from .search import CandidateSearch
-from .store import DEFAULT_COLOR_SETS, Store, load_odca_file, next_pair_name, save_odca_file
+from .store import DEFAULT_COLOR_SETS, SURVIVED, Store, load_odca_file, next_pair_name, save_odca_file
 
 DEFAULT_COLOR_SET = 1  # slot active at startup (R-U4)
 KEY_ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]  # digit keys in review order (R-V2, R-K17)
@@ -98,7 +98,7 @@ def _rgb(c):
 
 class Session:
     def __init__(self, cols, rows, store=None, search=None, rng=None,
-                 review_mode=False, select_file=None, show=None, shuffle=False,
+                 review_mode=False, select_file=None, show=None, shuffle=False, longest=False,
                  initial_delay=INITIAL_DELAY, play_timeout=PLAY_TIMEOUT, play_grace=PLAY_GRACE):
         self.cols = cols
         self.rows = rows
@@ -116,6 +116,10 @@ class Session:
         # Program precedence: odca (play), then odca-select, then color set review.
         self.show = [dict(seg) for seg in show] if show is not None else None
         self.shuffle = bool(shuffle) and self.show is not None
+        # --longest (R-X8): the show is the recorded seeds of the pairs at the
+        # screen width, those that did not survive the cap; each plays to its
+        # extinction; the width is fixed; the rule keys are inert.
+        self.longest = bool(longest) and self.show is not None
         if self.show is not None:
             select_file = None
         self.select_file = Path(select_file) if select_file else None
@@ -154,6 +158,7 @@ class Session:
         self.auto_init = True  # R-K12: on at startup, not persisted
         self._boring_streak = 0
         self._boring_reason = None
+        self._boring_by_extinction = False
         self._recent_rows = deque()  # row bytes of the last REPEAT_SCREENS screens
         self._recent_counts = Counter()
         # Brent's cycle detection: one saved row, refreshed at powers of two.
@@ -325,7 +330,7 @@ class Session:
         random in the live row and with state 0 in remembered rows. The
         boring detectors start afresh; undo and the pair cycle are untouched.
         """
-        cols, rows = max(MIN_COLS, cols), max(1, rows)
+        cols, rows = (self.cols if self.longest else max(MIN_COLS, cols)), max(1, rows)  # R-X8: the width is the seeds'
         if cols == self.cols and rows == self.rows:
             return False
         if cols != self.cols:
@@ -507,7 +512,12 @@ class Session:
                 print(f"screen {self.screen_counter}")  # R-O7
         if self.auto_init and self._boring_streak >= self.rows:
             reason = self._boring_reason
-            if self.play_mode and self.play_order and self.play_elapsed >= self.play_timeout:
+            if self.longest:  # R-X8: a seed plays to its extinction, then the next; nothing else ends it
+                if self._boring_by_extinction:
+                    self._next_play_pair(reason)
+                else:
+                    self._reset_boredom()
+            elif self.play_mode and self.play_order and self.play_elapsed >= self.play_timeout:
                 self._next_play_pair(reason)  # R-X3: watchdog expired, a re-init transitions
             else:
                 self.init_cells()
@@ -572,10 +582,12 @@ class Session:
         else:
             self._boring_streak += 1
         self._boring_reason = reason
+        self._boring_by_extinction = bool(extinct) and not living_minority  # R-A1's first clause
 
     def _reset_boredom(self):  # R-A3
         self._boring_streak = 0
         self._boring_reason = None
+        self._boring_by_extinction = False
         self._recent_rows.clear()
         self._recent_counts.clear()
         self._minority_counts.clear()
@@ -612,7 +624,7 @@ class Session:
         self._accumulated -= steps * self.delay
         for _ in range(min(steps, STEP_CAP)):
             self._advance()
-        if (self.play_mode and self.play_order  # R-X3: watchdog expired and the grace period observed
+        if (self.play_mode and not self.longest and self.play_order  # R-X3: watchdog expired and the grace period observed
                 and self.play_elapsed >= self.play_timeout and self.since_init >= self.play_grace):
             self._next_play_pair("timeout")
 
@@ -841,15 +853,48 @@ class Session:
     # ------------------------------------------------------------------- odca
 
     def _load_play(self):  # R-X1
-        for segment in self.show:
-            how = ", shuffled" if segment["shuffle"] else ""  # R-X7: the script said `shuffle`
-            print(f"odca {segment['file']}: {len(segment['pairs'])} pairs{how}")  # R-O13
+        for seg, segment in enumerate(self.show):
+            if self.longest:  # R-X8: what the file brings to the show at this width
+                count = sum(len(self._playable_seeds(seg, i)) for i in range(len(segment["pairs"])))
+                print(f"odca {segment['file']}: {len(segment['pairs'])} pairs, {count} seeds at {self.cols} cells")  # R-O13
+            else:
+                how = ", shuffled" if segment["shuffle"] else ""  # R-X7: the script said `shuffle`
+                print(f"odca {segment['file']}: {len(segment['pairs'])} pairs{how}")  # R-O13
         self.pairs = []
-        if any(segment["pairs"] for segment in self.show):
-            self._new_pass()
+        self._new_pass()
+        if self.play_order:
             self._play_pair(0, None)
 
+    def _playable_seeds(self, segment, index):
+        """R-X8: the seeds a pair plays under --longest: its rule's at the
+        screen width, longest first, without those that survived the cap."""
+        pair = self.show[segment]["pairs"][index]
+        seeds = self.show[segment].get("seeds", {}).get(pair["rule"], {}).get(self.cols, [])
+        return [s for s in seeds if s["end"] != SURVIVED]
+
+    def _longest_pass(self):
+        """The --longest pass (R-X8): every pair's longest playable seed, then
+        every pair's second, and so on, pairs in file order and files in
+        command-line order; or, with --shuffle, a fresh permutation of all of
+        them under the constraints of `shuffle` (R-X7), the seam included."""
+        counts = [[len(self._playable_seeds(seg, i)) for i in range(len(segment["pairs"]))]
+                  for seg, segment in enumerate(self.show)]
+        most = max((c for cs in counts for c in cs), default=0)
+        order = [(seg, i, rank) for rank in range(most)
+                 for seg, cs in enumerate(counts) for i, c in enumerate(cs) if c > rank]
+        if self.shuffle and len(order) > 1:
+            previous = None if self.play_segment is None else (self.play_segment, self.pair_index)
+            for _ in range(SHUFFLE_TRIES):
+                order = [order[int(k)] for k in self.rng.permutation(len(order))]
+                if self._no_repeats([(seg, i) for seg, i, _ in order], previous):
+                    break
+        return order
+
     def _new_pass(self):  # R-X1: the files in command-line order, or a fresh shuffle of them per pass
+        if self.longest:
+            self.play_order = self._longest_pass()
+            self.play_position = 0
+            return
         n = len(self.show)
         order = list(range(n))
         if self.shuffle and n > 1:
@@ -874,16 +919,16 @@ class Session:
             if self.show[seg]["shuffle"] and len(indices) > 1:
                 for _ in range(SHUFFLE_TRIES):
                     indices = [int(i) for i in self.rng.permutation(len(indices))]
-                    if self._no_repeats(seg, indices, previous):
+                    if self._no_repeats([(seg, i) for i in indices], previous):
                         break
-            play_order += [(seg, i) for i in indices]
+            play_order += [(seg, i, None) for i in indices]
             if play_order:
-                previous = play_order[-1]
+                previous = play_order[-1][:2]
         self.play_order = play_order
         self.play_position = 0
 
-    def _no_repeats(self, segment, indices, previous):
-        chain = ([previous] if previous is not None else []) + [(segment, i) for i in indices]
+    def _no_repeats(self, items, previous):
+        chain = ([previous] if previous is not None else []) + items
         return not any(self._clash(a, b) for a, b in zip(chain, chain[1:]))
 
     def _clash(self, a, b):
@@ -892,7 +937,7 @@ class Session:
         return pa["rule"] == pb["rule"] or sorted(pa["colors"]) == sorted(pb["colors"])
 
     def _play_pair(self, position, reason):  # R-X4
-        segment, index = self.play_order[position]
+        segment, index, rank = self.play_order[position]
         self.play_position = position
         entered = segment != self.play_segment
         self.play_segment = segment
@@ -905,14 +950,26 @@ class Session:
         self._undo_mark = len(self.undo_stack)  # R-K19: U returns to the pair as played
         self._show_colors(pair["colorset"], pair["colors"])
         # R-X4: the longest-lived recorded seed for this rule at exactly this
-        # width, when the file has one; a random row otherwise.
-        seeds = self.show[segment].get("seeds", {}).get(pair["rule"], {}).get(self.cols, [])
-        self.init_cells(seeds[0]["row"] if seeds else None)
+        # width, when the file has one; a random row otherwise. R-X8: the seed
+        # of the item's rank.
+        if rank is None:
+            seeds = self.show[segment].get("seeds", {}).get(pair["rule"], {}).get(self.cols, [])
+            self.init_cells(seeds[0]["row"] if seeds else None)
+            which = ""
+        else:
+            seeds = self._playable_seeds(segment, index)
+            self.init_cells(seeds[rank]["row"])
+            which = f", seed {rank + 1}/{len(seeds)}, {seeds[rank]['generations']} generations"
         self.play_elapsed = 0.0  # the pair's screen time starts now
         if entered and len(self.show) > 1:
             print(f"playing {self.show[segment]['file']}")  # R-O13: the show moves to another file
         why = f" ({reason})" if reason else ""
-        print(f"pair {index + 1}/{len(self.pairs)} {self._label(pair)}{why}")  # R-O13
+        print(f"pair {index + 1}/{len(self.pairs)} {self._label(pair)}{which}{why}")  # R-O13
+
+    def _restart_seed(self):
+        """`i` under --longest (R-X8): the seed on screen from its first row again."""
+        segment, index, rank = self.play_order[self.play_position]
+        self.init_cells(self._playable_seeds(segment, index)[rank]["row"])
 
     def _next_play_pair(self, reason):  # R-X2, R-X3: on through the pass, then a new pass
         position = self.play_position + 1
@@ -1063,6 +1120,8 @@ class Session:
             else:
                 self._handle_color_key(key)
             return True
+        if self.longest and key in ("r", "m", "u", "U", "a"):
+            return True  # R-X8: the rule is the seed's
         if key == KEY_SPACE:
             self.paused = True
         elif key == "r":
@@ -1081,7 +1140,7 @@ class Session:
         elif key == "p":
             self.play_step(-1) if self.play_mode else self.select_pair(-1)
         elif key == "i":
-            self.init_cells()
+            self._restart_seed() if self.longest else self.init_cells()
         elif key == "a":  # R-K12
             self.auto_init = not self.auto_init
             print(f"auto-init {'on' if self.auto_init else 'off'}")  # R-O6

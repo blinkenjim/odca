@@ -71,17 +71,21 @@ def grid_rect(width, height, cols, rows, cell):
 
 
 class Viewer:
-    def __init__(self, width=1200, height=800, cell_size=2, session=None, fullscreen=False):
+    def __init__(self, width=1200, height=800, cell_size=2, session=None, fullscreen=False, fixed_cols=None):
         self.cell_size = cell_size
         self.width, self.height = width, height
         self.fullscreen = fullscreen  # open full screen at launch (--fullscreen, R-U2)
+        self.fixed_cols = fixed_cols  # --longest (R-X8): the grid is this wide whatever the window
         if session is None:
             session = Session(*grid_size(width, height, cell_size))
         self.session = session
         self._texture = None  # one texel per cell, rows + 1 tall; remade when the grid changes
 
     def background(self):
-        """The margin color: state 0 of the active set, inverted during a flash."""
+        """The margin color: state 0 of the active set, inverted during a
+        flash; black under --longest (R-X8), where the margins are bars."""
+        if self.fixed_cols is not None:
+            return (0, 0, 0)
         bg = self.session.palette[0]
         return tuple(255 - c for c in bg) if self.session.inverted else tuple(bg)
 
@@ -113,9 +117,12 @@ class Viewer:
         renderer.clear()
         # R-U3: the texture is one row taller than the grid; scroll_offset says
         # how far into the top row the view is (continuous at slow speeds).
-        # The viewport is the grid rectangle, so the slide never paints the margins.
-        renderer.set_viewport(pygame.Rect(x, y, w, h))
-        self._texture.draw(dstrect=pygame.Rect(0, -int(round(session.scroll_offset * cell)), w, h + cell))
+        # The viewport is the grid rectangle clipped to the window (a fixed
+        # width wider than the window is cropped, centered: R-X8), so the
+        # slide never paints the margins.
+        vx, vy = max(x, 0), max(y, 0)
+        renderer.set_viewport(pygame.Rect(vx, vy, min(w, self.width - vx), min(h, self.height - vy)))
+        self._texture.draw(dstrect=pygame.Rect(x - vx, y - vy - int(round(session.scroll_offset * cell)), w, h + cell))
         renderer.set_viewport(None)
 
     def toggle_full_screen(self, window):
@@ -127,9 +134,11 @@ class Viewer:
             window.set_fullscreen(desktop=True)
 
     def fit(self, width, height):
-        """Follow the window: as many whole cells as fit (R-U8)."""
+        """Follow the window: as many whole cells as fit (R-U8); under
+        --longest only the height follows (R-X8)."""
         self.width, self.height = width, height
-        self.session.resize(*grid_size(width, height, self.cell_size))
+        cols, rows = grid_size(width, height, self.cell_size)
+        self.session.resize(self.fixed_cols or cols, rows)
 
     @staticmethod
     def is_full_screen(width, height):

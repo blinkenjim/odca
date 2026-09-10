@@ -46,6 +46,7 @@ python3.13 -m venv .venv        # whichever version has a wheel
 ```sh
 .venv/bin/odca ../interesting.odca            # play a file of pairs (--fullscreen, --3 / --2 / --1 optional)
 .venv/bin/odca a.play b.play --shuffle        # play scripts and odca files, in a fresh order each pass
+.venv/bin/odca ../my-pairs.odca --longest     # play the seeds odca-evolve recorded, in a fixed-width window
 .venv/bin/odca-select ../my-pairs.odca        # compose pairs into a file (--3 / --2 / --1 optional)
 ```
 

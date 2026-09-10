@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.37.0 — 2026-09-09 (the player opens a pair from its recorded seed and the store carries `seeds` through; no `odca-evolve` here yet; 3.35.0: `pygame-ce` replaces upstream `pygame`; 3.33.0: `shuffle` a statement of its own, line-buffered output; 3.31.0: a script shuffles its pairs; 3.29.0: play scripts: `show.py` over the C parser in `odca/cshow/`, built by `setup.py`; 3.27.0: pairs, named; 2-point default; 3.25.0: navigation scrolls the pair in; 3.23.0: a mutated pair saves as a new pair; 3.21.0: `--3`; 3.19.0: `U` undoes all; 3.17.0: `m` edits the pair under review; 3.15.0: `--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.45.0 — 2026-09-10 (`odca --longest`: `Session(longest=)`, `show.seed_width`, a fixed-width window through `Viewer(fixed_cols=)`; 3.37.0: the player opens a pair from its recorded seed and the store carries `seeds` through; no `odca-evolve` here yet; 3.35.0: `pygame-ce` replaces upstream `pygame`; 3.33.0: `shuffle` a statement of its own, line-buffered output; 3.31.0: a script shuffles its pairs; 3.29.0: play scripts: `show.py` over the C parser in `odca/cshow/`, built by `setup.py`; 3.27.0: pairs, named; 2-point default; 3.25.0: navigation scrolls the pair in; 3.23.0: a mutated pair saves as a new pair; 3.21.0: `--3`; 3.19.0: `U` undoes all; 3.17.0: `m` edits the pair under review; 3.15.0: `--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -66,6 +66,18 @@ absent.
 
 ## Implementation choices
 
+- **odca --longest** (R-X8): `Session(show=, shuffle=, longest=)` builds
+  the pass in `_longest_pass` from `_playable_seeds` (a pair's seeds at
+  `cols` less the survivors, `store.SURVIVED`); `play_order` items are
+  `(segment, index, rank)`, rank `None` in an ordinary show; `_advance`
+  transitions on a boring streak only when `_observe` set
+  `_boring_by_extinction`, and restarts the detectors otherwise; `tick`
+  skips the clocks; `resize` keeps `cols`; the rule keys return early;
+  `_restart_seed` serves `i`. `play.main` settles the width with
+  `show.seed_width` before the window and passes it to `cli.run(cols=)`,
+  which sizes the window and hands `Viewer(fixed_cols=)` the width:
+  `fit` resizes rows only, the margins are black, and `draw` clips the
+  viewport to the window so a grid wider than it is cropped, centered.
 - **The script parser** (3.29.0): `setup.py` declares a setuptools
   `Extension` named `odca._show` over the generated C, which makes pip
   compile it at install (a plain C compiler suffices: the sources include

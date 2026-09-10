@@ -52,15 +52,22 @@ def parse(argv, program, help_text, flags=(), options=(), positional="<file.odca
     return ([Path(f) for f in files] if many else Path(files[0])), given, values
 
 
-def whole_seconds(program, values, option, default):
-    """A positive whole number of seconds given to `option`, or `default` (R-X2, R-X3)."""
+def whole_number(program, values, option, unit, minimum=1, default=None):
+    """A whole number of `unit` given to `option`, at least `minimum`, or
+    `default` (R-X2, R-X3, R-X8). Anything else is a usage error."""
     if option not in values:
         return default
     v = values[option]
-    if not v.isdigit() or int(v) < 1:
-        print(f"{program}: {option} needs a whole number of seconds")
+    if not v.isdigit() or int(v) < minimum:
+        floor = f" ({minimum} or more)" if minimum > 1 else ""
+        print(f"{program}: {option} needs a whole number of {unit}{floor}")
         sys.exit(2)
     return int(v)
+
+
+def whole_seconds(program, values, option, default):
+    """A positive whole number of seconds given to `option`, or `default` (R-X2, R-X3)."""
+    return whole_number(program, values, option, "seconds", default=default)
 
 
 def cell_size(program, flags):
@@ -78,10 +85,11 @@ def initial_delay(cell):
     return INITIAL_DELAY * cell / 4
 
 
-def run(session_kwargs, fullscreen=False, cell=2):
-    """Open the pygame viewer on a Session built with the given keyword arguments."""
+def run(session_kwargs, fullscreen=False, cell=2, cols=None):
+    """Open the pygame viewer on a Session built with the given keyword
+    arguments; `cols` fixes the width in cells (`--longest`, R-X8)."""
     from .session import Session  # deferred: pygame prints a banner on import
     from .viewer import Viewer
-    width, height = 1200, 800
-    session = Session(width // cell, height // cell, initial_delay=initial_delay(cell), **session_kwargs)
-    Viewer(width, height, cell, session=session, fullscreen=fullscreen).run()
+    width, height = (cols * cell if cols else 1200), 800
+    session = Session(cols or width // cell, height // cell, initial_delay=initial_delay(cell), **session_kwargs)
+    Viewer(width, height, cell, session=session, fullscreen=fullscreen, fixed_cols=cols).run()

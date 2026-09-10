@@ -12,7 +12,7 @@ from odca.automaton import Rule
 from odca.search import CandidateSearch
 from odca.session import HISTORY_DEPTH, INITIAL_DELAY, MAX_DELAY, MIN_COLS, MIN_DELAY, Session
 from odca.store import DEFAULT_COLOR_SETS, Store, load_odca_file, save_odca_file
-from odca.show import load_show
+from odca.show import ShowError, load_show
 
 FOUR = [Rule.from_id(d * 20) for d in "0123"]
 OUTSIDE = Rule.from_id("01230123012301230123")
@@ -898,7 +898,7 @@ def test_play_shuffle_draws_a_fresh_order_of_the_files(make_store, odca_file, ca
     assert (s.play_segment, s.pair_index) == played[-2]
     plain = make_session(store, show=show)
     assert not plain.shuffle
-    assert plain.play_order == [(0, 0), (0, 1), (1, 0), (2, 0), (2, 1), (2, 2)]  # command-line order
+    assert plain.play_order == [(0, 0, None), (0, 1, None), (1, 0, None), (2, 0, None), (2, 1, None), (2, 2, None)]  # command-line order
     # One file with pairs among empty ones: it plays on, and shuffling changes nothing that shows.
     empty = odca_file(name="empty.odca")
     empty.write_text('{"pairs": []}')
@@ -940,7 +940,7 @@ def test_play_shuffle_draws_a_fresh_order_of_a_script_pairs(make_store, odca_fil
     assert s.pair_index == played[-2]
     script.write_text("import six.odca\nplay\n")  # plain play: file order
     plain = make_session(store, show=load_show([script]))
-    assert plain.play_order == [(0, i) for i in range(6)]
+    assert plain.play_order == [(0, i, None) for i in range(6)]
     assert ", shuffled" not in capsys.readouterr().out
     # No order can avoid a repeat: the requirement is dropped and the show goes on.
     save_odca_file([{"rule": a.id, "colorset": "X", "colors": x}, {"rule": a.id, "colorset": "Y", "colors": y}], file)
@@ -969,7 +969,7 @@ def test_a_shuffled_script_keeps_its_seam_with_the_other_files(make_store, odca_
     s = make_session(store, show=load_show([plain_file, script]))
     capsys.readouterr()
     for _ in range(20):
-        assert s.play_order[1:] == [(1, 1), (1, 0)], s.play_order  # the clashing pair never opens the file
+        assert s.play_order[1:] == [(1, 1, None), (1, 0, None)], s.play_order  # the clashing pair never opens the file
         s.handle_key("N")
 
 
@@ -996,6 +996,118 @@ def test_arrival_uses_the_longest_recorded_seed_at_the_screen_width(make_store, 
     script = tmp_path / "seeded.play"  # a script show carries the seeds of every file it imports
     script.write_text("import seeded.odca\nplay\n")
     assert list(make_session(store, show=load_show([script])).automaton.cells) == best
+
+
+def block(threes, width):
+    """A block of 3s in a field of 1s under KILLS_THREE: the block loses a cell
+    at each edge per generation, so a block of 2k dies at generation k."""
+    lead = (width - threes) // 2
+    return [1] * lead + [3] * threes + [1] * (width - threes - lead)
+
+
+def test_longest_plays_the_recorded_seeds_rank_by_rank(make_store, odca_file, capsys):  # PT-44, R-X8, R-O13
+    from odca.show import seed_width
+    from odca.store import SURVIVED
+    store = review_store(make_store)
+    file = odca_file(name="seeded.odca")
+    a, b, c = KILLS_THREE, ALL_PRODUCIBLE, ALL_ZERO
+    save_odca_file([{"rule": a.id, "colorset": "A", "colors": grey(10)},
+                    {"rule": b.id, "colorset": "B", "colors": grey(20)},
+                    {"rule": c.id, "colorset": "C", "colors": grey(30)}], file, seeds={
+        a.id: {32: [{"row": block(16, 32), "generations": 8, "end": "state 3 extinct"},
+                    {"row": block(12, 32), "generations": 6, "end": "state 3 extinct"}],
+               33: [{"row": block(16, 33), "generations": 8, "end": "state 3 extinct"}]},
+        b.id: {32: [{"row": [0] * 32, "generations": 100000, "end": SURVIVED},
+                    {"row": [2] * 32, "generations": 5, "end": "state 1 extinct"}]}})
+    show = load_show([file])
+    with pytest.raises(ShowError) as e:  # two widths: --cells must choose
+        seed_width(show)
+    assert str(e.value) == "seeds at 32, 33 cells: choose one with --cells"
+    assert seed_width(show, 32) == 32
+    with pytest.raises(ShowError) as e:
+        seed_width(show, 40)
+    assert str(e.value) == "no seeds at 40 cells (32, 33)"
+    survivors = odca_file(name="survivors.odca")
+    save_odca_file([{"rule": b.id, "colorset": "B", "colors": grey(20)}], survivors,
+                   seeds={b.id: {32: [{"row": [0] * 32, "generations": 9, "end": SURVIVED}]}})
+    with pytest.raises(ShowError) as e:
+        seed_width(load_show([survivors]))
+    assert str(e.value) == "no seeds to play"  # survivors are not played
+
+    s = make_session(store, show=show, longest=True, play_timeout=1, play_grace=1)
+    assert s.longest and s.play_mode
+    out = capsys.readouterr().out
+    assert "odca seeded.odca: 3 pairs, 3 seeds at 32 cells" in out
+    assert "pair 1/3 A, seed 1/2, 8 generations\n" in out
+    # Every pair's longest, then every pair's second: A1, B1 (its survivor left out), A2; C has none.
+    assert s.play_order == [(0, 0, 0), (0, 1, 0), (0, 0, 1)]
+    assert list(s.automaton.cells) == block(16, 32) and s.rule == a
+    for key in "rmuUa":  # the rule keys and auto-init are inert; the color keys are not
+        s.handle_key(key)
+    assert s.rule == a and s.auto_init and not s.undo_stack
+    s.handle_key("2")
+    assert s.active_name == "S2"
+    assert s.resize(40, 20)  # the width is the seeds'; only the height follows the window
+    assert (s.cols, s.rows) == (32, 20)
+    assert "resized 32x20" in capsys.readouterr().out
+    assert not s.resize(48, 20)
+    s.handle_key(" ")  # `i` restarts the seed on screen (once resumed: it is not live while paused, R-K10)
+    for _ in range(3):
+        s.handle_key("\n")
+    assert list(s.automaton.cells) != block(16, 32)
+    s.handle_key(" ")
+    s.handle_key("i")
+    assert list(s.automaton.cells) == block(16, 32) and s.automaton.generation == 0
+    # No clocks: with a one-second watchdog and grace period, six quiet seconds
+    # (the delay at its slowest, no generation computed) change nothing.
+    for _ in range(12):
+        s.handle_key("-")
+    for _ in range(3):
+        s.tick(2)
+    assert s.pair_index == 0 and s.automaton.generation == 0
+    assert "timeout" not in capsys.readouterr().out
+    # The seed plays to its extinction (generation 8), and a screenful (20 rows)
+    # past it (R-A2) the next seed takes over: at generation 27; no re-seed in place.
+    s.handle_key(" ")
+    for _ in range(26):
+        s.handle_key("\n")
+    assert s.pair_index == 0
+    s.handle_key("\n")
+    assert s.pair_index == 1
+    out = capsys.readouterr().out
+    assert "pair 2/3 B, seed 1/1, 5 generations (state 3 extinct)" in out and "auto-init" not in out
+    assert list(s.automaton.cells) == [2] * 32 and s.automaton.generation == 0
+    s.handle_key("N")  # N and P walk the items, wrapping; the third is A's second seed
+    assert "pair 1/3 A, seed 2/2, 6 generations (next)" in capsys.readouterr().out
+    assert list(s.automaton.cells) == block(12, 32)
+    s.handle_key(" ")  # n and p are not live while paused (R-K10); N and P are
+    s.handle_key("n")
+    assert "pair 1/3 A, seed 1/2, 8 generations (next)" in capsys.readouterr().out
+    s.handle_key("p")
+    assert "seed 2/2, 6 generations (previous)" in capsys.readouterr().out
+
+
+def test_longest_shuffle_keeps_rules_and_colors_apart(make_store, odca_file):  # PT-44, R-X8
+    store = review_store(make_store)
+    file = odca_file(name="seeded.odca")
+    rules = [ALL_PRODUCIBLE, FOUR[1], FOUR[2]]
+    seeds = {r.id: {32: [{"row": [i] * 32, "generations": 9, "end": "x"}, {"row": [3] * 32, "generations": 4, "end": "x"}]}
+             for i, r in enumerate(rules)}
+    save_odca_file([{"rule": r.id, "colorset": f"S{i}", "colors": grey(10 * i)} for i, r in enumerate(rules)], file, seeds=seeds)
+    s = make_session(store, show=load_show([file]), shuffle=True, longest=True)
+    played = [(s.pair_index, s.play_order[s.play_position][2])]
+    for _ in range(59):
+        s.handle_key("N")
+        played.append((s.pair_index, s.play_order[s.play_position][2]))
+    orders = set()
+    for p in range(10):
+        one_pass = played[6 * p:6 * p + 6]
+        assert sorted(one_pass) == [(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)]
+        orders.add(tuple(one_pass))
+    assert all(x[0] != y[0] for x, y in zip(played, played[1:]))  # never the same pair twice running
+    assert len(orders) > 1
+    plain = make_session(store, show=load_show([file]), longest=True)
+    assert [(i, rank) for _, i, rank in plain.play_order] == [(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1)]
 
 
 def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33
