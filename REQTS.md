@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.62.0 — 2026-09-10
+Version 3.64.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -86,7 +86,9 @@ curating the pairs with seeds — R-W9, R-W1, R-O12, R-U9, section 10.
 a confirmed cycle ends a row in `odca-evolve` and an item in `odca
 --longest` — R-E2, R-X8, R-P3; conformance vectors 1.2. 3.62.0:
 `--parity` judges against the other rule furthest behind, not the one
-furthest ahead — R-E5.)
+furthest ahead — R-E5. 3.64.0: `odca-evolve` round trips until
+interrupted; the parity plan is made as each round trip starts, at most
+`--limit` skips — R-E2, R-E4, R-E5, R-E1, R-O16, section 10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -945,18 +947,24 @@ instead.)
 The search: which starting rows keep a rule alive longest?
 
 **R-E1 (entry).** `odca-evolve <file.odca> --cells N --time SECONDS
-[--cap N] [--parity]` — the file is the one required argument and must exist and
+[--cap N] [--parity [--limit N]]` — the file is the one required argument and must exist and
 hold at least one pair (else `error: <file> does not exist` / `error:
 <file>: no pairs`, exit 1); `--cells`, the width of the rows, a whole
 number of 3 or more (R-M2), and `--time`, the budget per rule in whole
 seconds, are required; `--cap` (R-E2) is a whole number of generations,
-100000 by default (R-U9 for `--help` and the usage errors: a missing
-required option prints `odca-evolve: --cells is required`, exit 2). The
+100000 by default; `--limit` (R-E5) is a whole number of rules, 0 by
+default, and a usage error without `--parity` (`odca-evolve: --limit
+applies only with --parity`) (R-U9 for `--help` and the usage errors: a
+missing required option prints `odca-evolve: --cells is required`, exit
+2). The
 program opens no window, starts no background search (R-S), and neither
 reads nor writes `$HOME/.odca` (R-P1, R-P2).
 
 **R-E2 (the search).** The program takes up each distinct rule of the
-file's pairs in order of first appearance and prints its line (R-O16).
+file's pairs in order of first appearance and prints its line (R-O16),
+and after the last rule begins again with the first: *round trips*
+through the rules, numbered from 1 and each announced (R-O16), until
+interrupted (R-E4); it never ends on its own.
 For the budget, one worker per processor repeats independently of the
 others: draw a row of `--cells` cells, each uniformly random over the
 four states (R-N1), and evolve it in wrap mode generation by generation
@@ -992,9 +1000,10 @@ rewritten (R-P3): its pairs unchanged, this rule's list at this width
 replaced by the ten, every other rule's and width's seeds untouched.
 Then the next rule.
 
-**R-E5 (`--parity`).** With the flag, each rule is judged as its turn
-comes (R-E2), on the seeds as they stand at that moment — the file's,
-and those this run has found and written for the rules before it: if
+**R-E5 (`--parity`).** With the flag, every rule is judged as each
+round trip (R-E2) starts, on the seeds as they stand at that moment —
+the file's, and those earlier round trips found — and the round trip's
+plan is then fixed, whatever the rules taken up first find: if
 the rule's *shortest* recorded lifetime at the run's width, times 0.9,
 is longer than the *longest* lifetime of *some* other rule of the
 file's pairs at that width — that is, of the other rule furthest
@@ -1008,9 +1017,15 @@ up its turn for as long as any other rule holds anything shorter, and
 its survivors never keep another rule running. A rule with fewer than
 ten seeds is judged on those it has; one with none never gives up its
 turn, and neither does any rule when no other rule holds seeds at the
-width. Seeds of rules not among the file's pairs do not count. (3.58.0
+width. Seeds of rules not among the file's pairs do not count. With
+`--limit N`, N above 0, at most N rules give up their turn per round
+trip: those furthest ahead by their shortest lifetime, ties in file
+order; the rest of the qualifiers run. The plan is announced as the
+round trip starts: `parity: <k> of <m> rules ahead give up their turn`,
+with ` (limit <N>)` appended when a limit is set (R-O16). (3.58.0
 judged against the longest of all the others, so a single immortal
-rule kept every rule running; withdrawn.)
+rule kept every rule running, and 3.62.0 judged each rule as its turn
+came; withdrawn.)
 
 **R-E4 (countdown and interruption).** While a rule is searched and
 standard output is a terminal, the time left in its budget is shown as
@@ -1154,7 +1169,9 @@ The program prints single-line, human-readable status to standard output:
 - **R-O16.** In `odca-evolve` (section 4e), and nothing else, every
   line opening with the time then left on the rule's budget in the
   `hh:mm:ss` of R-E4 and a space, so the lines compare with each other
-  and with the countdown: as each rule is taken up, `rule <id>
+  and with the countdown: as each round trip begins, `round trip <k>`
+  and, under `--parity`, the plan line of R-E5 (both opening with the
+  whole budget); as each rule is taken up, `rule <id>
   (<i>/<n>): <cells> cells` (opening with the whole budget); as each row
   joins the ten, `kept <generations> generations, rank <r> (<end>)` with
   its 1-based place at the moment it joined; under `--parity` (R-E5), a
@@ -1282,7 +1299,7 @@ loses one update (loaders already tolerate malformed content, R-P).
   `odca-select`, `--longest` (R-W9), and,
   for `odca`, `--shuffle` (R-X1), `--fullscreen` (R-U2), `--watchdog`
   (R-X2), `--grace` (R-X3), `--longest` and `--cells` (R-X8), and for `odca-evolve`, `--cells`,
-  `--time`, `--cap` (R-E1), and `--parity` (R-E5); no configuration files or menus. No other flags exist (the 2.x developer flags
+  `--time`, `--cap` (R-E1), `--parity`, and `--limit` (R-E5); no configuration files or menus. No other flags exist (the 2.x developer flags
   `--colorset-review`, `--screensaver-review`, `--consistency-check`, and
   `--screensaver` are gone: the last two became `odca-select` and `odca`,
   the consistency check became `R`, and color set review is on hold).

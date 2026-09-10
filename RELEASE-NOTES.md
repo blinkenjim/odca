@@ -5,6 +5,18 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.64.0 (Swift, spec) — 2026-09-10
+
+`odca-evolve` now runs round trip after round trip through the file's
+rules until you stop it with Ctrl-C, announcing `round trip 2` and so
+on as each begins. Under `--parity` the plan is made as the round trip
+starts, on the seeds as they stand, and holds for the whole trip
+whatever the early rules find; the plan is printed, `parity: 3 of 8
+rules ahead give up their turn`. **`--limit N`** caps the skips per
+round trip at N, the rules furthest ahead by their shortest lifetime,
+so attention shifts toward the poor without deserting the rich; 0, the
+default, is no limit.
+
 ## 3.62.0 (Swift, spec) — 2026-09-10
 
 `--parity` now does what it was for. A rule gives up its turn when its

@@ -200,4 +200,23 @@ final class EvolveTests: XCTestCase {
         let stray: Seeds = [a: [8: seeds([100])], "z": [8: seeds([5000])]]  // z is not in the file
         XCTAssertNil(Evolve.givesUpTurn(rule: a, width: 8, seeds: stray, rules: [a, b]))
     }
+
+    func testParityPlanSkipsAtMostTheLimitFurthestAhead() {  // PT-46, R-E5
+        func seeds(_ lengths: [Int]) -> [Seed] { lengths.map { Seed(row: [UInt8](repeating: 0, count: 8), generations: $0, end: "x") } }
+        let rules = ["a", "b", "c", "d", "e"]
+        let all: Seeds = ["a": [8: seeds([5000, 3000])], "b": [8: seeds([400, 300])], "c": [8: seeds([9000, 4000])],
+                          "d": [8: seeds([4000, 3000])], "e": [8: seeds([4500, 4000])]]  // b, at 400, is furthest behind
+        var plan = Evolve.parityPlan(rules: rules, width: 8, seeds: all, limit: 0)
+        XCTAssertEqual(Set(plan.skips.keys), ["a", "c", "d", "e"])  // every rule ahead of b; no limit
+        XCTAssertEqual(plan.ahead, 4)
+        XCTAssertEqual(plan.skips["a"]?.longest, 400)
+        plan = Evolve.parityPlan(rules: rules, width: 8, seeds: all, limit: 2)
+        XCTAssertEqual(Set(plan.skips.keys), ["c", "e"])  // the two furthest ahead by shortest lifetime: c (4000), e (4000)...
+        XCTAssertEqual(plan.ahead, 4)
+        plan = Evolve.parityPlan(rules: rules, width: 8, seeds: all, limit: 3)
+        XCTAssertEqual(Set(plan.skips.keys), ["c", "e", "a"])  // then a and d tie at 3000: a first in file order
+        plan = Evolve.parityPlan(rules: rules, width: 8, seeds: all, limit: 10)
+        XCTAssertEqual(plan.skips.count, 4)  // a limit above the qualifiers changes nothing
+        XCTAssertTrue(Evolve.parityPlan(rules: rules, width: 8, seeds: ["b": [8: seeds([400])]], limit: 0).skips.isEmpty)  // one rule with seeds
+    }
 }

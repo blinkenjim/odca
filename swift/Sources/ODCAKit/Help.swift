@@ -133,7 +133,8 @@ the candidate stash.
 public let helpOdcaEvolve = """
 odca-evolve: search an odca file's rules for their longest-lived seeds
 
-usage: odca-evolve <file.odca> --cells N --time SECONDS [--cap N] [--parity]
+usage: odca-evolve <file.odca> --cells N --time SECONDS [--cap N]
+                   [--parity [--limit N]]
        odca-evolve --help
 
 For every distinct rule in the file, in order, spends the time budget
@@ -143,8 +144,9 @@ minority (the extinction that makes odca re-seed), or a cycle of any
 period is confirmed (as odca's own detector confirms one), or the cap. The
 ten longest-lived rows are kept, merged with any the file already holds
 for that rule and width, and written back to the file as the budget runs
-out; then the next rule. Every processor works at once, each on rows of
-its own. odca plays a pair from its longest-lived seed when the file
+out; then the next rule, and after the last the first again, round trip
+after round trip until Ctrl-C. Every processor works at once, each on
+rows of its own. odca plays a pair from its longest-lived seed when the file
 holds one for exactly the width on screen.
 
   --cells N       the width of the rows, in cells (3 or more)
@@ -155,15 +157,19 @@ holds one for exactly the width on screen.
                   recorded lifetime at this width, times 0.9, outlives the
                   longest of some other rule of the file, it is skipped
                   with a line saying so, and the time goes to the rules
-                  behind
+                  behind; decided for the whole round trip as it starts
+  --limit N       with --parity: at most N rules give up their turn per
+                  round trip, those furthest ahead; 0, the default, is no
+                  limit
 
-Output: a line as each rule is taken up, a line for every row that joins
-the ten (its generations, its rank, how it ended), and when the rule is
-done a line of the ten's ages in generations, longest first, comma
-separated; each line opens with the time then left on the rule as
-hh:mm:ss, and on a terminal that time is counted down in place, followed
-by the rows tested per second over the last ten seconds. Ctrl-C writes
-what the current rule has so far and exits.
+Output: a line as each round trip begins (and the parity plan after it),
+a line as each rule is taken up, a line for every row that joins the ten
+(its generations, its rank, how it ended), and when the rule is done a
+line of the ten's ages in generations, longest first, comma separated;
+each line opens with the time then left on the rule as hh:mm:ss, and on
+a terminal that time is counted down in place, followed by the rows
+tested per second over the last ten seconds. Ctrl-C writes what the
+current rule has so far and exits.
 
 Files: the odca file is rewritten with its pairs unchanged and a seeds
 section by rule and width; nothing under ~/.odca is touched, and no

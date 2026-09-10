@@ -4,8 +4,13 @@ import Foundation
 import ODCAKit
 
 let (files, flags, options) = parseArguments(program: "odca-evolve", help: helpOdcaEvolve,
-                                             flags: ["--parity"], options: ["--cells", "--time", "--cap"])
+                                             flags: ["--parity"], options: ["--cells", "--time", "--cap", "--limit"])
 let parity = flags.contains("--parity")  // R-E5
+if options["--limit"] != nil && !parity {
+    print("odca-evolve: --limit applies only with --parity")
+    exit(2)
+}
+let limit = wholeNumber(program: "odca-evolve", options: options, "--limit", unit: "rules", minimum: 0, default: 0)  // R-E5: 0 is no limit
 let file = files[0]
 let cells = wholeNumber(program: "odca-evolve", options: options, "--cells", unit: "cells", minimum: Session.minCols)  // R-E1
 let budget = wholeNumber(program: "odca-evolve", options: options, "--time", unit: "seconds")  // R-E1
@@ -53,12 +58,26 @@ func countdown(_ text: String) {
     countdownShown = true
     outputLock.unlock()
 }
-for (index, id) in rules.enumerated() {
+// R-E2: round trips through the rules until interrupted (R-E4).
+var round = 0
+while true {
+  round += 1
+  let whole = Date().addingTimeInterval(Double(budget))  // the round trip's own lines open with the whole budget
+  say("round trip \(round)", at: whole)  // R-O16
+  // R-E5: under --parity the round trip's plan is made up front, on the
+  // seeds as they stand now: the rules far ahead give up their turns,
+  // at most --limit of them, whatever the rules before them find.
+  var plan: [String: (shortest: Int, longest: Int)] = [:]
+  if parity {
+    let made = Evolve.parityPlan(rules: rules, width: cells, seeds: seeds, limit: limit)
+    plan = made.skips
+    let limited = limit > 0 ? " (limit \(limit))" : ""
+    say("parity: \(plan.count) of \(made.ahead) rules ahead give up their turn\(limited)", at: whole)
+  }
+  for (index, id) in rules.enumerated() {
     let rule = try! Rule(id: id)  // loadOdcaFile keeps only valid rule IDs
     let deadline = Date().addingTimeInterval(Double(budget))
-    // R-E5: under --parity a rule far ahead of every other gives up its
-    // turn, judged on the seeds as they stand now, this run's included.
-    if parity, let (shortest, longest) = Evolve.givesUpTurn(rule: id, width: cells, seeds: seeds, rules: rules) {
+    if let (shortest, longest) = plan[id] {
         say("rule \(id) (\(index + 1)/\(rules.count)): \(cells) cells, skipped: shortest \(shortest) × 0.9 outlives \(longest)", at: deadline)
         continue
     }
@@ -91,4 +110,5 @@ for (index, id) in rules.enumerated() {
     seeds[id, default: [:]][cells] = kept  // R-E3: the merged ten, written now
     Store.saveOdcaFile(pairs, seeds: seeds, to: file)
     if interrupted { exit(130) }
+  }
 }

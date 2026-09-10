@@ -24,6 +24,22 @@ public enum Evolve {
         return (shortest, behind)
     }
 
+    /// The plan for one round trip under `--parity` (R-E5), made up front on
+    /// the seeds as they stand: the rules that give up their turn, with the
+    /// lifetimes for their lines, and how many qualified. With `limit` above
+    /// zero only that many are skipped, those furthest ahead by their
+    /// shortest lifetime, ties in file order.
+    public static func parityPlan(rules: [String], width: Int, seeds: Seeds, limit: Int)
+        -> (skips: [String: (shortest: Int, longest: Int)], ahead: Int) {
+        let ahead = rules.compactMap { id in givesUpTurn(rule: id, width: width, seeds: seeds, rules: rules).map { (id, $0) } }
+        var chosen = ahead
+        if limit > 0 && ahead.count > limit {
+            let order = Dictionary(uniqueKeysWithValues: rules.enumerated().map { ($1, $0) })
+            chosen = Array(ahead.sorted { ($0.1.shortest, order[$1.0]!) > ($1.1.shortest, order[$0.0]!) }.prefix(limit))
+        }
+        return (Dictionary(uniqueKeysWithValues: chosen), ahead.count)
+    }
+
     /// A span of seconds as `hh:mm:ss`, rounded up to the second: the
     /// countdown, and the time left that opens every status line (R-E4, R-O16).
     public static func hms(_ seconds: Double) -> String {
