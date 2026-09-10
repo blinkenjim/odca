@@ -1161,6 +1161,8 @@ class Session:
                 self._advance()  # R-K11: single step, stay paused
             elif key == "s":
                 self.screen_remaining += self.rows  # R-K13: queue a screenful
+            elif key in ("n", "p") and self.play_mode:
+                self.play_step(1 if key == "n" else -1)  # R-X6: in odca n/p are N/P, live while paused too
             else:
                 self._handle_color_key(key)
             return True

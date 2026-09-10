@@ -812,6 +812,11 @@ def test_play_in_order_and_loops(make_store, odca_file, capsys):  # PT-31
     s.handle_key("P")  # live while paused; wraps backward
     assert s.pair_index == 1
     assert "pair 2/2 B (previous)" in capsys.readouterr().out
+    s.handle_key("n")  # so are n/p in odca (R-X6)
+    assert s.pair_index == 0 and s.paused
+    s.handle_key("p")
+    assert s.pair_index == 1
+    assert "pair 2/2 B (previous)" in capsys.readouterr().out
     s.handle_key("s")  # the file is never written by odca
     s.handle_key("S")
     s.handle_key("X")
@@ -1085,8 +1090,7 @@ def test_longest_plays_the_recorded_seeds_rank_by_rank(make_store, odca_file, ca
     s.handle_key("N")  # N and P walk the items, wrapping; the third is A's second seed
     assert "pair 1/3 A, seed 2/2, 6 generations (next)" in capsys.readouterr().out
     assert list(s.automaton.cells) == block(12, 32)
-    s.handle_key(" ")  # n and p are not live while paused (R-K10); N and P are
-    s.handle_key("n")
+    s.handle_key("n")  # n and p are live while paused in odca, as N and P are (R-X6)
     assert "pair 1/3 A, seed 1/2, 8 generations (next)" in capsys.readouterr().out
     s.handle_key("p")
     assert "seed 2/2, 6 generations (previous)" in capsys.readouterr().out
