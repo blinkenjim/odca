@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.40.1 — 2026-09-09
+Version 3.42.0 — 2026-09-09
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -69,7 +69,8 @@ conformance vectors 1.1 (`lifetimes`). 3.38.0: `odca-evolve` clocks as
 `hh:mm:ss` — R-E4, R-O16. 3.38.1: its lines open with the time left on
 the rule, not the time of day — R-O16. 3.40.0: the ages of the ten when
 a rule is done — R-O16. 3.40.1: the countdown starts at the left margin
-— R-E4.)
+— R-E4. 3.42.0: the countdown shows the rule's rate, rows tested per
+second — R-E4.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -854,8 +855,12 @@ standard output is a terminal, the time left in its budget is shown as
 `hh:mm:ss` (two digits each, rounded up to the second, so `00:04:59`
 with just under five minutes to go), starting at the left margin so it
 sits in the column of the times that open the status lines (R-O16),
-redrawn in place about once a second and cleared before any other line
-is printed; when output is not a terminal it is not shown. On SIGINT (Ctrl-C) the workers are stopped, the rule in hand is
+followed by two spaces and the rule's rate so far, `<n> seeds/s`: the
+rows whose lifetimes have been measured on this rule divided by the
+seconds of its budget spent, rounded to a whole number (`0` on the first
+draw); the whole redrawn in place about once a second and cleared before
+any other line is printed; when output is not a terminal it is not
+shown. On SIGINT (Ctrl-C) the workers are stopped, the rule in hand is
 written as R-E3 says with the seeds it has so far, and the program exits
 with status 130 without taking up the next rule.
 

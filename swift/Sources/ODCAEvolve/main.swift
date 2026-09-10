@@ -62,7 +62,11 @@ for (index, id) in rules.enumerated() {
     }
     let kept = search.run(until: deadline) { remaining in
         if interrupted { search.stop() }
-        countdown(Evolve.hms(remaining))  // in the column of the times that open the lines
+        // The time left in the column of the times that open the lines, then
+        // the rule's rate so far: rows measured per second of its budget.
+        let elapsed = Double(budget) - remaining
+        let rate = elapsed > 0 ? Double(search.tried) / elapsed : 0
+        countdown("\(Evolve.hms(remaining))  \(Int(rate.rounded())) seeds/s")
     }
     outputLock.lock()
     clearCountdown()

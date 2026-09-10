@@ -129,8 +129,9 @@ Output: a line as each rule is taken up, a line for every row that joins
 the ten (its generations, its rank, how it ended), and when the rule is
 done a line of the ten's ages in generations, longest first, comma
 separated; each line opens with the time then left on the rule as
-hh:mm:ss, and on a terminal that time is counted down in place. Ctrl-C
-writes what the current rule has so far and exits.
+hh:mm:ss, and on a terminal that time is counted down in place, followed
+by the rows tested per second so far on the rule. Ctrl-C writes what the
+current rule has so far and exits.
 
 Files: the odca file is rewritten with its pairs unchanged and a seeds
 section by rule and width; nothing under ~/.odca is touched, and no

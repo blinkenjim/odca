@@ -5,6 +5,14 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.42.0 (Swift, spec) — 2026-09-09
+
+The countdown now shows how fast the search is going: after the time
+left, the rows tested per second so far on the rule, `00:04:59  1234
+seeds/s`. It starts at 0 and settles within a few seconds. Long-lived
+rules and wide rows bring it down; that is the search working, not
+stalling.
+
 ## 3.40.1 (Swift, spec) — 2026-09-09
 
 The countdown now starts at the left margin, in the same column as the

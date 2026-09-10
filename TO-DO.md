@@ -1,8 +1,9 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-09):** Spec 3.40.1, Swift 3.40.1, Python
+**YOU ARE HERE (2026-09-09):** Spec 3.42.0, Swift 3.42.0, Python
 3.37.0 (the player side of the seeds; no odca-evolve in Python yet).
-Swift 3.40.1: the countdown sits in the column of the status times (no
+Swift 3.42.0: the countdown is followed by the rule's rate, rows tested
+per second so far (user). Swift 3.40.1: the countdown sits in the column of the status times (no
 leading spaces). Swift 3.40.0: as each rule ends, `odca-evolve` prints the ages of the
 ten kept rows, longest first, comma separated, no label (user). Swift
 3.38.1, after the user ran the search ("It works well"): the
