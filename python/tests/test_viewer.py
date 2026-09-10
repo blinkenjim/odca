@@ -159,3 +159,11 @@ def test_render_counter_is_yellow_with_a_black_outline():  # R-U11
     plain = pygame.font.Font(None, 40).render("12/40", True, (255, 255, 0))
     assert surface.get_width() == plain.get_width() + 2 * COUNTER_OUTLINE_WIDTH  # room for the outline
     assert surface.get_height() == plain.get_height() + 2 * COUNTER_OUTLINE_WIDTH
+
+
+def test_natural_size_follows_the_cell_and_the_fixed_width(viewer):  # R-U12
+    session = viewer.session
+    assert Viewer(1200, 800, 2, session=session).natural_size() == (1200, 800)
+    assert Viewer(1200, 800, 3, session=session).natural_size() == (1200, 798)  # whole cells
+    fixed = Viewer(1200, 800, 2, session=session, fixed_cols=540)
+    assert fixed.natural_size() == (1080, 800) and fixed.is_natural(1080, 800) and not fixed.is_natural(1200, 800)

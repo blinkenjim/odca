@@ -148,7 +148,8 @@ class Viewer:
         self.fixed_cols = fixed_cols  # --longest (R-X8): the grid is this wide whatever the window
         self.factor = 1.0  # R-X8: the grid's scale, the window's width over the grid's natural width
         self._smooth = False  # the texture's filter: linear for a fractional factor
-        self._counter = None  # R-U11: (text, Texture) of the on-screen counter, full screen only
+        self._counter = None  # R-U11: (text, Texture) of the on-screen counter
+        self.show_counter_on_screen = True  # R-U11: `o` toggles
         if session is None:
             session = Session(*grid_size(width, height, cell_size))
         self.session = session
@@ -215,6 +216,14 @@ class Viewer:
         elif self._counter is None or self._counter[0] != text:
             self._counter = (text, Texture.from_surface(renderer, render_counter(text)))
 
+    def natural_size(self):
+        """The window's natural size in pixels (R-U2, R-U12): the default grid at the cell size."""
+        cols = self.fixed_cols or 1200 // self.cell_size
+        return cols * self.cell_size, (800 // self.cell_size) * self.cell_size
+
+    def is_natural(self, width, height):
+        return (width, height) == self.natural_size()
+
     def toggle_full_screen(self, window):
         """`F` (R-K18): leave full screen if in it, by either route, else enter
         it at the desktop's size; the size change that follows refits the grid."""
@@ -272,9 +281,19 @@ class Viewer:
                     if event.unicode == "F":  # R-K18 (shift-f): a window key, live in every mode and while paused
                         self.toggle_full_screen(window)
                         continue
+                    if event.unicode == "o":  # R-K20: show / hide the on-screen count, live likewise
+                        self.show_counter_on_screen = not self.show_counter_on_screen
+                        continue
                     key = map_key(event.key, event.unicode)
                     if key is not None:
                         running = session.handle_key(key)
+                elif event.type == pygame.WINDOWMAXIMIZED:
+                    # R-U12: the platform's title-bar double-click maximizes; a
+                    # window that was not its natural size goes back there
+                    # instead, and one that was stays maximized.
+                    if not self.is_natural(self.width, self.height):
+                        window.restore()
+                        window.size = self.natural_size()
                 elif event.type in (pygame.VIDEORESIZE, pygame.WINDOWSIZECHANGED):
                     resized = True  # a drag, a full screen change, or a programmatic size
             dt = clock.tick(cap) / 1000.0
@@ -292,8 +311,8 @@ class Viewer:
             if since_counter >= COUNTER_INTERVAL and status is not None and session.counter is not None:
                 since_counter = 0.0
                 status.show(session.counter)  # R-O17: five times a second
-            # R-U11: on screen too, in full screen only, every frame
-            self.show_counter(renderer, session.counter if self.is_full_screen(*window.size) else None)
+            # R-U11: on screen too, every frame, until `o` hides it
+            self.show_counter(renderer, session.counter if self.show_counter_on_screen else None)
             renderer.present()  # blocks until the refresh when vsync is on
         if status is not None:
             print("", end="")  # clears the counter line (a write) before the prompt returns
