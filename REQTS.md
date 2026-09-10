@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.38.1 — 2026-09-09
+Version 3.40.0 — 2026-09-09
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -67,7 +67,8 @@ longest-lived seeds — section 4e, R-P3 (the `seeds` section), R-X4
 (`odca` plays a pair from its best seed), R-O16, R-U9, section 10;
 conformance vectors 1.1 (`lifetimes`). 3.38.0: `odca-evolve` clocks as
 `hh:mm:ss` — R-E4, R-O16. 3.38.1: its lines open with the time left on
-the rule, not the time of day — R-O16.)
+the rule, not the time of day — R-O16. 3.40.0: the ages of the ten when
+a rule is done — R-O16.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -973,9 +974,12 @@ The program prints single-line, human-readable status to standard output:
   and with the countdown: as each rule is taken up, `rule <id>
   (<i>/<n>): <cells> cells` (opening with the whole budget); as each row
   joins the ten, `kept <generations> generations, rank <r> (<end>)` with
-  its 1-based place at the moment it joined; and on a terminal the
-  countdown of R-E4. The R-O1 rule line is not printed: no rule becomes
-  current.
+  its 1-based place at the moment it joined; when the rule is done
+  (budget spent or interrupted), before the file is written and the next
+  rule taken up, the ages of the kept rows in generations, longest first,
+  as bare numbers separated by `, ` (`4821, 3990, 2210, ...`; no line
+  when none was kept); and on a terminal the countdown of R-E4. The R-O1
+  rule line is not printed: no rule becomes current.
 - **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> pairs`
   for each file in command-line order, `, shuffled` appended when its
   script said `shuffle` (R-X7); in a show of two or more files

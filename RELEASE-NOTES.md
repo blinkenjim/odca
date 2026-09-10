@@ -5,6 +5,17 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.40.0 (Swift, spec) — 2026-09-09
+
+When `odca-evolve` finishes a rule it prints the ages of the ten rows
+it kept, longest first, as bare numbers on one line, before writing the
+file and taking up the next rule, so the run's log shows at a glance
+what each rule came to:
+
+```
+00:00:00 4821, 3990, 2210, 1877, 1502, 1490, 1233, 980, 971, 640
+```
+
 ## 3.38.1 (Swift, spec) — 2026-09-09
 
 `odca-evolve` tidies its terminal. The countdown reads `00:04:59` and

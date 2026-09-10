@@ -67,6 +67,9 @@ for (index, id) in rules.enumerated() {
     outputLock.lock()
     clearCountdown()
     outputLock.unlock()
+    if !kept.isEmpty {  // R-O16: the ages of the ten, longest first, before moving on
+        say(kept.map { String($0.generations) }.joined(separator: ", "), at: deadline)
+    }
     seeds[id, default: [:]][cells] = kept  // R-E3: the merged ten, written now
     Store.saveOdcaFile(pairs, seeds: seeds, to: file)
     if interrupted { exit(130) }
