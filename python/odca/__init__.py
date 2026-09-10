@@ -2,5 +2,5 @@
 
 from .automaton import Automaton, Rule
 
-__version__ = "3.63.0"
+__version__ = "3.63.1"
 __all__ = ["Automaton", "Rule"]
