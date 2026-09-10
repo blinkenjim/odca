@@ -30,14 +30,15 @@ final class SessionTests: XCTestCase {
 
     /// A session whose terminal output is captured into `lines`.
     func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil,
-                     review: Bool = false, select: URL? = nil, play: URL? = nil, show: [Segment]? = nil,
+                     review: Bool = false, select: URL? = nil, selectLongest: Bool = false,
+                     play: URL? = nil, show: [Segment]? = nil,
                      shuffle: Bool = false, longest: Bool = false,
                      initialDelay: Double = Session.initialDelay,
                      playTimeout: Double = Session.playTimeout, playGrace: Double = Session.playGrace) -> Session {
         let sink: (String) -> Void = lines.map { l in { l.all.append($0) } } ?? { print($0) }
         return Session(cols: 32, rows: 16, store: store,
                        search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed),
-                       reviewMode: review, selectFile: select,
+                       reviewMode: review, selectFile: select, selectLongest: selectLongest,
                        show: show ?? play.map { try! Show.load([$0]) }, shuffle: shuffle, longest: longest,
                        initialDelay: initialDelay, playTimeout: playTimeout, playGrace: playGrace, output: sink)
     }
@@ -1187,6 +1188,67 @@ final class SessionTests: XCTestCase {
         XCTAssertGreaterThan(orders.count, 1)
         let plain = makeSession(store, show: try Show.load([file]), longest: true)
         XCTAssertEqual(plain.playOrder.map { [$0.index, $0.seed!] }, [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]])
+    }
+
+    func testSelectLongestPresentsOnlyThePairsWithSeeds() throws {  // PT-45, R-W9
+        let lines = Lines()
+        let store = try reviewStore()
+        let file = odcaFile(store, name: "curate.odca")
+        let a = allProducible, b = try Rule(id: String(repeating: "1", count: 20)), c = allZero
+        let seedA: Seeds = [a.id: [32: [Seed(row: [UInt8](repeating: 1, count: 32), generations: 9, end: "state 2 extinct")]]]
+        let seedB: Seeds = [b.id: [40: [Seed(row: [UInt8](repeating: 2, count: 40), generations: 100_000, end: Seed.survived)]]]
+        Store.saveOdcaFile([Pair(rule: a.id, colorset: "A", colors: grey(10)),
+                            Pair(rule: c.id, colorset: "C", colors: grey(30)),  // no seeds: not shown
+                            Pair(rule: a.id, colorset: "A2", colors: grey(40)),  // shares A's rule and seeds
+                            Pair(rule: b.id, colorset: "B", colors: grey(20))],
+                           seeds: Evolve.merge(seedA, seedB), to: file)  // any seeds count, any width
+        let session = makeSession(store, lines: lines, select: file, selectLongest: true)
+        var out = lines.take()
+        XCTAssertTrue(out.contains("odca curate.odca: 4 pairs, 3 with seeds") && out.contains("pair 1/3 pair-0000 A"), out)
+        XCTAssertTrue(session.selectLongest)
+        XCTAssertEqual(session.viewOrder, [0, 2, 3])
+        XCTAssertEqual(session.pairIndex, 0)
+        _ = session.handleKey(.n)
+        XCTAssertTrue(lines.take().contains("pair 2/3 pair-0002 A2"))
+        _ = session.handleKey(.n)
+        _ = session.handleKey(.n)  // the unsaved slot is empty: wraps to the first
+        XCTAssertTrue(lines.take().contains("pair 1/3 pair-0000 A"))
+        _ = session.handleKey(.R)  // grouped within the shown set
+        XCTAssertEqual(session.viewOrder, [0, 2, 3])
+        _ = session.handleKey(.R)
+        _ = session.handleKey(.digit(2))  // colors change and s saves them in place, as ever
+        _ = session.handleKey(.s)
+        XCTAssertTrue(lines.take().contains("saved pair 1/3"))
+        XCTAssertEqual(Store.loadOdcaFile(file)![0].colorset, "S2")
+        _ = session.handleKey(.S)  // appends a copy on A's rule, which has seeds: shown; the position stays
+        XCTAssertTrue(lines.take().contains("added pair 5/5"))
+        XCTAssertEqual(Store.loadOdcaFile(file)!.count, 5)
+        XCTAssertEqual(session.viewOrder, [0, 2, 3, 4])
+        XCTAssertEqual(session.pairIndex, 0)
+        _ = session.handleKey(.m)  // a mutation then s: appended on a rule without seeds, not shown, position kept
+        _ = session.handleKey(.s)
+        XCTAssertTrue(lines.take().contains("added pair 6/6"))
+        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(session.viewOrder, [0, 2, 3, 4])
+        XCTAssertEqual(Store.loadSeeds(file), Evolve.merge(seedA, seedB))
+        _ = session.handleKey(.u)
+        _ = session.handleKey(.X)  // deletes A's seeds: both of A's pairs drop out, the file keeps its pairs
+        out = lines.take()
+        XCTAssertTrue(out.contains("deleted seeds of pair 1/4 pair-0000 S2") && out.contains("pair 1/1 pair-0003 B"), out)
+        XCTAssertEqual(session.viewOrder, [3])
+        XCTAssertEqual(Store.loadOdcaFile(file)!.count, 6)
+        XCTAssertEqual(Store.loadSeeds(file), seedB)
+        _ = session.handleKey(.X)  // the last shown pair: nothing to show, the rule on screen is the unsaved rule
+        XCTAssertEqual(session.viewOrder, [])
+        XCTAssertNil(session.pairIndex)
+        XCTAssertEqual(session.unsavedRule, b)
+        XCTAssertEqual(Store.loadSeeds(file), [:])
+        XCTAssertEqual(Store.loadOdcaFile(file)!.count, 6)
+        _ = session.handleKey(.n)
+        XCTAssertTrue(lines.take().contains("no pairs"))
+        let plain = makeSession(store, select: file)  // without the flag: every pair, seeds carried through
+        XCTAssertEqual(plain.viewOrder, Array(0..<6))
+        XCTAssertFalse(plain.selectLongest)
     }
 
     func testRowsKeepTheirColorsThroughQuickTransitions() throws {  // PT-31, R-X5

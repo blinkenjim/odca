@@ -81,7 +81,7 @@ root; ~/.odca/ holds the current rule and the candidate stash.
 public let helpOdcaSelect = """
 odca-select: compose pairs for odca
 
-usage: odca-select <file.odca> [--4 | --3 | --2 | --1]
+usage: odca-select <file.odca> [--longest] [--4 | --3 | --2 | --1]
        odca-select --help
 
 Shows random rules that passed the maybe-Class-IV screen, lets you dress
@@ -91,6 +91,15 @@ every change and at exit. Pairs already in the file are reached with n and
 p, which cycle through them and one extra slot holding the unsaved rule
 you were exploring; every step re-seeds the cells, and the selected pair
 scrolls in from a fresh field below the old rows, as in odca.
+
+  --longest     present only the pairs whose rule has seeds recorded by
+                odca-evolve (any width, survivors included), for curating
+                what odca --longest plays: n and p cycle those; s rewrites
+                a pair's colors as ever; X deletes the rule's seeds, not
+                the pair, and every pair on that rule leaves the cycle; S
+                still appends a copy of the screen, and s after m a new
+                pair, saved but not shown when its rule has no seeds (the
+                position stays). Nothing is seeded from the recorded rows.
 
   --4 / --3 / --2 / --1
                 cells 4, 3, 2 (the default), or 1 points on a side

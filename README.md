@@ -104,7 +104,7 @@ the keyboard:
   opens no window. `odca` then starts a pair from its best seed whenever
   the file has one for exactly the width on screen. A recorded row that
   outlives the cap (100000 generations by default) is kept as `survived`.
-- **`odca-select <file.odca> [--4 | --3 | --2 | --1]`** is the workbench that composes them: it
+- **`odca-select <file.odca> [--longest] [--4 | --3 | --2 | --1]`** is the workbench that composes them: it
   shows screened random rules, you dress each in a color set, and `s`/`S`
   save the result as a pair in the named file (created if missing). `n`/`p`
   cycle through the file's pairs and one extra slot holding the unsaved
@@ -113,6 +113,10 @@ the keyboard:
   deletes the pair under review; `R` toggles the `n`/`p` order
   between file order and grouped by rule (the screen inverts briefly to
   confirm). The file is written after every change and at exit.
+  `--longest` presents only the pairs whose rule has seeds, for curating
+  what `odca --longest` plays: `X` then deletes the rule's seeds rather
+  than the pair, and a pair saved on a rule without seeds (`s` after
+  `m`, or `S` after `r`) is kept in the file but not shown.
 
 A **play script** (`.play`) says what to play, one statement per line,
 `#` for comments:

@@ -5,6 +5,21 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.56.0 (Swift, spec) and 3.57.0 (Python) — 2026-09-10
+
+**`odca-select my.odca --longest`** curates what `odca --longest`
+plays. It is odca-select as ever, except that `n`/`p` cycle only the
+pairs whose rule has seeds recorded by odca-evolve (any width,
+survivors included), numbered among themselves; the entry line says
+`28 pairs, 7 with seeds`. Colors and `s` work on the pair in view as
+before. `X` no longer deletes the pair: it deletes the rule's seeds,
+so every pair on that rule drops out of the cycle while the file keeps
+them all. `S` still appends a copy of the screen, which joins the
+cycle when its rule has seeds; `s` after `m`, or `S` after `r`, saves
+a pair on a rule without seeds, kept in the file but not shown until
+you run without the flag. Either way the position stays where it was.
+Nothing is seeded from the recorded rows.
+
 ## 3.54.0 (Swift, spec) and 3.55.0 (Python) — 2026-09-10
 
 Two window manners. The on-screen generation count now stands in the

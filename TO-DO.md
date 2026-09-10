@@ -1,7 +1,11 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.54.0, Swift 3.54.0, Python
-3.55.0: the on-screen count in any window with `o` to hide it (R-U11,
+**YOU ARE HERE (2026-09-10):** Spec 3.56.0, Swift 3.56.0, Python
+3.57.0: `odca-select --longest` (R-W9) presents only the pairs whose
+rule has seeds (any width, survivors included), `X` deletes the rule's
+seeds instead of the pair, appended pairs are saved but not shown and
+the position stays (the user's four answers: any; confirmed; keep;
+agreed). Before that, the on-screen count in any window with `o` to hide it (R-U11,
 R-K20), and a title-bar double-click returns a resized window to its
 natural size, then zooms as usual (R-U12; Python acts on the maximize
 event since SDL reports no title-bar clicks). Before that, 3.52.2 /

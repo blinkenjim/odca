@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.54.0 — 2026-09-10
+Version 3.56.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -80,7 +80,8 @@ window's width, aspect kept — R-X8, R-U2. 3.52.0: the generation
 counter on screen in full screen — R-U11. 3.52.1: at 12 points — R-U11. 3.52.2: at 18 points, bold, refreshed
 every frame — R-U11. 3.54.0: the on-screen count in any window, `o`
 hides it — R-U11, R-K20; a title-bar double-click returns a resized
-window to its natural size — R-U12.)
+window to its natural size — R-U12. 3.56.0: `odca-select --longest`,
+curating the pairs with seeds — R-W9, R-W1, R-O12, R-U9, section 10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -723,6 +724,31 @@ instead; withdrawn as jarring beside `odca`.)
 The art: play a *show* — the pairs (R-P3) of one or more files, one
 after another.
 
+**R-W9 (`--longest`).** `odca-select <file.odca> --longest` behaves as
+without the flag except in which pairs it presents: only those whose
+rule has seeds in the file (R-P3, section 4e) at any width, survivors
+included — the pairs `odca --longest` (R-X8) can play, plus those whose
+seeds all survived. The n/p cycle (R-B2), the grouped order (R-W7), the
+`pair <i>/<n>` numbering of R-O4 and R-O12, and the rule groups count
+those pairs alone; the unsaved slot (R-B3) is in the cycle as ever. On
+entry the program prints `odca <file>: <n> pairs, <k> with seeds`
+(R-O12) and opens on the first shown pair; with none shown, the loaded
+rule occupies the unsaved slot as for an empty file (R-W1). Nothing is
+seeded from the recorded rows: every activation re-seeds at random as
+R-W8 says. `s` rewrites the pair under review's colors in place and `S`
+appends as R-W4 says; a pair appended here joins the cycle only if its
+rule has seeds (a copy of a shown pair does; one made after `r`, or by
+`s` after a mutation, does not, and is saved but not shown), and the
+position stays on the pair under review rather than moving onto the
+new pair.
+`X` deletes the rule's seeds from the file, at every width, and leaves
+the pair in the file: it prints `deleted seeds of pair <i>/<n> <name>
+<colorset>` (R-O12), every pair on that rule leaves the cycle, the file
+is written at once with the seeds it has left, and the cycle moves on
+as after R-W5 (to the next shown pair, or, with none left, the rule on
+screen becomes the unsaved rule). Without the flag the file's seeds are
+carried through every write untouched.
+
 **R-X1 (entry and order).** `odca <file> [<file> ...] [--shuffle]` — one
 or more files, each a play script (R-X7) or an odca file (R-P3), which
 plays as a script that imports it and plays it: `odca a.odca` plays the
@@ -1074,7 +1100,9 @@ The program prints single-line, human-readable status to standard output:
 - **R-O12.** In `odca-select` (section 4c): on entry `odca <file>: <n>
   pairs`; after every write `saved <n> pairs to <file>` (`1 pair`); `saved
   pair <i>/<n>` on `s` over a pair, `added pair <n>/<n>` on an append,
-  `deleted pair <i>/<n>` on `X`; `pair order grouped by rule` / `pair
+  `deleted pair <i>/<n>` on `X` (under `--longest`, R-W9, `deleted
+  seeds of pair <i>/<n> <name> <colorset>`, and the entry line `odca
+  <file>: <n> pairs, <k> with seeds`); `pair order grouped by rule` / `pair
   order file order` on `R`; in the grouped order, `--- rule group
   <g>/<G> ---` before an activation that enters a different rule's group.
   Arrangement messages (R-O9) name the set.
@@ -1212,7 +1240,8 @@ loses one update (loaders already tolerate malformed content, R-P).
 - The command line is the file arguments (one odca file for
   `odca-select` and `odca-evolve`; one or more play scripts or odca
   files for `odca`, R-X1) plus
-  `--help` (R-U9), the cell size flags `--4` / `--3` / `--2` / `--1` (R-U2), and,
+  `--help` (R-U9), the cell size flags `--4` / `--3` / `--2` / `--1` (R-U2), for
+  `odca-select`, `--longest` (R-W9), and,
   for `odca`, `--shuffle` (R-X1), `--fullscreen` (R-U2), `--watchdog`
   (R-X2), `--grace` (R-X3), `--longest` and `--cells` (R-X8), and for `odca-evolve`, `--cells`,
   `--time`, and `--cap` (R-E1); no configuration files or menus. No other flags exist (the 2.x developer flags

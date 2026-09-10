@@ -117,6 +117,10 @@ public final class Session {
     private var reviewArrangement: [String: Int] = [:]
     // The pair cycle (R-B): the file's pairs in view order plus the unsaved slot.
     public let selectFile: URL?  // odca-select (R-W)
+    /// odca-select --longest (R-W9): only the pairs whose rule has seeds are
+    /// presented; X deletes the rule's seeds instead of the pair.
+    public let selectLongest: Bool
+    public private(set) var selectSeeds: Seeds = [:]  // the file's seeds under --longest
     public private(set) var pairs: [Pair] = []  // always in file order
     public private(set) var pairIndex: Int?  // file index of the pair under review / playing
     public private(set) var viewOrder: [Int] = []  // file indices in n/p order
@@ -175,8 +179,8 @@ public final class Session {
     public init(
         cols: Int, rows: Int, store: Store = Store(),
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
-        reviewMode: Bool = false, selectFile: URL? = nil, show: [Segment]? = nil, shuffle: Bool = false,
-        longest: Bool = false,
+        reviewMode: Bool = false, selectFile: URL? = nil, selectLongest: Bool = false,
+        show: [Segment]? = nil, shuffle: Bool = false, longest: Bool = false,
         initialDelay: Double = Session.initialDelay,
         playTimeout: Double = Session.playTimeout, playGrace: Double = Session.playGrace,
         output: @escaping (String) -> Void = { print($0) }
@@ -196,6 +200,7 @@ public final class Session {
         let selectFile = show == nil ? selectFile : nil
         self.reviewMode = reviewMode && selectFile == nil && show == nil
         self.selectFile = selectFile
+        self.selectLongest = selectLongest && selectFile != nil
         self.output = output
         var rng = rng
 
@@ -498,25 +503,32 @@ public final class Session {
 
     /// n/p order (R-W7): file order, or pairs grouped by rule, groups in
     /// order of each rule's first appearance.
+    /// R-W9: under odca-select --longest only pairs whose rule has seeds are presented.
+    private func shown(_ index: Int) -> Bool {
+        !selectLongest || !(selectSeeds[pairs[index].rule] ?? [:]).isEmpty
+    }
+
     private func rebuildViewOrder() {
+        let shown = pairs.indices.filter(shown)
         if grouped {
             var groups: [String: [Int]] = [:]
             var ruleOrder: [String] = []
-            for (i, p) in pairs.enumerated() {
+            for i in shown {
+                let p = pairs[i]
                 if groups[p.rule] == nil { ruleOrder.append(p.rule) }
                 groups[p.rule, default: []].append(i)
             }
             viewOrder = ruleOrder.flatMap { groups[$0]! }
         } else {
-            viewOrder = Array(pairs.indices)
+            viewOrder = shown
         }
         viewPosition = pairIndex.flatMap { viewOrder.firstIndex(of: $0) }
     }
 
-    /// 1-based group number of a file index among the rule groups, and the count.
+    /// 1-based group number of a file index among the rule groups shown, and the count.
     private func ruleGroup(of index: Int) -> (Int, Int) {
         var seen: [String] = []
-        for p in pairs where !seen.contains(p.rule) { seen.append(p.rule) }
+        for i in viewOrder where !seen.contains(pairs[i].rule) { seen.append(pairs[i].rule) }
         return ((seen.firstIndex(of: pairs[index].rule) ?? 0) + 1, seen.count)
     }
 
@@ -551,7 +563,7 @@ public final class Session {
         }
         showColors(name: pair.colorset, colors: pair.colors)
         undoMark = undoStack.count
-        output("pair \(position + 1)/\(pairs.count) \(label(pair))")  // R-O4
+        output("pair \(position + 1)/\(viewOrder.count) \(label(pair))")  // R-O4
         initCells()  // R-W8: the pair grows in from a fresh field below the old rows
     }
 
@@ -586,9 +598,14 @@ public final class Session {
         for i in pairs.indices where pairs[i].name == nil {  // R-P3: every pair gets a name
             pairs[i].name = Store.nextPairName(pairs)  // the file is written at exit at the latest
         }
+        if selectLongest { selectSeeds = Store.loadSeeds(url) }
         rebuildViewOrder()
-        output("odca \(url.lastPathComponent): \(pairs.count) pairs")  // R-O12
-        if !pairs.isEmpty {
+        if selectLongest {  // R-W9, R-O12
+            output("odca \(url.lastPathComponent): \(pairs.count) pairs, \(viewOrder.count) with seeds")
+        } else {
+            output("odca \(url.lastPathComponent): \(pairs.count) pairs")  // R-O12
+        }
+        if !viewOrder.isEmpty {
             // Open on pair 1; the unsaved slot stays empty until r or m fires.
             unsavedRule = nil
             unsavedSet = nil
@@ -598,7 +615,9 @@ public final class Session {
 
     private func saveLooks() {
         guard let url = selectFile else { return }
-        Store.saveOdcaFile(pairs, to: url)
+        // R-W9: under --longest the seeds are written back as held here (X
+        // removes a rule's); otherwise the file's own are carried through.
+        if selectLongest { Store.saveOdcaFile(pairs, seeds: selectSeeds, to: url) } else { Store.saveOdcaFile(pairs, to: url) }
         output("saved \(pairs.count) pair\(pairs.count == 1 ? "" : "s") to \(url.lastPathComponent)")  // R-O12
     }
 
@@ -609,17 +628,21 @@ public final class Session {
         }
         if automaton.rule.id != pairs[i].rule {
             // R-K3: a mutated pair is a new pair; a kept rule is never overwritten.
-            // The position moves onto the new pair, so further edits refine it.
+            // The position moves onto the new pair, so further edits refine it —
+            // except under --longest (R-W9), where the new pair, having no
+            // seeds, cannot be shown: the position stays.
             appendPair()
-            pairIndex = pairs.count - 1
-            rebuildViewOrder()
-            undoMark = undoStack.count  // an arrival (R-K19)
+            if !selectLongest {
+                pairIndex = pairs.count - 1
+                rebuildViewOrder()
+                undoMark = undoStack.count  // an arrival (R-K19)
+            }
             return
         }
         pairs[i] = Pair(name: pairs[i].name, rule: pairs[i].rule, colorset: activeName,
                         colors: arrangedActiveColors())  // the name and the rule stay
         saveLooks()
-        output("saved pair \((viewPosition ?? i) + 1)/\(pairs.count)")  // R-O12
+        output("saved pair \((viewPosition ?? i) + 1)/\(viewOrder.count)")  // R-O12
     }
 
     private func appendPair() {  // R-W4: 'S' appends a copy of the screen; the position is unchanged
@@ -629,14 +652,21 @@ public final class Session {
         output("added pair \(pairs.count)/\(pairs.count)")  // R-O12
     }
 
-    private func deletePair() {  // R-W5
+    private func deletePair() {  // R-W5; under --longest R-W9: the rule's seeds go, the pair stays
         guard let i = pairIndex, let position = viewPosition else { return }
-        pairs.remove(at: i)  // in place: later pairs keep their relative file order
+        let shownCount = viewOrder.count
+        if selectLongest {
+            let pair = pairs[i]
+            selectSeeds[pair.rule] = nil
+            output("deleted seeds of pair \(position + 1)/\(shownCount) \(label(pair))")  // R-O12
+        } else {
+            pairs.remove(at: i)  // in place: later pairs keep their relative file order
+        }
         pairIndex = nil
         rebuildViewOrder()
         saveLooks()
-        output("deleted pair \(position + 1)/\(pairs.count + 1)")  // R-O12
-        if pairs.isEmpty {
+        if !selectLongest { output("deleted pair \(position + 1)/\(shownCount)") }  // R-O12
+        if viewOrder.isEmpty {
             // Nothing left to review: the rule on screen becomes the unsaved rule.
             viewPosition = nil
             unsavedRule = automaton.rule
