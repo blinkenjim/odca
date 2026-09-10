@@ -884,6 +884,12 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.P)  // live while paused; wraps backward
         XCTAssertEqual(session.pairIndex, 1)
         XCTAssertTrue(lines.take().contains("pair 2/2 B (previous)"))
+        _ = session.handleKey(.n)  // so are n/p in odca (R-X6)
+        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertTrue(session.paused)
+        _ = session.handleKey(.p)
+        XCTAssertEqual(session.pairIndex, 1)
+        XCTAssertTrue(lines.take().contains("pair 2/2 B (previous)"))
         _ = session.handleKey(.space)
         for key: Session.Key in [.s, .S, .X] { _ = session.handleKey(key) }  // odca never writes the file
         XCTAssertEqual(Store.loadOdcaFile(file)!.count, 2)
@@ -1157,8 +1163,7 @@ final class SessionTests: XCTestCase {
         _ = session.handleKey(.N)
         XCTAssertTrue(lines.take().contains("pair 1/3 A, seed 2/2, 6 generations (next)"))
         XCTAssertEqual(session.automaton.cells, block(12, in: 32))
-        _ = session.handleKey(.space)  // n and p are not live while paused (R-K10); N and P are
-        _ = session.handleKey(.n)
+        _ = session.handleKey(.n)  // n and p are live while paused in odca, as N and P are (R-X6)
         XCTAssertTrue(lines.take().contains("pair 1/3 A, seed 1/2, 8 generations (next)"))
         _ = session.handleKey(.p)
         XCTAssertTrue(lines.take().contains("seed 2/2, 6 generations (previous)"))

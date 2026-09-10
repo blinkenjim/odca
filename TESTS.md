@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.68.0 — 2026-09-10
+Version 3.70.0 — 2026-09-10
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on

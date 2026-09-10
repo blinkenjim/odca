@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.68.0 — 2026-09-10
+Version 3.70.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -91,7 +91,9 @@ interrupted; the parity plan is made as each round trip starts, at most
 `--limit` skips — R-E2, R-E4, R-E5, R-E1, R-O16, section 10. 3.66.0:
 ten survivors end a turn early — R-E3, R-O16. 3.68.0: the parity plan
 line counts the round trip's rules, and each running rule its place
-among those that run — R-E5, R-O16.)
+among those that run — R-E5, R-O16. 3.70.0: `n`/`p` live while paused
+in `odca`, as `N`/`P` are; the paused-key list completed — R-K10, R-X6;
+clarifications from a self-consistency audit — R-E5, R-W3.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -445,7 +447,7 @@ first refresh so that the picture, which showed the newest row fully while
 paused, continues without a jump (R-U3). While paused, every key except
 the spacebar, Return (R-K11), `s` (R-K13), `c`/`C` (R-K15), `[`/`]`
 (R-K17), the digits (R-K9), the pair keys `S`, `X`, `R` (section 4c) and
-`N`/`P` (section 4d), `F` (R-K18), and `q` is ignored; `q` quits normally. Those keys
+`N`/`P` and, in `odca`, `n`/`p` (R-X6), `F` (R-K18), `o` (R-K20), and `q` is ignored; `q` quits normally. Those keys
 touch colors and files, never the running computation (the re-seed that
 navigation makes, R-W8, is the exception, being part of the navigation;
 the new field then waits for the resume), so they remain live. Pausing does not stop the background
@@ -685,7 +687,9 @@ redefined here; the pool of color sets is the library loaded at startup
 
 **R-W3 (choosing colors).** The digit keys select their bound sets as
 usual; `[` and `]` walk the whole pool (R-K17); `c`/`C` arrange the
-active set (R-K15). Selecting a set resets its arrangement to 1. Together
+active set (R-K15). Selecting a set brings it back at the arrangement it
+last had this session (R-K15); a pair's stored colors, when activated,
+show as stored, which counts as arrangement 1 (R-B2). Together
 with `r`, `m`, `n`, `p`, and `u`, this composes what `s` and `S` record
 (R-K5).
 
@@ -1032,7 +1036,7 @@ round trip starts: `parity: <n> rules this round trip, <k> of <m>
 ahead give up their turn, <r> run`, with ` (limit <N>)` appended when
 a limit is set, n the rules of the round trip, m those ahead, k those
 skipped, r = n − k; and each rule that runs carries its place among
-those, `rule <id> (<i>/<n>, running <j>/<r>)` (R-O16). (3.58.0
+those, `rule <id> (<i>/<n>, running <j> of <r>)` (R-O16). (3.58.0
 judged against the longest of all the others, so a single immortal
 rule kept every rule running, and 3.62.0 judged each rule as its turn
 came; withdrawn.)

@@ -1147,6 +1147,10 @@ public final class Session {
                 advance()  // R-K11: single step, stay paused
             case .s:
                 screenRemaining += rows  // R-K13: queue a screenful
+            case .n where playMode:
+                playStep(1)  // R-X6: in odca n/p are N/P, live while paused too
+            case .p where playMode:
+                playStep(-1)
             default:
                 _ = handleColorKey(key)
             }

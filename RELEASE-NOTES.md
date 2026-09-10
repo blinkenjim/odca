@@ -5,6 +5,16 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.70.0 (Swift, spec) and 3.63.0 (Python) — 2026-09-10
+
+In `odca`, `n` and `p` now step between pairs while paused, as `N` and
+`P` always have; the spec had said so and the programs had not. The
+spec's list of keys that stay live while paused now names them and
+`o`. Two spec clarifications from a self-consistency audit ride along:
+the parity running place is written one way, and choosing a color set
+brings back its remembered arrangement rather than resetting it, as
+the programs have always done.
+
 ## 3.68.0 (Swift, spec) — 2026-09-10
 
 Under `--parity` the plan line now says how big the round trip is and
