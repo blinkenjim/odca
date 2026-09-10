@@ -7,6 +7,18 @@ import Foundation
 public enum Evolve {
     public static let keep = 10  // the seeds kept per rule and width (R-E3)
     public static let defaultCap = 100_000  // generations a row may live before it counts as surviving (R-E2)
+
+    /// A span of seconds as `hh:mm:ss`, rounded up to the second (R-E4, R-O16).
+    public static func hms(_ seconds: Double) -> String {
+        let whole = max(0, Int(seconds.rounded(.up)))
+        return String(format: "%02d:%02d:%02d", whole / 3600, whole / 60 % 60, whole % 60)
+    }
+
+    /// The local time of day as `hh:mm:ss`, the start of every status line (R-O16).
+    public static func timeOfDay(_ date: Date = Date()) -> String {
+        let parts = Calendar.current.dateComponents([.hour, .minute, .second], from: date)
+        return String(format: "%02d:%02d:%02d", parts.hour!, parts.minute!, parts.second!)
+    }
     static let stopCheckEvery = 1024  // generations between looks at the stop flag
 
     /// Evolve `row` under `rule` in wrap mode until extinction or the cap

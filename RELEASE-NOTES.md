@@ -5,6 +5,19 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.38.0 (Swift, spec) — 2026-09-09
+
+`odca-evolve` tidies its terminal. The countdown reads `00:04:59` and
+counts down without a word after it, the budget on each rule's line is
+in the same `hh:mm:ss`, and every line it prints, the rule lines and
+the `kept` lines, opens with the time of day in that format, so a log
+of a long run says when each row joined:
+
+```
+14:02:10 rule 33233022210132010013 (1/28): 600 cells, 00:05:00
+14:02:41 kept 4821 generations, rank 1 (state 3 extinct)
+```
+
 ## 3.37.0 (Python) — 2026-09-09
 
 The Python player catches up with the seeds. `odca` opens a pair from

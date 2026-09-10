@@ -1,8 +1,12 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-09):** Spec 3.36.0, Swift 3.36.0, Python
+**YOU ARE HERE (2026-09-09):** Spec 3.38.0, Swift 3.38.0, Python
 3.37.0 (the player side of the seeds; no odca-evolve in Python yet).
-Swift 3.36.0: `odca-evolve` (section 4e), the user's side path
+Swift 3.38.0, after the user ran the search ("It works well"): the
+countdown and the budget read `hh:mm:ss` with no word after them, and
+every `odca-evolve` line opens with the time of day in that format
+(taken as the time of day, the user having said "time in that format";
+say if elapsed time was meant). Swift 3.36.0: `odca-evolve` (section 4e), the user's side path
 — for each rule in an odca file, random rows of `--cells` evolved until
 extinction (R-A1's first clause only, by the user's decision; a cap,
 `--cap`, default 100000, for immortals), the ten longest-lived kept and

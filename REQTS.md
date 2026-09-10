@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.36.0 — 2026-09-09
+Version 3.38.0 — 2026-09-09
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -65,7 +65,8 @@ spelled `shuffle`, a statement in its own right beside `play`, not a
 word after it — R-X7. 3.36.0: `odca-evolve`, the search for a rule's
 longest-lived seeds — section 4e, R-P3 (the `seeds` section), R-X4
 (`odca` plays a pair from its best seed), R-O16, R-U9, section 10;
-conformance vectors 1.1 (`lifetimes`).)
+conformance vectors 1.1 (`lifetimes`). 3.38.0: `odca-evolve` clocks as
+`hh:mm:ss`, the time of day opening every line — R-E4, R-O16.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -847,9 +848,10 @@ Then the next rule.
 
 **R-E4 (countdown and interruption).** While a rule is searched and
 standard output is a terminal, the time left in its budget is shown as
-`  m:ss left`, redrawn in place about once a second and cleared before
-any other line is printed; when output is not a terminal it is not
-shown. On SIGINT (Ctrl-C) the workers are stopped, the rule in hand is
+`  hh:mm:ss` (two digits each, rounded up to the second, so `00:04:59`
+with just under five minutes to go), redrawn in place about once a
+second and cleared before any other line is printed; when output is not
+a terminal it is not shown. On SIGINT (Ctrl-C) the workers are stopped, the rule in hand is
 written as R-E3 says with the seeds it has so far, and the program exits
 with status 130 without taking up the next rule.
 
@@ -964,12 +966,14 @@ The program prints single-line, human-readable status to standard output:
   <g>/<G> ---` before an activation that enters a different rule's group.
   Arrangement messages (R-O9) name the set.
 - **R-O14.** On a geometry change (R-U8): `resized <cols>x<rows>`.
-- **R-O16.** In `odca-evolve` (section 4e), and nothing else: as each
-  rule is taken up, `rule <id> (<i>/<n>): <cells> cells, <m>:<ss>` with
-  the budget as minutes and seconds; as each row joins the ten, `kept
-  <generations> generations, rank <r> (<end>)` with its 1-based place at
-  the moment it joined; and on a terminal the countdown of R-E4. The
-  R-O1 rule line is not printed: no rule becomes current.
+- **R-O16.** In `odca-evolve` (section 4e), and nothing else, every
+  line opening with the local time of day as `hh:mm:ss` (24-hour) and a
+  space: as each rule is taken up, `rule <id> (<i>/<n>): <cells> cells,
+  <hh:mm:ss>` with the budget in the format of R-E4; as each row joins
+  the ten, `kept <generations> generations, rank <r> (<end>)` with its
+  1-based place at the moment it joined; and on a terminal the countdown
+  of R-E4, which carries no time of day. The R-O1 rule line is not
+  printed: no rule becomes current.
 - **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> pairs`
   for each file in command-line order, `, shuffled` appended when its
   script said `shuffle` (R-X7); in a show of two or more files

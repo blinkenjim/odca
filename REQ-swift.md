@@ -1,6 +1,6 @@
 # ODCA — Swift Implementation Notes
 
-Version 3.36.0 — 2026-09-09 (`odca-evolve`, the `ODCAEvolve` target, `Evolve` and `SeedSearch`, seeds in `Store` and on arrival in `Session`; argument parsing moved into ODCAKit; 3.32.0: `shuffle` a statement of its own; 3.30.0: a script shuffles its pairs; 3.28.0: play scripts: `Show`, the `CShow` target; 3.26.0: pairs, named; 2-point default; 3.24.0: navigation scrolls the pair in; 3.22.0: a mutated pair saves as a new pair; 3.20.0: `--3`; 3.18.0: `U` undoes all; 3.16.0: `m` edits the pair under review; 3.14.0: `--watchdog`, `--grace`; 3.12.0: shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
+Version 3.38.0 — 2026-09-09 (`odca-evolve` clocks as `hh:mm:ss` with the time of day on every line; 3.36.0: `odca-evolve`, the `ODCAEvolve` target, `Evolve` and `SeedSearch`, seeds in `Store` and on arrival in `Session`; argument parsing moved into ODCAKit; 3.32.0: `shuffle` a statement of its own; 3.30.0: a script shuffles its pairs; 3.28.0: play scripts: `Show`, the `CShow` target; 3.26.0: pairs, named; 2-point default; 3.24.0: navigation scrolls the pair in; 3.22.0: a mutated pair saves as a new pair; 3.20.0: `--3`; 3.18.0: `U` undoes all; 3.16.0: `m` edits the pair under review; 3.14.0: `--watchdog`, `--grace`; 3.12.0: shuffle constraints; 3.10.0: initial delay scales with the cell; 3.8.0: cell size flags; 3.6.0: `F` toggles full screen; `swift/run` wrapper; 3.4.0: `--fullscreen`; 3.2.0: per-row palette table, rows keep their colors for good; 3.0.1: window fix for file arguments; 3.0.0: two executables, `odca` and `odca-select`, over a shared `ODCAUI` module; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the Swift/SwiftUI
 implementation in `swift/`. macOS only (SwiftUI), macOS 14+.
@@ -29,7 +29,9 @@ SwiftPM package (`swift/Package.swift`), no external dependencies:
   (`activeProcessorCount`, nothing spared: there is no UI), each with
   its own `Xoshiro256`, offering finished rows to the coordinator under
   an `NSLock`; `Evolve.rank` decides a join and `onKept` reports it
-  under that lock, so messages arrive in order. `main.swift` draws the
+  under that lock, so messages arrive in order. `Evolve.hms` and
+  `Evolve.timeOfDay` are the two clocks (R-E4, R-O16), in ODCAKit so the
+  tests can pin them. `main.swift` draws the
   countdown with `\r` and erase-to-end-of-line on a terminal only
   (`isatty`), serializes it with the `kept` lines through one lock, and
   handles SIGINT by a flag the once-a-second tick reads. The odca file
