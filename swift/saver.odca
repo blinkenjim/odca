@@ -1,6 +1,7 @@
 {
- "looks": [
+ "pairs": [
   {
+   "name": "pair-0000",
    "rule": "33233022210132010013",
    "colorset": "ODCA default",
    "colors": [
@@ -11,6 +12,18 @@
    ]
   },
   {
+   "name": "pair-0001",
+   "rule": "33233022211112010113",
+   "colorset": "Ocean Blue Horizon",
+   "colors": [
+    "#1F498C",
+    "#88A3C9",
+    "#4E7BAD",
+    "#DDE4ED"
+   ]
+  },
+  {
+   "name": "pair-0002",
    "rule": "32332010022312200210",
    "colorset": "Fiery Ice Cream Delight",
    "colors": [
@@ -21,6 +34,7 @@
    ]
   },
   {
+   "name": "pair-0003",
    "rule": "32202201003022321010",
    "colorset": "Sandy Beach Sunset",
    "colors": [
@@ -31,6 +45,7 @@
    ]
   },
   {
+   "name": "pair-0004",
    "rule": "12113201332331012311",
    "colorset": "Midnight Sun Dance",
    "colors": [
@@ -41,6 +56,7 @@
    ]
   },
   {
+   "name": "pair-0005",
    "rule": "32332010022312200210",
    "colorset": "Marine Fireworks",
    "colors": [
@@ -51,6 +67,7 @@
    ]
   },
   {
+   "name": "pair-0006",
    "rule": "02320201313001213222",
    "colorset": "Ocean Pearl Blossom",
    "colors": [
@@ -61,6 +78,7 @@
    ]
   },
   {
+   "name": "pair-0007",
    "rule": "02013102133123220323",
    "colorset": "Turquoise Waters Adventure",
    "colors": [
@@ -71,6 +89,7 @@
    ]
   },
   {
+   "name": "pair-0008",
    "rule": "23232130000031203331",
    "colorset": "Ocean Blue Horizon",
    "colors": [
@@ -81,6 +100,7 @@
    ]
   },
   {
+   "name": "pair-0009",
    "rule": "33233022210132010013",
    "colorset": "Ocean Pearl Blossom",
    "colors": [
@@ -91,6 +111,7 @@
    ]
   },
   {
+   "name": "pair-0010",
    "rule": "32202201003022321010",
    "colorset": "Ocean Blue Horizon",
    "colors": [
@@ -101,6 +122,7 @@
    ]
   },
   {
+   "name": "pair-0011",
    "rule": "22022321121130110123",
    "colorset": "Midnight Sun Dance",
    "colors": [
@@ -111,6 +133,7 @@
    ]
   },
   {
+   "name": "pair-0012",
    "rule": "12113201332331012311",
    "colorset": "Deep Sea Adventure",
    "colors": [
@@ -121,6 +144,7 @@
    ]
   },
   {
+   "name": "pair-0013",
    "rule": "10323213122100120233",
    "colorset": "Electric Midnight Glow",
    "colors": [
@@ -131,6 +155,7 @@
    ]
   },
   {
+   "name": "pair-0014",
    "rule": "02320201313001213222",
    "colorset": "Midnight Jungle Gold",
    "colors": [
@@ -141,6 +166,7 @@
    ]
   },
   {
+   "name": "pair-0015",
    "rule": "02013102133123220323",
    "colorset": "ODCA default",
    "colors": [
@@ -151,6 +177,7 @@
    ]
   },
   {
+   "name": "pair-0016",
    "rule": "23232130000031203331",
    "colorset": "Earthy Coral Harmony",
    "colors": [
@@ -161,6 +188,7 @@
    ]
   },
   {
+   "name": "pair-0017",
    "rule": "10323213123100120233",
    "colorset": "Midnight Jungle Gold",
    "colors": [
@@ -171,6 +199,7 @@
    ]
   },
   {
+   "name": "pair-0018",
    "rule": "20032011222231322011",
    "colorset": "Vibrant Rainbow Burst",
    "colors": [
@@ -178,6 +207,182 @@
     "#6BCBAE",
     "#DC5068",
     "#4D146A"
+   ]
+  },
+  {
+   "name": "pair-0019",
+   "rule": "33132333010103303321",
+   "colorset": "Golden Autumn Twilight",
+   "colors": [
+    "#4D9CB9",
+    "#F4BA41",
+    "#EC8B33",
+    "#112F45"
+   ]
+  },
+  {
+   "name": "pair-0020",
+   "rule": "20213221213002103020",
+   "colorset": "Golden Autumn Twilight",
+   "colors": [
+    "#EC8B33",
+    "#4D9CB9",
+    "#112F45",
+    "#F4BA41"
+   ]
+  },
+  {
+   "name": "pair-0021",
+   "rule": "32031010302332231231",
+   "colorset": "Midnight Jungle Gold",
+   "colors": [
+    "#1B4543",
+    "#0E1618",
+    "#CBAD39",
+    "#F9F4D6"
+   ]
+  },
+  {
+   "name": "pair-0022",
+   "rule": "33331120000211203223",
+   "colorset": "Deep Sea Adventure",
+   "colors": [
+    "#08151E",
+    "#213937",
+    "#B65120",
+    "#EBD7B1"
+   ]
+  },
+  {
+   "name": "pair-0023",
+   "rule": "33220101133110022232",
+   "colorset": "Midnight Gold Sparkle",
+   "colors": [
+    "#EFA73E",
+    "#17213B",
+    "#000000",
+    "#E5E5E5"
+   ]
+  },
+  {
+   "name": "pair-0024",
+   "rule": "13311012133101032323",
+   "colorset": "Deep Sea Adventure",
+   "colors": [
+    "#08151E",
+    "#213937",
+    "#B65120",
+    "#EBD7B1"
+   ]
+  },
+  {
+   "name": "pair-0025",
+   "rule": "00213103300011120013",
+   "colorset": "Mysterious Midnight Magic",
+   "colors": [
+    "#4F5188",
+    "#D6C0FB",
+    "#8C7BD0",
+    "#2C2A48"
+   ]
+  },
+  {
+   "name": "pair-0026",
+   "rule": "32231030031220022112",
+   "colorset": "Earthy Coral Harmony",
+   "colors": [
+    "#D27F65",
+    "#F3F1E0",
+    "#8BB19C",
+    "#3E4059"
+   ]
+  },
+  {
+   "name": "pair-0027",
+   "rule": "32303113122311210200",
+   "colorset": "Ocean Pearl Blossom",
+   "colors": [
+    "#11235F",
+    "#5590C7",
+    "#FEFAFF",
+    "#C7415D"
+   ]
+  },
+  {
+   "name": "pair-0028",
+   "rule": "23232232020011312003",
+   "colorset": "Marine Fireworks",
+   "colors": [
+    "#50B1D4",
+    "#A2DEED",
+    "#03045A",
+    "#3375B1"
+   ]
+  },
+  {
+   "name": "pair-0029",
+   "rule": "32101220313020303302",
+   "colorset": "Midnight Sun Dance",
+   "colors": [
+    "#041523",
+    "#FCEDD4",
+    "#2E606B",
+    "#EE8432"
+   ]
+  },
+  {
+   "name": "pair-0030",
+   "rule": "30300021200220113210",
+   "colorset": "Seaside Serenity",
+   "colors": [
+    "#ACCDEE",
+    "#6C95B7",
+    "#304B74",
+    "#E8ECEF"
+   ]
+  },
+  {
+   "name": "pair-0031",
+   "rule": "30300021200220113210",
+   "colorset": "Seaside Serenity",
+   "colors": [
+    "#ACCDEE",
+    "#6C95B7",
+    "#304B74",
+    "#E8ECEF"
+   ]
+  },
+  {
+   "name": "pair-0032",
+   "rule": "10120220003331002210",
+   "colorset": "Cherry Blossom Sky",
+   "colors": [
+    "#2B2D40",
+    "#8F99AC",
+    "#EEF2F4",
+    "#DC3C44"
+   ]
+  },
+  {
+   "name": "pair-0033",
+   "rule": "10231020313323111121",
+   "colorset": "Mystic Moonlight Shades",
+   "colors": [
+    "#333333",
+    "#A8A29D",
+    "#D3CCC8",
+    "#28262B"
+   ]
+  },
+  {
+   "name": "pair-0034",
+   "rule": "13213210120312301300",
+   "colorset": "Midnight Jungle Gold",
+   "colors": [
+    "#1B4543",
+    "#0E1618",
+    "#CBAD39",
+    "#F9F4D6"
    ]
   }
  ]
