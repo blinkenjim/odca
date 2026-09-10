@@ -5,6 +5,32 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.44.0 (Swift, spec) and 3.45.0 (Python) — 2026-09-10
+
+The player plays what `odca-evolve` found. **`odca my.odca --longest`**
+plays the recorded seeds instead of random rows: for every pair with
+seeds at the width, its longest-lived seed, then every pair's second
+longest, and so on, looping. Each seed runs to the extinction that was
+measured (a screenful past it, as the detector always has), and the
+next takes over; there is no watchdog, so a ten-thousand-generation
+seed gets its ten thousand generations. Seeds that survived the cap are
+left out (a row that never dies is not interesting almost by
+definition), so a rule with nothing but survivors drops out of the
+show, and a file with no playable seed is refused. `--shuffle` mixes
+the seeds under the usual rule, no rule or color set twice running.
+
+The window is as wide as the seeds and opens that wide: drag it wider
+and black bars appear either side, narrower and the middle shows; `F`
+and `--fullscreen` do the same on the whole screen. Only the height
+follows the window. When a file records seeds at more than one width,
+`--cells N` says which. The rule keys `r`, `m`, `u`, `U`, and `a` do
+nothing; `i` restarts the seed on screen; colors, speed, pause, and
+`n`/`p` work as ever. The lines read `pair 3/28 pair-0002 Ocean Sunset
+Vibes, seed 1/10, 4821 generations`, and the entry line says how many
+seeds each file brings at the width.
+
+Both implementations, so the Pi can play what the Mac found.
+
 ## 3.42.1 (Swift, spec) — 2026-09-09
 
 The countdown's `seeds/s` is now the rate over the last ten seconds

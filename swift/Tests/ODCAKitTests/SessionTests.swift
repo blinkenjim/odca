@@ -31,14 +31,14 @@ final class SessionTests: XCTestCase {
     /// A session whose terminal output is captured into `lines`.
     func makeSession(_ store: Store, seed: UInt64 = 1, lines: Lines? = nil,
                      review: Bool = false, select: URL? = nil, play: URL? = nil, show: [Segment]? = nil,
-                     shuffle: Bool = false,
+                     shuffle: Bool = false, longest: Bool = false,
                      initialDelay: Double = Session.initialDelay,
                      playTimeout: Double = Session.playTimeout, playGrace: Double = Session.playGrace) -> Session {
         let sink: (String) -> Void = lines.map { l in { l.all.append($0) } } ?? { print($0) }
         return Session(cols: 32, rows: 16, store: store,
                        search: CandidateSearch(workers: 0), rng: Xoshiro256(seed: seed),
                        reviewMode: review, selectFile: select,
-                       show: show ?? play.map { try! Show.load([$0]) }, shuffle: shuffle,
+                       show: show ?? play.map { try! Show.load([$0]) }, shuffle: shuffle, longest: longest,
                        initialDelay: initialDelay, playTimeout: playTimeout, playGrace: playGrace, output: sink)
     }
 
@@ -1058,6 +1058,130 @@ final class SessionTests: XCTestCase {
         try "import seeded.odca\nplay\n".write(to: script, atomically: true, encoding: .utf8)
         let scripted = makeSession(store, show: try Show.load([script]))
         XCTAssertEqual(scripted.automaton.cells, best)
+    }
+
+    /// A block of 3s in a field of 1s under killsThree: the block loses a cell
+    /// at each edge per generation, so a block of 2k dies at generation k.
+    func block(_ threes: Int, in width: Int) -> [UInt8] {
+        [UInt8](repeating: 1, count: (width - threes) / 2) + [UInt8](repeating: 3, count: threes)
+            + [UInt8](repeating: 1, count: width - threes - (width - threes) / 2)
+    }
+
+    func testLongestPlaysTheRecordedSeedsRankByRank() throws {  // PT-44, R-X8, R-O13
+        let lines = Lines()
+        let store = try reviewStore()
+        let file = odcaFile(store, name: "seeded.odca")
+        let a = killsThree, b = allProducible, c = allZero
+        Store.saveOdcaFile([Pair(rule: a.id, colorset: "A", colors: grey(10)),
+                            Pair(rule: b.id, colorset: "B", colors: grey(20)),
+                            Pair(rule: c.id, colorset: "C", colors: grey(30))], seeds: [
+            a.id: [32: [Seed(row: block(16, in: 32), generations: 8, end: "state 3 extinct"),
+                        Seed(row: block(12, in: 32), generations: 6, end: "state 3 extinct")],
+                   33: [Seed(row: block(16, in: 33), generations: 8, end: "state 3 extinct")]],
+            b.id: [32: [Seed(row: [UInt8](repeating: 0, count: 32), generations: 100_000, end: Seed.survived),
+                        Seed(row: [UInt8](repeating: 2, count: 32), generations: 5, end: "state 1 extinct")]],
+        ], to: file)
+        let show = try Show.load([file])
+        XCTAssertThrowsError(try Show.seedWidth(show, cells: nil)) {  // two widths: --cells must choose
+            XCTAssertEqual($0 as? ShowError, ShowError("seeds at 32, 33 cells: choose one with --cells"))
+        }
+        XCTAssertEqual(try Show.seedWidth(show, cells: 32), 32)
+        XCTAssertThrowsError(try Show.seedWidth(show, cells: 40)) {
+            XCTAssertEqual($0 as? ShowError, ShowError("no seeds at 40 cells (32, 33)"))
+        }
+        let survivors = odcaFile(store, name: "survivors.odca")
+        Store.saveOdcaFile([Pair(rule: b.id, colorset: "B", colors: grey(20))],
+                           seeds: [b.id: [32: [Seed(row: [UInt8](repeating: 0, count: 32), generations: 9, end: Seed.survived)]]],
+                           to: survivors)
+        XCTAssertThrowsError(try Show.seedWidth(try Show.load([survivors]), cells: nil)) {
+            XCTAssertEqual($0 as? ShowError, ShowError("no seeds to play"))  // survivors are not played
+        }
+
+        let session = makeSession(store, lines: lines, show: show, longest: true, playTimeout: 1, playGrace: 1)
+        XCTAssertTrue(session.longest && session.playMode)
+        var out = lines.take()
+        XCTAssertTrue(out.contains("odca seeded.odca: 3 pairs, 3 seeds at 32 cells"), out)
+        XCTAssertTrue(out.hasSuffix("pair 1/3 A, seed 1/2, 8 generations"), out)
+        // Every pair's longest, then every pair's second: A1, B1 (its survivor left out), A2; C has none.
+        XCTAssertEqual(session.playOrder.map { [$0.segment, $0.index, $0.seed!] }, [[0, 0, 0], [0, 1, 0], [0, 0, 1]])
+        XCTAssertEqual(session.automaton.cells, block(16, in: 32))
+        XCTAssertEqual(session.automaton.rule, a)
+        // The rule keys and auto-init are inert; the colors keys are not.
+        for key in [Session.Key.r, .m, .u, .U, .a] { _ = session.handleKey(key) }
+        XCTAssertEqual(session.automaton.rule, a)
+        XCTAssertTrue(session.autoInit)
+        XCTAssertTrue(session.undoStack.isEmpty)
+        _ = session.handleKey(.digit(2))
+        XCTAssertEqual(session.activeSet?.name, "S2")
+        // The width is the seeds'; only the height follows the window.
+        XCTAssertTrue(session.resize(cols: 40, rows: 20))
+        XCTAssertEqual(session.cols, 32)
+        XCTAssertEqual(session.rows, 20)
+        XCTAssertTrue(lines.take().contains("resized 32x20"))
+        XCTAssertFalse(session.resize(cols: 48, rows: 20))
+        // `i` restarts the seed on screen (once resumed: it is not live while paused, R-K10).
+        _ = session.handleKey(.space)
+        for _ in 0..<3 { _ = session.handleKey(.ret) }
+        XCTAssertNotEqual(session.automaton.cells, block(16, in: 32))
+        _ = session.handleKey(.space)
+        _ = session.handleKey(.i)
+        XCTAssertEqual(session.automaton.cells, block(16, in: 32))
+        XCTAssertEqual(session.automaton.generation, 0)
+        // No clocks: with a one-second watchdog and grace period, six quiet
+        // seconds (the delay at its slowest, no generation computed) change nothing.
+        for _ in 0..<12 { _ = session.handleKey(.minus) }
+        for _ in 0..<3 { session.tick(2) }
+        XCTAssertEqual(session.pairIndex, 0)
+        XCTAssertEqual(session.automaton.generation, 0)
+        XCTAssertFalse(lines.take().contains("timeout"))
+        // The seed plays to its extinction (generation 8), and a screenful (20
+        // rows) past it (R-A2) the next seed takes over: at generation 27; no
+        // re-seed in place.
+        _ = session.handleKey(.space)
+        for _ in 0..<26 { _ = session.handleKey(.ret) }
+        XCTAssertEqual(session.pairIndex, 0)
+        _ = session.handleKey(.ret)
+        XCTAssertEqual(session.pairIndex, 1)
+        out = lines.take()
+        XCTAssertTrue(out.contains("pair 2/3 B, seed 1/1, 5 generations (state 3 extinct)"), out)
+        XCTAssertFalse(out.contains("auto-init"), out)
+        XCTAssertEqual(session.automaton.cells, [UInt8](repeating: 2, count: 32))
+        XCTAssertEqual(session.automaton.generation, 0)
+        // N and P walk the items, wrapping; the third is A's second seed.
+        _ = session.handleKey(.N)
+        XCTAssertTrue(lines.take().contains("pair 1/3 A, seed 2/2, 6 generations (next)"))
+        XCTAssertEqual(session.automaton.cells, block(12, in: 32))
+        _ = session.handleKey(.space)  // n and p are not live while paused (R-K10); N and P are
+        _ = session.handleKey(.n)
+        XCTAssertTrue(lines.take().contains("pair 1/3 A, seed 1/2, 8 generations (next)"))
+        _ = session.handleKey(.p)
+        XCTAssertTrue(lines.take().contains("seed 2/2, 6 generations (previous)"))
+    }
+
+    func testLongestShuffleKeepsRulesAndColorsApart() throws {  // PT-44, R-X8
+        let store = try reviewStore()
+        let file = odcaFile(store, name: "seeded.odca")
+        let rules = [allProducible, try Rule(id: String(repeating: "1", count: 20)), try Rule(id: String(repeating: "2", count: 20))]
+        var seeds: Seeds = [:]
+        for (i, rule) in rules.enumerated() {
+            seeds[rule.id] = [32: [Seed(row: [UInt8](repeating: UInt8(i), count: 32), generations: 9, end: "x"),
+                                   Seed(row: [UInt8](repeating: 3, count: 32), generations: 4, end: "x")]]
+        }
+        Store.saveOdcaFile(rules.enumerated().map { Pair(rule: $1.id, colorset: "S\($0)", colors: grey(10 * $0)) },
+                           seeds: seeds, to: file)
+        let session = makeSession(store, show: try Show.load([file]), shuffle: true, longest: true)
+        var played = [[session.pairIndex!, session.playOrder[session.playPosition!].seed!]]
+        for _ in 0..<59 { _ = session.handleKey(.N); played.append([session.pairIndex!, session.playOrder[session.playPosition!].seed!]) }
+        var orders = Set<[[Int]]>()
+        for p in 0..<10 {
+            let pass = Array(played[(6 * p)..<(6 * p + 6)])
+            XCTAssertEqual(pass.sorted { $0.lexicographicallyPrecedes($1) }, [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1]])
+            orders.insert(pass)
+        }
+        for (x, y) in zip(played, played.dropFirst()) { XCTAssertNotEqual(x[0], y[0]) }  // never the same pair twice running
+        XCTAssertGreaterThan(orders.count, 1)
+        let plain = makeSession(store, show: try Show.load([file]), longest: true)
+        XCTAssertEqual(plain.playOrder.map { [$0.index, $0.seed!] }, [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]])
     }
 
     func testRowsKeepTheirColorsThroughQuickTransitions() throws {  // PT-31, R-X5

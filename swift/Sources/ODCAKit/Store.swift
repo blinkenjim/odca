@@ -337,6 +337,10 @@ public struct Seed: Equatable {
         self.end = end
     }
 
+    /// The `end` of a row that outlived the cap (R-E2); such seeds are not
+    /// played under `--longest` (R-X8).
+    public static let survived = "survived"
+
     /// The row as the file writes it: one digit per cell.
     public var rowText: String { row.map(String.init).joined() }
 }

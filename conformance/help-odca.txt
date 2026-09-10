@@ -2,6 +2,8 @@ odca: one-dimensional cellular automata as art
 
 usage: odca <file> [<file> ...] [--shuffle] [--fullscreen]
             [--4 | --3 | --2 | --1] [--watchdog SECONDS] [--grace SECONDS]
+       odca <file.odca> [<file.odca> ...] --longest [--shuffle] [--cells N]
+            [--fullscreen] [--4 | --3 | --2 | --1]
        odca --help
 
 Plays a show. Each file is a play script (below) or an odca file of
@@ -27,6 +29,19 @@ colors. The files play in turn, each its pairs in order, looping.
   --grace SECONDS
                 no hand-over within this long of a re-seed: whole seconds,
                 60 by default
+  --longest     play the seeds odca-evolve recorded instead: for every
+                pair with seeds at the width, its longest-lived seed, then
+                every pair's second longest, and so on, looping; each
+                plays to the extinction that was measured, with no
+                watchdog; seeds that survived the cap are left out, so a
+                rule with nothing but survivors is left out. The window is
+                as wide as the seeds: a wider one shows black bars, a
+                narrower one crops. With --shuffle the seeds play in a
+                fresh random order each pass in which no rule and no
+                color set follows itself. r, m, u, U, and a do nothing;
+                i restarts the seed on screen
+  --cells N     with --longest: which width's seeds, when the files
+                record more than one
 
 Play scripts (.play): one statement per line; # starts a comment.
   import <file>   the pairs of an odca file, in order; the name is

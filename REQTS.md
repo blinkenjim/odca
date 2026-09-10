@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.42.1 — 2026-09-09
+Version 3.44.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -71,7 +71,9 @@ the rule, not the time of day — R-O16. 3.40.0: the ages of the ten when
 a rule is done — R-O16. 3.40.1: the countdown starts at the left margin
 — R-E4. 3.42.0: the countdown shows the rule's rate, rows tested per
 second — R-E4. 3.42.1: that rate is over the last ten seconds, not
-cumulative — R-E4.)
+cumulative — R-E4. 3.44.0: `odca --longest`, the show of the recorded
+seeds in a fixed-width window — R-X8, R-X1, R-U8, R-O13, R-U9, section
+10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -284,7 +286,9 @@ nominal time between generations — independent of the display refresh:
 - A per-refresh catch-up cap (implementation-chosen, ≥ 500 generations)
   must prevent a stall from freezing the program.
 
-**R-U8 (resizing).** When the geometry changes: the state vector keeps
+**R-U8 (resizing).** (Under `odca --longest` the width is fixed and only
+the height follows the window, R-X8.) When the geometry changes: the
+state vector keeps
 its center — when narrower, cells are cropped equally from both edges;
 when wider, new cells are added equally at both edges, seeded at random
 in the live row and with state 0 in remembered rows — so the picture
@@ -701,7 +705,8 @@ pairs within a file keep their order unless its own script says
 contents. (From 3.0.0 to 3.26.0 `odca` took one odca file and
 `--shuffle` permuted its pairs, from 3.12.0 under the constraints that
 `shuffle` now carries.) A show with no pairs leaves
-the program running as usual; no file is written.
+the program running as usual; no file is written. `--longest` makes a
+different show, of the recorded seeds (R-X8).
 
 **R-X2 (equal screen time).** Every pair gets the same screen time: a
 *watchdog* of 120 unpaused seconds by default, or the whole number of
@@ -804,6 +809,54 @@ that every implementation consumes; an implementation may parse by any
 means that gives the same results, the shared parser being the
 reference. The language grows by increments, each a change to this
 requirement.
+
+**R-X8 (`--longest`).** `odca <file.odca> [<file.odca> ...] --longest
+[--shuffle] [--cells N]` plays a different show: the seeds `odca-evolve`
+recorded (section 4e, R-P3) instead of random rows. Only odca files are
+accepted (a play script is an error, `error: <file>: --longest plays
+odca files only`); `--watchdog` and `--grace` are usage errors with it,
+and `--cells` without it (R-U9). A pair's *playable seeds* are its
+rule's seeds at the show's width, longest first, less those that
+survived the cap (`end` = `survived`, R-E2): a row that never met the
+extinction is not interesting almost by definition, so a rule with
+nothing but survivors has none and is left out of the show, as is a
+pair whose rule has no seeds at all. The width is the one width at which
+the files record playable seeds for their pairs' rules; when they record
+several, `--cells N` chooses (`error: seeds at 600, 1080 cells: choose
+one with --cells` without it; `error: no seeds at N cells (600, 1080)`
+for a width that has none); with no playable seed anywhere, `error: no
+seeds to play`. All of this is settled before any window opens, exit
+status 1.
+
+The show is the sequence of *items*, a pair with one of its playable
+seeds: every pair's longest, then every pair's second longest, and so on
+until the ranks are exhausted, the pairs in file order and the files in
+command-line order; it loops. With `--shuffle` each pass is instead a
+fresh uniformly random permutation of all the items under the
+constraints of `shuffle` (R-X7): no rule and no color set follows
+itself, the seam from the item just played included, a hundred draws
+and then the last one as it is (a single pair with seeds allows no such
+order and plays its seeds in whatever order the draw gives). Playing an
+item is R-X4 with the seed's row as the cells, generation 0, announced
+as R-O13 says. There are no clocks: an item plays until the boring
+detector fires by extinction (R-A2: a screenful of rows past the
+extinction `odca-evolve` measured, which the same detector finds at the
+same generation), and the next item begins with that reason; repetition
+and stagnation never end an item (the detector restarts instead), and
+auto-initialization never re-seeds in place. `i` (R-K6) restarts the
+item's seed from its first row; `a` (R-K12), `r`, `m`, `u`, and `U` do
+nothing; `s`, `S`, `X`, and `R` do nothing as in every show; the color
+keys, `N`/`P` and `n`/`p` (R-X6), speed, pause, and single step keep
+their meanings.
+
+The window is as wide as the seeds, `cols × cell_size` points, and opens
+at that width, its height the default (or the screen's under
+`--fullscreen`); the width in cells never changes. A wider window or
+screen (full screen, `F`, a drag) shows the grid centered between black
+bars; a narrower one shows the grid's center, cropped equally at both
+edges; only the height follows the window (R-U8's cropping and padding
+apply to rows alone), and every margin is black rather than the state-0
+color. The cell size flags apply as ever.
 
 ---
 
@@ -993,7 +1046,11 @@ The program prints single-line, human-readable status to standard output:
   rule line is not printed: no rule becomes current.
 - **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> pairs`
   for each file in command-line order, `, shuffled` appended when its
-  script said `shuffle` (R-X7); in a show of two or more files
+  script said `shuffle` (R-X7), or under `--longest` (R-X8) `odca
+  <file>: <n> pairs, <k> seeds at <w> cells` with k the file's playable
+  seeds summed over its pairs; there the pair line carries the item, `,
+  seed <r>/<k>, <g> generations` after the color set (its rank among the
+  pair's k playable seeds and its recorded lifetime), before the reason; in a show of two or more files
   (never with one), `playing <file>` before a pair from a different file
   than the last pair played, the first pair included; on playing pair i
   (0-based, position within its file) of that file's n `pair <i+1>/<n>
@@ -1101,7 +1158,7 @@ loses one update (loaders already tolerate malformed content, R-P).
   files for `odca`, R-X1) plus
   `--help` (R-U9), the cell size flags `--4` / `--3` / `--2` / `--1` (R-U2), and,
   for `odca`, `--shuffle` (R-X1), `--fullscreen` (R-U2), `--watchdog`
-  (R-X2), and `--grace` (R-X3), and for `odca-evolve`, `--cells`,
+  (R-X2), `--grace` (R-X3), `--longest` and `--cells` (R-X8), and for `odca-evolve`, `--cells`,
   `--time`, and `--cap` (R-E1); no configuration files or menus. No other flags exist (the 2.x developer flags
   `--colorset-review`, `--screensaver-review`, `--consistency-check`, and
   `--screensaver` are gone: the last two became `odca-select` and `odca`,

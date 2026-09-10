@@ -14,6 +14,7 @@ anywhere, as `swift/run` from the repository root.
 ```sh
 swift run -c release odca ../interesting.odca          # play a file of pairs (--fullscreen, --3 / --2 / --1 optional)
 swift run -c release odca a.play b.play --shuffle      # play scripts and odca files, in a fresh order each pass
+swift run -c release odca ../my-pairs.odca --longest   # play the seeds odca-evolve recorded, in a fixed-width window
 swift run -c release odca-select ../my-pairs.odca      # compose pairs into a file (--3 / --2 / --1 optional)
 swift run -c release odca-evolve ../my-pairs.odca --cells 600 --time 300   # find each rule's longest-lived seeds (no window)
 ```

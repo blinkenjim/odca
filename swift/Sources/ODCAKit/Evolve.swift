@@ -29,7 +29,7 @@ public enum Evolve {
             }
             if automaton.generation % stopCheckEvery == 0 && shouldStop() { return nil }
         }
-        return Seed(row: row, generations: cap, end: "survived")
+        return Seed(row: row, generations: cap, end: Seed.survived)
     }
 
     /// The ten to keep out of any number (R-E3): longest first, ties by

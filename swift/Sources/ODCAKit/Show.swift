@@ -96,6 +96,28 @@ public enum Show {
         return plays ? (pairs, shuffle, seeds) : ([], false, [:])
     }
 
+    /// The width of a `--longest` show (R-X8): the one width at which the
+    /// files record seeds for their pairs' rules that did not survive the
+    /// cap, or the `--cells` choice among several.
+    public static func seedWidth(_ segments: [Segment], cells: Int?) throws -> Int {
+        var widths = Set<Int>()
+        for segment in segments {
+            for pair in segment.pairs {
+                for (width, seeds) in segment.seeds[pair.rule] ?? [:] where seeds.contains(where: { $0.end != Seed.survived }) {
+                    widths.insert(width)
+                }
+            }
+        }
+        let sorted = widths.sorted().map(String.init).joined(separator: ", ")
+        guard !widths.isEmpty else { throw ShowError("no seeds to play") }
+        if let cells = cells {
+            guard widths.contains(cells) else { throw ShowError("no seeds at \(cells) cells (\(sorted))") }
+            return cells
+        }
+        guard widths.count == 1 else { throw ShowError("seeds at \(sorted) cells: choose one with --cells") }
+        return widths.first!
+    }
+
     /// The show for odca's command line (R-X1): one segment per file, in
     /// the order given. A `.odca` file is its own script: import it, play
     /// it, unshuffled. Anything else is a play script.

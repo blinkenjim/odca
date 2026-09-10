@@ -82,6 +82,16 @@ the keyboard:
   `--watchdog` and `--grace` set the two clocks in whole seconds (120 and
   60 by default).
   `N`/`P` (or `n`/`p`) step by hand. No file is written.
+- **`odca <file.odca> [<file.odca> ...] --longest [--shuffle] [--cells N]`**
+  plays the seeds `odca-evolve` recorded instead: for every pair with
+  seeds at the width, its longest-lived seed, then every pair's second
+  longest, and so on, looping; each runs to the extinction that was
+  measured, with no watchdog. Seeds that survived the cap are left out,
+  so a rule with nothing but survivors drops out of the show. The window
+  is as wide as the seeds: wider shows black bars, narrower crops.
+  `--shuffle` mixes the seeds under the usual no-repeat rule; `--cells`
+  picks the width when the files record more than one. The rule keys do
+  nothing; `i` restarts the seed on screen.
 - **`odca-evolve <file.odca> --cells N --time SECONDS [--cap N]`** (Swift
   only, for now) searches each rule in the file for the starting rows
   that keep it alive longest at a width of N cells: random rows evolved

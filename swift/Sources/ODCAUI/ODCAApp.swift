@@ -23,7 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for window in NSApp.windows {
                 window.contentResizeIncrements = NSSize(width: ViewerModel.cellSize, height: ViewerModel.cellSize)
                 window.collectionBehavior.insert(.fullScreenPrimary)
-                window.setFrameAutosaveName("ODCA main window")
+                if ViewerModel.fixedCols == nil {  // R-X8: a fixed-width window opens at its width every time
+                    window.setFrameAutosaveName("ODCA main window")
+                }
                 if AppDelegate.fullScreenAtLaunch { window.toggleFullScreen(nil) }
             }
         }

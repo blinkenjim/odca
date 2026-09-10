@@ -21,7 +21,8 @@ public final class ViewerModel: ObservableObject {
     }
 
     public static var cellSize = 2  // points per cell, set by `launch` before the window exists (R-U2)
-    public static var defaultCols: Int { 1200 / cellSize }
+    public static var fixedCols: Int?  // `--longest`: the seeds' width, the window's too (R-X8)
+    public static var defaultCols: Int { fixedCols ?? 1200 / cellSize }
     public static var defaultRows: Int { 800 / cellSize }
     var cols: Int { session.cols }
     var rows: Int { session.rows }
@@ -228,7 +229,9 @@ final class AutomatonView: NSView {
         }
         let cell = CGFloat(ViewerModel.cellSize)
         let gridW = CGFloat(model.cols) * cell, gridH = CGFloat(model.rows) * cell
-        let bg = model.session.palette[0]
+        // R-X8: under --longest the width is fixed; a wider window shows black
+        // bars, a narrower one crops the grid (centered, the layer clips).
+        let bg = model.session.longest ? RGB(r: 0, g: 0, b: 0) : model.session.palette[0]
         CATransaction.begin()
         CATransaction.setDisableActions(true)  // no implicit animation of the slide
         layer?.backgroundColor = CGColor(

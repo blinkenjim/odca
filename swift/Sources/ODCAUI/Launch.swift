@@ -6,9 +6,10 @@ import ODCAKit
 /// `fullScreen` opens the window full screen at launch (`--fullscreen`, R-U2);
 /// `cellSize` is the points per cell for the run (`--4` / `--3` / `--2` / `--1`).
 @MainActor
-public func launch(fullScreen: Bool = false, cellSize: Int = 2,
+public func launch(fullScreen: Bool = false, cellSize: Int = 2, cols: Int? = nil,
                    _ make: @escaping (_ cols: Int, _ rows: Int) -> Session) {
     ViewerModel.cellSize = cellSize
+    ViewerModel.fixedCols = cols  // `--longest` (R-X8): the window is as wide as the seeds
     ViewerModel.bootstrap { make(ViewerModel.defaultCols, ViewerModel.defaultRows) }
     AppDelegate.fullScreenAtLaunch = fullScreen
     // AppKit treats unknown command-line arguments as documents to open, and

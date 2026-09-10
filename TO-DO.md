@@ -1,7 +1,15 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-09):** Spec 3.42.1, Swift 3.42.1, Python
-3.37.0 (the player side of the seeds; no odca-evolve in Python yet).
+**YOU ARE HERE (2026-09-10):** Spec 3.44.0, Swift 3.44.0, Python
+3.45.0: `odca --longest` (R-X8) plays the recorded seeds, every pair's
+longest then every pair's second and so on, each to its measured
+extinction with no watchdog, survivors of the cap left out (user:
+"lengths of 100,000 are IGNORED"), in a fixed-width window with black
+bars or a centered crop; `--shuffle` mixes the items under the usual
+rule; `--cells N` picks the width; the rule keys are inert and `i`
+restarts the seed. Agreed defaults from the design exchange (user:
+"Agreed everywhere except: n and f should have read n and p"). Python
+still has no odca-evolve; the Pi plays what the Mac found. Before that,
 Swift 3.42.1: the countdown's rate is over the last ten seconds (the
 cumulative average crept upward, carrying the in-flight rows as a 1/t
 deficit; the user asked for an audit). Swift 3.42.0: the countdown is followed by the rule's rate, rows tested

@@ -105,6 +105,7 @@ public final class Session {
     public private(set) var screenCounter: Int?  // screenfuls since last resume (R-K14)
     public private(set) var autoInit = true  // R-K12: on at startup, not persisted
     public private(set) var cyclePeriod: Int?  // exact period once Brent's finds a cycle
+    private var boringByExtinction = false  // the boring reason is an extinction (R-A1 first clause)
     public private(set) var flashRemaining = 0.0  // seconds of screen inversion left (R-U10)
     public private(set) var colorSets: [Int: ColorSet]
     public private(set) var colorSet = Session.defaultColorSet
@@ -128,7 +129,13 @@ public final class Session {
     // pairs in file order or (R-X7: the script said `shuffle`) shuffled.
     public let show: [Segment]?
     public let shuffle: Bool
-    public private(set) var playOrder: [(segment: Int, index: Int)] = []  // the pairs of the current pass, in order
+    /// `--longest` (R-X8): the show is the recorded seeds of the pairs at the
+    /// screen width, those that did not survive the cap; each plays to its
+    /// extinction; the width is fixed; the rule keys are inert.
+    public let longest: Bool
+    /// The pairs of the current pass, in order; `seed` is the rank of the
+    /// seed played under `--longest`, nil otherwise.
+    public private(set) var playOrder: [(segment: Int, index: Int, seed: Int?)] = []
     public private(set) var playPosition: Int?
     public private(set) var playSegment: Int?  // the segment (command-line file) of the pair playing
     public private(set) var playElapsed = 0.0  // unpaused seconds on the current pair
@@ -169,6 +176,7 @@ public final class Session {
         cols: Int, rows: Int, store: Store = Store(),
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
         reviewMode: Bool = false, selectFile: URL? = nil, show: [Segment]? = nil, shuffle: Bool = false,
+        longest: Bool = false,
         initialDelay: Double = Session.initialDelay,
         playTimeout: Double = Session.playTimeout, playGrace: Double = Session.playGrace,
         output: @escaping (String) -> Void = { print($0) }
@@ -184,6 +192,7 @@ public final class Session {
         // Program precedence: odca (play), then odca-select, then color set review.
         self.show = show
         self.shuffle = shuffle && show != nil
+        self.longest = longest && show != nil
         let selectFile = show == nil ? selectFile : nil
         self.reviewMode = reviewMode && selectFile == nil && show == nil
         self.selectFile = selectFile
@@ -273,7 +282,8 @@ public final class Session {
     /// boring detectors start afresh. Returns whether anything changed.
     @discardableResult
     public func resize(cols newCols: Int, rows newRows: Int) -> Bool {
-        let newCols = max(Session.minCols, newCols)
+        let newCols = longest ? cols : max(Session.minCols, newCols)  // R-X8: the width is the seeds'
+
         let newRows = max(1, newRows)
         guard newCols != cols || newRows != rows else { return false }
         if newCols != cols {
@@ -634,15 +644,49 @@ public final class Session {
     // MARK: - odca (R-X)
 
     private func loadPlay() {  // R-X1
-        for segment in show! {  // R-O13
-            let how = segment.shuffle ? ", shuffled" : ""  // R-X7: the script said `shuffle`
-            output("odca \(segment.file): \(segment.pairs.count) pairs\(how)")
+        for (seg, segment) in show!.enumerated() {  // R-O13
+            if longest {  // R-X8: what the file brings to the show at this width
+                let count = segment.pairs.indices.reduce(0) { $0 + playableSeeds(seg, $1).count }
+                output("odca \(segment.file): \(segment.pairs.count) pairs, \(count) seeds at \(cols) cells")
+            } else {
+                let how = segment.shuffle ? ", shuffled" : ""  // R-X7: the script said `shuffle`
+                output("odca \(segment.file): \(segment.pairs.count) pairs\(how)")
+            }
         }
         pairs = []
-        if show!.contains(where: { !$0.pairs.isEmpty }) {
-            newPass()
-            playPair(at: 0, reason: nil)
+        newPass()
+        if !playOrder.isEmpty { playPair(at: 0, reason: nil) }
+    }
+
+    /// R-X8: the seeds a pair plays under `--longest` — its rule's at the
+    /// screen width, longest first, without those that survived the cap.
+    private func playableSeeds(_ segment: Int, _ index: Int) -> [Seed] {
+        (show![segment].seeds[show![segment].pairs[index].rule]?[cols] ?? []).filter { $0.end != Seed.survived }
+    }
+
+    /// The `--longest` pass (R-X8): every pair's longest playable seed, then
+    /// every pair's second, and so on, pairs in file order and files in
+    /// command-line order; or, with `--shuffle`, a fresh permutation of all
+    /// of them under the constraints of `shuffle` (R-X7), the seam included.
+    private func longestPass() -> [(segment: Int, index: Int, seed: Int?)] {
+        let show = self.show!
+        let counts = show.indices.map { seg in show[seg].pairs.indices.map { playableSeeds(seg, $0).count } }
+        var pass: [(segment: Int, index: Int, seed: Int?)] = []
+        for rank in 0..<(counts.flatMap { $0 }.max() ?? 0) {
+            for seg in show.indices {
+                for index in show[seg].pairs.indices where counts[seg][index] > rank {
+                    pass.append((segment: seg, index: index, seed: rank))
+                }
+            }
         }
+        if shuffle && pass.count > 1 {
+            let previous = playSegment.map { (segment: $0, index: pairIndex!) }
+            for _ in 0..<Session.shuffleTries {
+                pass.shuffle(using: &rng)
+                if noRepeats(pass.map { (segment: $0.segment, index: $0.index) }, after: previous) { break }
+            }
+        }
+        return pass
     }
 
     /// The files in command-line order, or a fresh shuffle of them per pass
@@ -654,6 +698,11 @@ public final class Session {
     /// from, or the pair still on screen for the pass's first file. A file
     /// that allows no such order plays the last draw as it is.
     private func newPass() {
+        if longest {
+            playOrder = longestPass()
+            playPosition = 0
+            return
+        }
         let show = self.show!
         var order = Array(show.indices)
         if shuffle && show.count > 1 {
@@ -663,24 +712,24 @@ public final class Session {
             } while playable.count >= 2 && order.first { !show[$0].pairs.isEmpty } == playSegment
         }
         var previous = playSegment.map { (segment: $0, index: pairIndex!) }
-        var pass: [(segment: Int, index: Int)] = []
+        var pass: [(segment: Int, index: Int, seed: Int?)] = []
         for seg in order {
             var indices = Array(show[seg].pairs.indices)
             if show[seg].shuffle && indices.count > 1 {
                 for _ in 0..<Session.shuffleTries {
                     indices.shuffle(using: &rng)
-                    if noRepeats(seg, indices, after: previous) { break }
+                    if noRepeats(indices.map { (segment: seg, index: $0) }, after: previous) { break }
                 }
             }
-            pass += indices.map { (segment: seg, index: $0) }
-            previous = pass.last
+            pass += indices.map { (segment: seg, index: $0, seed: nil) }
+            previous = pass.last.map { (segment: $0.segment, index: $0.index) }
         }
         playOrder = pass
         playPosition = 0
     }
 
-    private func noRepeats(_ segment: Int, _ indices: [Int], after previous: (segment: Int, index: Int)?) -> Bool {
-        let chain = (previous.map { [$0] } ?? []) + indices.map { (segment: segment, index: $0) }
+    private func noRepeats(_ items: [(segment: Int, index: Int)], after previous: (segment: Int, index: Int)?) -> Bool {
+        let chain = (previous.map { [$0] } ?? []) + items
         return zip(chain, chain.dropFirst()).allSatisfy { !clash($0, $1) }
     }
 
@@ -692,7 +741,7 @@ public final class Session {
 
     /// Activate a pair for play: its rule and colors, then a fresh seed (R-X4).
     private func playPair(at position: Int, reason: String?) {
-        let (segment, index) = playOrder[position]
+        let (segment, index, rank) = playOrder[position]
         playPosition = position
         let entered = segment != playSegment
         playSegment = segment
@@ -703,12 +752,21 @@ public final class Session {
         undoMark = undoStack.count  // R-K19: U returns to the pair as played
         showColors(name: pair.colorset, colors: pair.colors)
         // R-X4: the longest-lived recorded seed for this rule at exactly this
-        // width, when the file has one; a random row otherwise.
-        initCells(with: show![segment].seeds[pair.rule]?[cols]?.first?.row)
+        // width, when the file has one; a random row otherwise. R-X8: the
+        // seed of the item's rank.
+        let seeds = playableSeeds(segment, index)
+        initCells(with: rank.map { seeds[$0].row } ?? show![segment].seeds[pair.rule]?[cols]?.first?.row)
         playElapsed = 0  // the pair's screen time starts now
         if entered && show!.count > 1 { output("playing \(show![segment].file)") }  // R-O13: another file
+        let which = rank.map { ", seed \($0 + 1)/\(seeds.count), \(seeds[$0].generations) generations" } ?? ""
         let why = reason.map { " (\($0))" } ?? ""
-        output("pair \(index + 1)/\(pairs.count) \(label(pair))\(why)")  // R-O13
+        output("pair \(index + 1)/\(pairs.count) \(label(pair))\(which)\(why)")  // R-O13
+    }
+
+    /// `i` under `--longest` (R-X8): the seed on screen from its first row again.
+    private func restartSeed() {
+        guard let position = playPosition, let rank = playOrder[position].seed else { return initCells() }
+        initCells(with: playableSeeds(playOrder[position].segment, playOrder[position].index)[rank].row)
     }
 
     private func nextPlayPair(reason: String) {  // R-X2, R-X3: on through the pass, then a new pass
@@ -800,7 +858,9 @@ public final class Session {
         }
         if autoInit && boringStreak >= rows {
             let reason = boringReason ?? "boring"
-            if playMode && !playOrder.isEmpty && playElapsed >= playTimeout {
+            if longest {  // R-X8: a seed plays to its extinction, then the next; nothing else ends it
+                if boringByExtinction { nextPlayPair(reason: reason) } else { resetBoredom() }
+            } else if playMode && !playOrder.isEmpty && playElapsed >= playTimeout {
                 nextPlayPair(reason: reason)  // R-X3: watchdog expired, a re-init transitions
             } else {
                 initCells()
@@ -865,6 +925,7 @@ public final class Session {
         }
         boringStreak = reason == nil ? 0 : boringStreak + 1
         boringReason = reason
+        boringByExtinction = extinction != nil
     }
 
     /// The extinction clause of R-A1 on one row: the reason text when some
@@ -929,7 +990,7 @@ public final class Session {
         let steps = Int(accumulated / delay)
         accumulated -= Double(steps) * delay
         for _ in 0..<min(steps, Session.stepCap) { advance() }
-        if playMode && !playOrder.isEmpty  // R-X3: watchdog expired and the grace period observed
+        if playMode && !longest && !playOrder.isEmpty  // R-X3: watchdog expired and the grace period observed
             && playElapsed >= playTimeout && sinceInit >= playGrace {
             nextPlayPair(reason: "timeout")
         }
@@ -1047,6 +1108,7 @@ public final class Session {
             }
             return true
         }
+        if longest, [.r, .m, .u, .U, .a].contains(key) { return true }  // R-X8: the rule is the seed's
         switch key {
         case .space:
             paused = true
@@ -1061,7 +1123,7 @@ public final class Session {
         case .s:
             if selectMode { savePair() }  // R-W4; otherwise nothing to save into
         case .i:
-            initCells()
+            if longest { restartSeed() } else { initCells() }
         case .n:
             if playMode { playStep(1) } else { selectPair(step: 1) }
         case .p:
