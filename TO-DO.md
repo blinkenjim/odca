@@ -1,7 +1,8 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.52.1, Swift 3.52.1, Python
-3.53.1 (the on-screen counter at 12 points, the user: "way too big").
+**YOU ARE HERE (2026-09-10):** Spec 3.52.2, Swift 3.52.2, Python
+3.53.2 (the on-screen counter at 18 points bold, refreshed every frame;
+12 was "too small", 36 "way too big").
 3.52.0 / 3.53.0: in full screen under `--longest` the counter is also drawn in
 the lower-left corner, yellow with a black outline (R-U11), the
 terminal counter continuing. Before that, under `--longest` the grid is scaled to the window's width in

@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.52.1 — 2026-09-10
+Version 3.52.2 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -77,7 +77,8 @@ seeds in a fixed-width window — R-X8, R-X1, R-U8, R-O13, R-U9, section
 R-U6. 3.48.0: the counter moves to standard output, in place on a
 terminal — R-O17, R-U6. 3.50.0: the `--longest` grid is stretched to the
 window's width, aspect kept — R-X8, R-U2. 3.52.0: the generation
-counter on screen in full screen — R-U11. 3.52.1: at 12 points — R-U11.)
+counter on screen in full screen — R-U11. 3.52.1: at 12 points — R-U11. 3.52.2: at 18 points, bold, refreshed
+every frame — R-U11.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -322,10 +323,11 @@ cleanly, stopping all background workers.
 window is full screen, the generation counter of R-O17, `<n>/<m>`, is
 also drawn on the picture: in the lower-left corner, inset from the
 edges, in yellow with a black outline about a point wide around the
-glyphs, in a bold monospaced-digit face of 12 points (small: a caption,
-not a banner), over whatever cells are there. It is refreshed with the
-terminal counter, five times a second, and it is not drawn in a window
-that is not full screen; the terminal counter goes on regardless.
+glyphs, in a bold monospaced-digit face of 18 points, over whatever
+cells are there. It is refreshed every frame, at the display's rate,
+while the terminal counter keeps its five times a second; it is not
+drawn in a window that is not full screen, and the terminal counter
+goes on regardless.
 
 **R-U9 (`--help`).** When `--help` appears anywhere on the command line the
 program prints its help text to standard output and exits with status 0,

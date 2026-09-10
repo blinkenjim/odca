@@ -183,7 +183,6 @@ final class AutomatonView: NSView {
     private let gridLayer = CALayer()  // clips the grid; margins show the view's background
     private let imageLayer = CALayer()
     private let counterView = CounterView()  // R-U11: the generation counter, full screen only
-    private var sinceCounter = Double.infinity
     private var displayLink: CADisplayLink?
     private var lastTimestamp: CFTimeInterval?
 
@@ -245,12 +244,9 @@ final class AutomatonView: NSView {
             let dt = lastTimestamp.map { link.timestamp - $0 } ?? 0
             lastTimestamp = link.timestamp
             model.frameTick(dt: dt)
-            sinceCounter += dt
-            if sinceCounter >= ViewerModel.counterInterval {  // R-U11: with the terminal counter, five times a second
-                sinceCounter = 0
-                let fullScreen = window?.styleMask.contains(.fullScreen) ?? false
-                counterView.text = fullScreen ? model.session.counter : nil
-            }
+            // R-U11: the on-screen counter follows every frame (the terminal's, five times a second).
+            let fullScreen = window?.styleMask.contains(.fullScreen) ?? false
+            counterView.text = fullScreen ? model.session.counter : nil
         }
         var cell = CGFloat(ViewerModel.cellSize)
         if model.session.longest {
@@ -288,7 +284,7 @@ final class AutomatonView: NSView {
 @MainActor
 final class CounterView: NSView {
     static let inset: CGFloat = 12
-    static let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .bold)
+    static let font = NSFont.monospacedDigitSystemFont(ofSize: 18, weight: .bold)
 
     var text: String? {
         didSet { if text != oldValue { needsDisplay = true } }
@@ -303,7 +299,7 @@ final class CounterView: NSView {
             .font: Self.font,
             .foregroundColor: NSColor.yellow,
             .strokeColor: NSColor.black,
-            .strokeWidth: -8,  // negative: fill and stroke; the outline is 8% of the point size, about a point
+            .strokeWidth: -6,  // negative: fill and stroke; the outline is 6% of the point size, about a point
         ]
         let string = NSAttributedString(string: text, attributes: attributes)
         let size = string.size()
