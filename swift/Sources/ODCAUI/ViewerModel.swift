@@ -182,6 +182,8 @@ final class AutomatonView: NSView {
     private let model: ViewerModel
     private let gridLayer = CALayer()  // clips the grid; margins show the view's background
     private let imageLayer = CALayer()
+    private let counterView = CounterView()  // R-U11: the generation counter, full screen only
+    private var sinceCounter = Double.infinity
     private var displayLink: CADisplayLink?
     private var lastTimestamp: CFTimeInterval?
 
@@ -197,6 +199,8 @@ final class AutomatonView: NSView {
         gridLayer.masksToBounds = true
         gridLayer.addSublayer(imageLayer)
         layer?.addSublayer(gridLayer)
+        counterView.autoresizingMask = [.width, .height]
+        addSubview(counterView)
     }
 
     /// R-U8: the grid follows the view — as many whole cells as fit. Under
@@ -205,6 +209,7 @@ final class AutomatonView: NSView {
     override func layout() {
         super.layout()
         let cell = CGFloat(ViewerModel.cellSize)
+        counterView.frame = bounds
         if model.session.longest {
             let fit = Geometry.fitToWidth(width: bounds.width, height: bounds.height, cols: model.cols, cell: ViewerModel.cellSize)
             model.resize(cols: model.cols, rows: fit.rows)
@@ -240,6 +245,12 @@ final class AutomatonView: NSView {
             let dt = lastTimestamp.map { link.timestamp - $0 } ?? 0
             lastTimestamp = link.timestamp
             model.frameTick(dt: dt)
+            sinceCounter += dt
+            if sinceCounter >= ViewerModel.counterInterval {  // R-U11: with the terminal counter, five times a second
+                sinceCounter = 0
+                let fullScreen = window?.styleMask.contains(.fullScreen) ?? false
+                counterView.text = fullScreen ? model.session.counter : nil
+            }
         }
         var cell = CGFloat(ViewerModel.cellSize)
         if model.session.longest {
@@ -267,5 +278,35 @@ final class AutomatonView: NSView {
             x: 0, y: -CGFloat(model.scrollOffset) * cell,
             width: gridW, height: CGFloat(model.rows + 1) * cell)
         CATransaction.commit()
+    }
+}
+
+
+/// The generation counter on screen (R-U11): `<n>/<m>` in the lower-left
+/// corner, yellow with a black outline, shown in full screen only. Sits
+/// over the grid, transparent, and never takes events.
+@MainActor
+final class CounterView: NSView {
+    static let inset: CGFloat = 24
+    static let font = NSFont.monospacedDigitSystemFont(ofSize: 36, weight: .bold)
+
+    var text: String? {
+        didSet { if text != oldValue { needsDisplay = true } }
+    }
+
+    override var isFlipped: Bool { true }  // y grows downward, like the grid above
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let text = text else { return }
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: Self.font,
+            .foregroundColor: NSColor.yellow,
+            .strokeColor: NSColor.black,
+            .strokeWidth: -4,  // negative: fill and stroke; the outline is 4% of the point size
+        ]
+        let string = NSAttributedString(string: text, attributes: attributes)
+        let size = string.size()
+        string.draw(at: NSPoint(x: Self.inset, y: bounds.height - Self.inset - size.height))
     }
 }

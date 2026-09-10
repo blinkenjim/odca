@@ -5,6 +5,13 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.52.0 (Swift, spec) and 3.53.0 (Python) — 2026-09-10
+
+In full screen under `--longest` the generation count `<n>/<m>` now
+also stands on the picture, in the lower-left corner, yellow with a
+black outline, ticking five times a second with the terminal's, which
+goes on as before. Leave full screen and it is gone from the screen.
+
 ## 3.50.0 (Swift, spec) and 3.51.0 (Python) — 2026-09-10
 
 Under `--longest` the picture now fills the width it is given. The

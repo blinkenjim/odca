@@ -1,7 +1,9 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.50.0, Swift 3.50.0, Python
-3.51.0: under `--longest` the grid is scaled to the window's width in
+**YOU ARE HERE (2026-09-10):** Spec 3.52.0, Swift 3.52.0, Python
+3.53.0: in full screen under `--longest` the counter is also drawn in
+the lower-left corner, yellow with a black outline (R-U11), the
+terminal counter continuing. Before that, under `--longest` the grid is scaled to the window's width in
 both directions (nearest for a whole-number factor, linear otherwise;
 the user's question about the black bands in full screen, and my two
 recommendations, both taken). Before that, Swift 3.48.1: the `--longest` window sets its width outright

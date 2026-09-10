@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.50.0 — 2026-09-10
+Version 3.52.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -76,7 +76,8 @@ seeds in a fixed-width window — R-X8, R-X1, R-U8, R-O13, R-U9, section
 10. 3.46.0: the generation counter in the title under `--longest` —
 R-U6. 3.48.0: the counter moves to standard output, in place on a
 terminal — R-O17, R-U6. 3.50.0: the `--longest` grid is stretched to the
-window's width, aspect kept — R-X8, R-U2.)
+window's width, aspect kept — R-X8, R-U2. 3.52.0: the generation
+counter on screen in full screen — R-U11.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -316,6 +317,15 @@ standard output, R-O17.)
 
 **R-U7 (shutdown).** Pressing `q` or closing the window exits the program
 cleanly, stopping all background workers.
+
+**R-U11 (on-screen counter).** Under `odca --longest` (R-X8), while the
+window is full screen, the generation counter of R-O17, `<n>/<m>`, is
+also drawn on the picture: in the lower-left corner, inset from the
+edges, in yellow with a black outline around the glyphs, in a bold
+monospaced-digit face large enough to read across a room (about 36
+points), over whatever cells are there. It is refreshed with the
+terminal counter, five times a second, and it is not drawn in a window
+that is not full screen; the terminal counter goes on regardless.
 
 **R-U9 (`--help`).** When `--help` appears anywhere on the command line the
 program prints its help text to standard output and exits with status 0,
@@ -1055,7 +1065,8 @@ The program prints single-line, human-readable status to standard output:
   newline) five times a second, and cleared before any other line is
   printed, so the pair and rule lines stand alone; when standard output
   is not a terminal the counter is not shown. Nothing else prints in
-  place.
+  place. In full screen the same counter is also drawn on the picture
+  (R-U11).
 - **R-O16.** In `odca-evolve` (section 4e), and nothing else, every
   line opening with the time then left on the rule's budget in the
   `hh:mm:ss` of R-E4 and a space, so the lines compare with each other

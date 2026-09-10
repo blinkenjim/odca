@@ -89,7 +89,8 @@ the keyboard:
   measured, with no watchdog. Seeds that survived the cap are left out,
   so a rule with nothing but survivors drops out of the show. The window
   opens as wide as the seeds, and the picture is scaled to whatever
-  width the window or screen has, cells staying square.
+  width the window or screen has, cells staying square. In full screen
+  the generation count stands in the lower-left corner, yellow on black.
   `--shuffle` mixes the seeds under the usual no-repeat rule; `--cells`
   picks the width when the files record more than one. The rule keys do
   nothing; `i` restarts the seed on screen.
