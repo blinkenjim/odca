@@ -1,7 +1,11 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.58.0, Swift 3.58.0, Python
-3.57.0. Swift 3.58.0: `odca-evolve --parity` (R-E5): a rule whose
+**YOU ARE HERE (2026-09-10):** Spec 3.60.0, Swift 3.60.0, Python
+3.61.0: a confirmed cycle (Brent's) ends a row in odca-evolve and an
+item in `odca --longest` (R-E2, R-X8; conformance vectors 1.2; the
+user: the lag in Brent's "not even on the radar"). Open from the
+--parity exchange: whether a rule of ten survivors should stand aside
+outright under --parity (offered; not asked for). Before that, Swift 3.58.0: `odca-evolve --parity` (R-E5): a rule whose
 shortest lifetime × 0.9 outlives every other rule's longest at the
 width gives up its turn (judged on the seeds as they stand, this run's
 included; the file's pairs' rules only; the user's three answers).

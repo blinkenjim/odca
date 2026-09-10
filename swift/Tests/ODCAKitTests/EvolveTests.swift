@@ -20,9 +20,16 @@ final class EvolveTests: XCTestCase {
         let block = seed("3333333311111111", 0).row
         XCTAssertEqual(Evolve.lifetime(rule: kills3, row: block, cap: 100), seed("3333333311111111", 4))
         XCTAssertEqual(Evolve.lifetime(rule: kills3, row: block, cap: 3), seed("3333333311111111", 3, "survived"))
-        XCTAssertEqual(Evolve.lifetime(rule: allZero, row: seed("012301230123", 0).row, cap: 40)?.end, "survived")
+        // Under the all-zero rule every row is all zeros from generation 1: a
+        // period-1 cycle, confirmed at generation 2 (R-E2, Brent's).
+        XCTAssertEqual(Evolve.lifetime(rule: allZero, row: seed("012301230123", 0).row, cap: 40),
+                       seed("012301230123", 2, "repeating (period 1)"))
+        XCTAssertEqual(Evolve.lifetime(rule: allZero, row: seed("012301230123", 0).row, cap: 1)?.end, "survived")  // capped first
         var looks = 0
-        let abandoned = Evolve.lifetime(rule: allZero, row: seed("012301230123", 0).row, cap: 1_000_000) {
+        // A block of 4000 3s in 8000 cells under kills3 loses two a generation
+        // and changes every generation: alive and aperiodic past the first look.
+        let wide = [UInt8](repeating: 1, count: 2000) + [UInt8](repeating: 3, count: 4000) + [UInt8](repeating: 1, count: 2000)
+        let abandoned = Evolve.lifetime(rule: kills3, row: wide, cap: 1_000_000) {
             looks += 1
             return true
         }

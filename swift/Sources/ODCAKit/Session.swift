@@ -900,8 +900,10 @@ public final class Session {
         }
         if autoInit && boringStreak >= rows {
             let reason = boringReason ?? "boring"
-            if longest {  // R-X8: a seed plays to its extinction, then the next; nothing else ends it
-                if boringByExtinction { nextPlayPair(reason: reason) } else { resetBoredom() }
+            if longest {  // R-X8: a seed plays to its extinction or its confirmed cycle, then the next
+                // The screenful-based repetition and stagnation are ignored: only
+                // the streak restarts, so Brent's keeps pace with the recording.
+                if boringByExtinction || cyclePeriod != nil { nextPlayPair(reason: reason) } else { boringStreak = 0 }
             } else if playMode && !playOrder.isEmpty && playElapsed >= playTimeout {
                 nextPlayPair(reason: reason)  // R-X3: watchdog expired, a re-init transitions
             } else {

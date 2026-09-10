@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.58.0 — 2026-09-10
+Version 3.60.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -82,7 +82,9 @@ every frame — R-U11. 3.54.0: the on-screen count in any window, `o`
 hides it — R-U11, R-K20; a title-bar double-click returns a resized
 window to its natural size — R-U12. 3.56.0: `odca-select --longest`,
 curating the pairs with seeds — R-W9, R-W1, R-O12, R-U9, section 10.
-3.58.0: `odca-evolve --parity` — R-E5, R-E1, R-O16, section 10.)
+3.58.0: `odca-evolve --parity` — R-E5, R-E1, R-O16, section 10. 3.60.0:
+a confirmed cycle ends a row in `odca-evolve` and an item in `odca
+--longest` — R-E2, R-X8, R-P3; conformance vectors 1.2.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -904,11 +906,13 @@ and then the last one as it is (a single pair with seeds allows no such
 order and plays its seeds in whatever order the draw gives). Playing an
 item is R-X4 with the seed's row as the cells, generation 0, announced
 as R-O13 says. There are no clocks: an item plays until the boring
-detector fires by extinction (R-A2: a screenful of rows past the
-extinction `odca-evolve` measured, which the same detector finds at the
-same generation), and the next item begins with that reason; repetition
-and stagnation never end an item (the detector restarts instead), and
-auto-initialization never re-seeds in place. `i` (R-K6) restarts the
+detector fires by extinction or by a confirmed cycle (R-A2: a screenful
+of rows past the extinction or the cycle `odca-evolve` measured, which
+the same detector, run from the same seed, finds at the same
+generation), and the next item begins with that reason; the
+screenful-based repetition and stagnation never end an item (only the
+streak restarts, so the cycle detection keeps pace with the recording),
+and auto-initialization never re-seeds in place. `i` (R-K6) restarts the
 item's seed from its first row; `a` (R-K12), `r`, `m`, `u`, and `U` do
 nothing; `s`, `S`, `X`, and `R` do nothing as in every show; the color
 keys, `N`/`P` and `n`/`p` (R-X6), speed, pause, and single step keep
@@ -959,10 +963,18 @@ first clause exactly, some producible state with no cells and no other
 producible state a living minority, the seed row itself unclassified —
 which gives the row's *lifetime*, the count of generations computed,
 and its *end*, the extinction text of R-O6 (`state 3 extinct`, `states
-1, 2 extinct`); or the cap, `--cap` generations computed without that,
-which gives lifetime `--cap` and end `survived`. Repetition and
-stagnation (R-A1) play no part: a row that settles into a cycle with
-every producible state alive lives to the cap. A row still evolving
+1, 2 extinct`); or the first generation at which a cycle is *confirmed*
+by Brent's algorithm exactly as the player runs it from a fresh seed
+(R-A1: the first computed generation is the snapshot, refreshed when
+the steps since it reach a power of two; a generation equal to the
+snapshot confirms a cycle whose period is those steps), which gives
+that generation as the lifetime and `repeating (period <N>)` as the
+end — extinction is tested first on a generation that is both; or the
+cap, `--cap` generations computed without either, which gives lifetime
+`--cap` and end `survived`. The screenful-based repetition and the
+stagnation of R-A1 play no part. (Until 3.60.0 only extinction ended a
+row, so a row that settled into a cycle lived to the cap; seeds so
+recorded stay as they are.) A row still evolving
 when the budget ends, or when the program is interrupted (R-E4), is
 discarded. The conformance vectors (TESTS.md, `lifetimes`) fix the
 measure.
@@ -1044,7 +1056,7 @@ object may also hold `seeds` (section 4e): an object keyed by rule ID,
 each an object keyed by width (a whole number as a string), each an
 array of at most ten seeds, longest first, each `row` (one digit per
 cell, as many as the width), `generations` (the lifetime, R-E2), and
-`end` (the extinction text, or `survived`). `odca-evolve` writes it;
+`end` (the extinction text, `repeating (period <N>)`, or `survived`). `odca-evolve` writes it;
 `odca` reads it (R-X4); `odca-select` carries it through unchanged when
 it rewrites the file. The section is omitted when there are no seeds,
 and its rule keys are written sorted, its widths ascending. Malformed

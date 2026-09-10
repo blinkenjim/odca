@@ -5,6 +5,20 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.60.0 (Swift, spec) and 3.61.0 (Python) — 2026-09-10
+
+Periodicity joins the test. `odca-evolve` now ends a row when a cycle
+of any period is confirmed, by the same Brent's algorithm the player
+uses, recording `repeating (period N)` and the generation of the
+confirmation as the lifetime. Survivors become what they should be:
+rows that stay aperiodic to the cap. Seeds already recorded as
+survivors are left as they are until you delete their rule's seeds.
+`odca --longest` ends an item on a confirmed cycle as well as on
+extinction, so a repeating seed no longer plays forever; a cycle is
+confirmed at the same generation the recording says, since both start
+from the same row. The golden lifetimes are 1.2: the all-zero row now
+ends at generation 2 as period 1 instead of surviving.
+
 ## 3.58.0 (Swift, spec) — 2026-09-10
 
 **`odca-evolve --parity`** keeps the field even. As each rule's turn

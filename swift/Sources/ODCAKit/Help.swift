@@ -139,7 +139,8 @@ usage: odca-evolve <file.odca> --cells N --time SECONDS [--cap N] [--parity]
 For every distinct rule in the file, in order, spends the time budget
 drawing random rows of N cells and evolving each, in wrap mode, until a
 state the rule can produce has died out with no other state left in a
-minority (the extinction that makes odca re-seed), or until the cap. The
+minority (the extinction that makes odca re-seed), or a cycle of any
+period is confirmed (as odca's own detector confirms one), or the cap. The
 ten longest-lived rows are kept, merged with any the file already holds
 for that rule and width, and written back to the file as the budget runs
 out; then the next rule. Every processor works at once, each on rows of

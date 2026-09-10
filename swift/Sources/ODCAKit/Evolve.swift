@@ -3,7 +3,8 @@ import Foundation
 /// odca-evolve (REQTS section 4e): the search for a rule's longest-lived
 /// seeds at one width. A seed's lifetime is the number of generations
 /// before the first one that is boring by extinction (R-A1's first clause,
-/// the same test that makes odca re-seed), or the cap.
+/// the same test that makes odca re-seed) or that confirms a cycle
+/// (Brent's, as the player runs it), or the cap.
 public enum Evolve {
     public static let keep = 10  // the seeds kept per rule and width (R-E3)
     public static let defaultCap = 100_000  // generations a row may live before it counts as surviving (R-E2)
@@ -30,15 +31,33 @@ public enum Evolve {
     }
     static let stopCheckEvery = 1024  // generations between looks at the stop flag
 
-    /// Evolve `row` under `rule` in wrap mode until extinction or the cap
-    /// (R-E2). nil when `shouldStop` said to abandon the row.
+    /// Evolve `row` under `rule` in wrap mode until extinction, a confirmed
+    /// cycle, or the cap (R-E2). nil when `shouldStop` said to abandon the row.
     public static func lifetime(rule: Rule, row: [UInt8], cap: Int,
                                 shouldStop: () -> Bool = { false }) -> Seed? {
         guard var automaton = try? Automaton(width: row.count, rule: rule, cells: row) else { return nil }
+        // Brent's cycle detection, as Session.observe runs it from a fresh
+        // seed: one saved row, refreshed at powers of two; a recurrence
+        // proves the future periodic, the steps since the snapshot the period.
+        var snapshot: [UInt8]?
+        var power = 1, steps = 0
         while automaton.generation < cap {
             let next = automaton.step()
             if let end = Session.extinction(in: next, rule: rule) {
                 return Seed(row: row, generations: automaton.generation, end: end)
+            }
+            if let saved = snapshot {
+                steps += 1
+                if next == saved {
+                    return Seed(row: row, generations: automaton.generation, end: "repeating (period \(steps))")
+                }
+                if steps == power {
+                    snapshot = next
+                    power *= 2
+                    steps = 0
+                }
+            } else {
+                snapshot = next
             }
             if automaton.generation % stopCheckEvery == 0 && shouldStop() { return nil }
         }

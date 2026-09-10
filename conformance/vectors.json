@@ -1,6 +1,6 @@
 {
- "version": "1.1",
- "description": "ODCA engine conformance vectors. Normative: see TESTS.md. Rows are strings of state digits 0-3; 'expected' lists the rows produced by each of 'generations' successive steps from 'initial'. 'lifetimes' (1.1, R-E2): from 'initial' in wrap mode, the number of generations before the first one that is boring by extinction (R-A1), and the reason text, or 'cap' and 'survived' when none comes first.",
+ "version": "1.2",
+ "description": "ODCA engine conformance vectors. Normative: see TESTS.md. Rows are strings of state digits 0-3; 'expected' lists the rows produced by each of 'generations' successive steps from 'initial'. 'lifetimes' (1.2, R-E2): from 'initial' in wrap mode, the number of generations before the first one that is boring by extinction (R-A1) or at which Brent's confirms a cycle (1.2; until then such rows survived), and the reason text, or 'cap' and 'survived' when none comes first.",
  "count_vectors": [
   [
    0,
@@ -288,13 +288,13 @@
  ],
  "lifetimes": [
   {
-   "name": "only state 0 is producible, so nothing can go extinct: the cap ends it",
+   "name": "only state 0 is producible, so nothing can go extinct: all zeros from generation 1, a period-1 cycle confirmed at generation 2",
    "requirement": "R-E2",
    "rule": "00000000000000000000",
    "initial": "333113103210",
    "cap": 40,
-   "generations": 40,
-   "end": "survived"
+   "generations": 2,
+   "end": "repeating (period 1)"
   },
   {
    "name": "a block of 3s under a rule that keeps a 3 only between 3s shrinks by two a generation and dies at four",
