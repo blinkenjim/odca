@@ -5,6 +5,13 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.68.0 (Swift, spec) — 2026-09-10
+
+Under `--parity` the plan line now says how big the round trip is and
+how it splits, `parity: 13 rules this round trip, 8 of 8 ahead give up
+their turn, 5 run (limit 8)`, and each rule that runs says where it
+stands among those, `rule <id> (4/13, running 2 of 5): 600 cells`.
+
 ## 3.66.0 (Swift, spec) — 2026-09-10
 
 Once a rule's ten seeds are all survivors of the cap, its turn ends

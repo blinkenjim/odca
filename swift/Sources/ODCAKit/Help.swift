@@ -159,6 +159,9 @@ holds one for exactly the width on screen.
                   longest of some other rule of the file, it is skipped
                   with a line saying so, and the time goes to the rules
                   behind; decided for the whole round trip as it starts
+                  and announced (how many rules, how many skipped, how
+                  many run), each running rule's line then giving its
+                  place among those that run
   --limit N       with --parity: at most N rules give up their turn per
                   round trip, those furthest ahead; 0, the default, is no
                   limit

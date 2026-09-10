@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.66.0 — 2026-09-10
+Version 3.68.0 — 2026-09-10
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -202,7 +202,9 @@ from `REQTS.md`.
   the column of the times that open the lines, the rate over the last
   ten seconds, settling within them and steady after) ticking in place
   below it, `round trip 2` after the last rule and on round the rules go
-  until Ctrl-C, the `kept` lines scrolling up as rows join, every line
+  until Ctrl-C; with `--parity` the plan line reads `parity: 13 rules
+  this round trip, 8 of 8 ahead give up their turn, 5 run` and each
+  running rule's line `rule <id> (4/13, running 2 of 5): 600 cells`, the `kept` lines scrolling up as rows join, every line
   opening with the time then left (`00:01:00 rule ...`, `00:00:41 kept
   ...`), the ten ages on one line (`00:00:00 4821, 3990, ...`) as each
   rule ends, Ctrl-C writing the rule in hand; then

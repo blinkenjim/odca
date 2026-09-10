@@ -1,7 +1,9 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.66.0, Swift 3.66.0, Python
-3.61.0. Swift 3.66.0: ten survivors end a rule's turn early (R-E3). Swift 3.64.0: odca-evolve round trips until Ctrl-C (the user
+**YOU ARE HERE (2026-09-10):** Spec 3.68.0, Swift 3.68.0, Python
+3.61.0. Swift 3.68.0: the parity plan line counts the round trip's
+rules, skips, and runs, and each running rule's line gives its place
+among those that run. Swift 3.66.0: ten survivors end a rule's turn early (R-E3). Swift 3.64.0: odca-evolve round trips until Ctrl-C (the user
 expected it to loop; it had made one pass), the parity plan is made up
 front per round trip, and `--limit N` caps the skips at the N furthest
 ahead (user: attention shifted "too much from rich to poor"). Swift 3.62.0: `--parity` judges against the other rule
