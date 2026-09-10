@@ -973,6 +973,31 @@ def test_a_shuffled_script_keeps_its_seam_with_the_other_files(make_store, odca_
         s.handle_key("N")
 
 
+def test_arrival_uses_the_longest_recorded_seed_at_the_screen_width(make_store, odca_file, tmp_path, capsys):  # PT-42, R-X4
+    store = review_store(make_store)
+    file = odca_file([ALL_ZERO, ALL_PRODUCIBLE], name="seeded.odca")
+    best, second, wrong_width = [3] * 32, [2] * 32, [1] * 33
+    save_odca_file(load_odca_file(file), file, seeds={ALL_ZERO.id: {
+        32: [{"row": second, "generations": 5, "end": "state 1 extinct"},
+             {"row": best, "generations": 9, "end": "survived"}],
+        33: [{"row": wrong_width, "generations": 99, "end": "survived"}]}})
+    s = make_session(store, show=load_show([file]))
+    assert list(s.automaton.cells) == best and s.automaton.generation == 0  # pair 1: its longest seed at 32 cells
+    s.handle_key("N")  # pair 2 has no seeds: random
+    assert list(s.automaton.cells) != best and len(s.automaton.cells) == 32
+    s.handle_key("N")  # back to pair 1: the seed again
+    assert list(s.automaton.cells) == best
+    s.handle_key("i")  # a manual re-seed is random, as ever
+    assert list(s.automaton.cells) != best
+    assert s.resize(33, 16)
+    s.handle_key("N")
+    s.handle_key("N")  # pair 1 at 33 cells: that width's seed
+    assert list(s.automaton.cells) == wrong_width
+    script = tmp_path / "seeded.play"  # a script show carries the seeds of every file it imports
+    script.write_text("import seeded.odca\nplay\n")
+    assert list(make_session(store, show=load_show([script])).automaton.cells) == best
+
+
 def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33
     store = review_store(make_store)
     s = make_session(store)

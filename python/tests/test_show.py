@@ -46,13 +46,13 @@ def test_a_script_plays_what_it_imports(tmp_path):  # PT-38, R-X7
     save_odca_file([PAIR, PAIR], tmp_path / "sub" / "two pairs.odca")
     script = tmp_path / "sub" / "show.play"
     script.write_text('import ../one.odca   # relative to the script\nimport "two pairs.odca"\nplay\n')
-    assert load_script(script) == ([PAIR, PAIR, PAIR], False)
+    assert load_script(script) == ([PAIR, PAIR, PAIR], False, {})
     script.write_text('import ../one.odca\nshuffle\n')  # R-X7: the pairs shuffled per pass
-    assert load_script(script) == ([PAIR], True)
+    assert load_script(script) == ([PAIR], True, {})
     script.write_text("import ../one.odca\n")  # imports without play: nothing plays
-    assert load_script(script) == ([], False)
+    assert load_script(script) == ([], False, {})
     script.write_text("shuffle\n")  # a play word without imports: nothing to play
-    assert load_script(script) == ([], True)
+    assert load_script(script) == ([], True, {})
     script.write_text("import gone.odca\nplay\n")
     with pytest.raises(ShowError) as e:
         load_script(script)
@@ -79,10 +79,15 @@ def test_the_show_is_one_segment_per_file(tmp_path):  # PT-38, R-X1
     shuffled = tmp_path / "shuffled.play"
     shuffled.write_text("import one.odca\nshuffle\n")
     show = load_show([script, tmp_path / "one.odca", tmp_path / "empty.odca", shuffled])
-    assert show == [{"file": "show.play", "pairs": [PAIR, PAIR], "shuffle": False},  # a script: what it plays
-                    {"file": "one.odca", "pairs": [PAIR], "shuffle": False},  # an odca file: import it, play it
-                    {"file": "empty.odca", "pairs": [], "shuffle": False},
-                    {"file": "shuffled.play", "pairs": [PAIR], "shuffle": True}]  # R-X7
+    assert show == [{"file": "show.play", "pairs": [PAIR, PAIR], "shuffle": False, "seeds": {}},  # a script: what it plays
+                    {"file": "one.odca", "pairs": [PAIR], "shuffle": False, "seeds": {}},  # an odca file: import it, play it
+                    {"file": "empty.odca", "pairs": [], "shuffle": False, "seeds": {}},
+                    {"file": "shuffled.play", "pairs": [PAIR], "shuffle": True, "seeds": {}}]  # R-X7
+    # Seeds travel with the segment: an odca file's own, a script's from every import (R-X4).
+    seed = {"row": [0] * 8, "generations": 3, "end": "state 3 extinct"}
+    save_odca_file([PAIR], tmp_path / "one.odca", seeds={PAIR["rule"]: {8: [seed]}})
+    assert load_show([tmp_path / "one.odca"])[0]["seeds"] == {PAIR["rule"]: {8: [seed]}}
+    assert load_show([script])[0]["seeds"] == {PAIR["rule"]: {8: [seed]}}
     (tmp_path / "show.txt").write_text("import one.odca\nplay\n")
     assert load_show([tmp_path / "show.txt"])[0]["pairs"] == [PAIR]  # any other extension is a script
     with pytest.raises(ShowError):

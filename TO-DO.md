@@ -1,16 +1,18 @@
 # ODCA to-do
 
 **YOU ARE HERE (2026-09-09):** Spec 3.36.0, Swift 3.36.0, Python
-3.35.0. Swift 3.36.0: `odca-evolve` (section 4e), the user's side path
+3.37.0 (the player side of the seeds; no odca-evolve in Python yet).
+Swift 3.36.0: `odca-evolve` (section 4e), the user's side path
 — for each rule in an odca file, random rows of `--cells` evolved until
 extinction (R-A1's first clause only, by the user's decision; a cap,
 `--cap`, default 100000, for immortals), the ten longest-lived kept and
 written into the file's new `seeds` section by rule and width, `--time`
 seconds per rule, a worker per processor, a countdown on a terminal,
 Ctrl-C writes and stops; `odca` opens a pair from its best seed at the
-exact screen width (R-X4). Swift only at the user's direction; Python's
-player catches up next (read seeds on arrival, carry the section
-through odca-select's rewrite), a Python search is a later call. The
+exact screen width (R-X4). The search is Swift only at the user's
+direction; Python 3.37.0 has the player side (seeds on arrival, the
+section carried through odca-select's rewrite), a Python search is a
+later call. The
 user is working from a copy of the file. Earlier today, Python 3.35.0
 swapped upstream `pygame` for `pygame-ce`:
 the user's fresh clone on Ubuntu with Python 3.14 could not install,
@@ -329,8 +331,8 @@ viewer sees. Roadmap, roughly in order:
       Swift only for now; the user works from a copy, so odca-select
       carrying the `seeds` section through is done on the Swift side
       but was not required. Still open under this heading:
-  - [ ] Python: the player reads seeds on arrival (R-X4) and odca-select
-        carries the section through (R-P3) — due next.
+  - [x] (3.37.0) Python: the player reads seeds on arrival (R-X4) and
+        odca-select carries the section through (R-P3).
   - [ ] Python odca-evolve (worker processes), if the user wants the Pi
         grinding overnight.
   - [ ] Periodicity as a second kind of boring for the search, when the

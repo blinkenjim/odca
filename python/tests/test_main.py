@@ -60,7 +60,7 @@ def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
     play.main([str(file), "--1"])
     play.main(["--watchdog", "20", str(file), "--grace", "10"])
     clocks = {"play_timeout": 120.0, "play_grace": 60.0}  # the defaults (R-X2, R-X3)
-    show = [{"file": "show.odca", "pairs": [], "shuffle": False}]
+    show = [{"file": "show.odca", "pairs": [], "shuffle": False, "seeds": {}}]
     assert calls == [({"show": show, "shuffle": False, **clocks}, True, 2),  # 2-point cells by default
                      ({"show": show, "shuffle": True, **clocks}, False, 2),
                      ({"show": show, "shuffle": False, **clocks}, False, 1),

@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.35.0 — 2026-09-09 (spec 3.36.0 not yet followed: no `odca-evolve` here, and the player does not yet read seeds; `pygame-ce` replaces upstream `pygame`; 3.33.0: `shuffle` a statement of its own, line-buffered output; 3.31.0: a script shuffles its pairs; 3.29.0: play scripts: `show.py` over the C parser in `odca/cshow/`, built by `setup.py`; 3.27.0: pairs, named; 2-point default; 3.25.0: navigation scrolls the pair in; 3.23.0: a mutated pair saves as a new pair; 3.21.0: `--3`; 3.19.0: `U` undoes all; 3.17.0: `m` edits the pair under review; 3.15.0: `--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.37.0 — 2026-09-09 (the player opens a pair from its recorded seed and the store carries `seeds` through; no `odca-evolve` here yet; 3.35.0: `pygame-ce` replaces upstream `pygame`; 3.33.0: `shuffle` a statement of its own, line-buffered output; 3.31.0: a script shuffles its pairs; 3.29.0: play scripts: `show.py` over the C parser in `odca/cshow/`, built by `setup.py`; 3.27.0: pairs, named; 2-point default; 3.25.0: navigation scrolls the pair in; 3.23.0: a mutated pair saves as a new pair; 3.21.0: `--3`; 3.19.0: `U` undoes all; 3.17.0: `m` edits the pair under review; 3.15.0: `--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -11,9 +11,15 @@ copy these choices, but they are known to work.
 `odca-evolve` (section 4e) is Swift-only for now, at the user's
 direction; a Python one would use worker *processes*, as the candidate
 search does, since the search is pure computation under the GIL. The
-player-side half — `odca` starting a pair from its best recorded seed
-(R-X4), and `odca-select` carrying a file's `seeds` section through a
-rewrite (R-P3) — is small and due at the next Python release.
+player-side half is here since 3.37.0: `store.load_seeds` reads a
+file's `seeds` section (R-P3), `save_odca_file` carries it through when
+called without seeds (odca-select's path) and writes a given map with
+`json.dumps(indent=1)`, which is the layout the Swift writer matches;
+`show.load_show` puts each segment's seeds beside its pairs; and
+`Session._play_pair` hands `init_cells` the longest-lived row for the
+pair's rule at exactly `cols` (R-X4). The conformance runner does not
+run the `lifetimes` vectors, as TESTS.md allows while section 4e is
+absent.
 
 ## Environment
 

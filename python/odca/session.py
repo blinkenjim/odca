@@ -689,8 +689,13 @@ class Session:
         """`<name> <colorset>` for the R-O4 / R-O13 lines; a nameless pair shows its set only."""
         return f"{pair['name']} {pair['colorset']}" if pair.get("name") else pair["colorset"]
 
-    def init_cells(self):  # R-K6
-        self.automaton.reset("random")
+    def init_cells(self, row=None):
+        """Re-seed (R-K6): random cells, or `row` when given and it fits the
+        width — a recorded seed on arriving at a pair (R-X4)."""
+        if row is not None and len(row) == self.cols:
+            self.automaton.reset(np.array(row, dtype=np.uint8))
+        else:
+            self.automaton.reset("random")
         self._push(self.automaton.cells)
         self._reset_boredom()
         self.since_init = 0.0  # R-X3: any initialization restarts the grace period
@@ -899,7 +904,10 @@ class Session:
             self._set_rule(rule)
         self._undo_mark = len(self.undo_stack)  # R-K19: U returns to the pair as played
         self._show_colors(pair["colorset"], pair["colors"])
-        self.init_cells()
+        # R-X4: the longest-lived recorded seed for this rule at exactly this
+        # width, when the file has one; a random row otherwise.
+        seeds = self.show[segment].get("seeds", {}).get(pair["rule"], {}).get(self.cols, [])
+        self.init_cells(seeds[0]["row"] if seeds else None)
         self.play_elapsed = 0.0  # the pair's screen time starts now
         if entered and len(self.show) > 1:
             print(f"playing {self.show[segment]['file']}")  # R-O13: the show moves to another file

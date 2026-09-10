@@ -66,16 +66,89 @@ def load_odca_file(path):
     return pairs
 
 
-def save_odca_file(pairs, path):
-    """Write an odca file (R-P3) in the shared layout: name (when the pair has one), rule, colorset, colors."""
+SEEDS_KEPT = 10  # seeds kept per rule and width (R-E3)
+
+
+def merge_seeds(*lists):
+    """The ten to keep out of any number (R-E3): longest first, ties by row
+    text, identical rows counted once. A seed is {'row': [states],
+    'generations': int, 'end': str}."""
+    seen, merged = set(), []
+    for seed in (s for lst in lists for s in lst):
+        key = tuple(seed["row"])
+        if key not in seen:
+            seen.add(key)
+            merged.append(seed)
+    merged.sort(key=lambda s: (-s["generations"], "".join(map(str, s["row"]))))
+    return merged[:SEEDS_KEPT]
+
+
+def merge_seed_maps(a, b):
+    """Seeds by rule and width, merged list by list."""
+    out = {rule: dict(by_width) for rule, by_width in a.items()}
+    for rule, by_width in b.items():
+        for width, lst in by_width.items():
+            out.setdefault(rule, {})[width] = merge_seeds(out.get(rule, {}).get(width, []), lst)
+    return out
+
+
+def load_seeds(path):
+    """The file's seeds (R-P3, section 4e): {rule id: {width: [seeds]}}, each
+    list longest first. Empty when the file is missing, unparseable, or has
+    none; malformed entries are skipped."""
+    try:
+        section = json.loads(Path(path).read_text()).get("seeds", {})
+    except (OSError, ValueError, AttributeError):
+        return {}
+    seeds = {}
+    for rule_id, by_width in section.items() if isinstance(section, dict) else []:
+        try:
+            Rule.from_id(str(rule_id))
+        except ValueError:
+            continue
+        for key, entries in by_width.items() if isinstance(by_width, dict) else []:
+            if not (isinstance(key, str) and key.isdigit()) or int(key) < 3 or not isinstance(entries, list):
+                continue
+            width, kept = int(key), []
+            for e in entries:
+                try:
+                    text, generations, end = str(e["row"]), e["generations"], str(e["end"])
+                except (KeyError, TypeError):
+                    continue
+                if (len(text) == width and all(c in "0123" for c in text)
+                        and isinstance(generations, int) and generations >= 0):
+                    kept.append({"row": [int(c) for c in text], "generations": generations, "end": end})
+            if kept:
+                seeds.setdefault(str(rule_id), {})[width] = merge_seeds(kept)
+    return seeds
+
+
+def save_odca_file(pairs, path, seeds=None):
+    """Write an odca file (R-P3) in the shared layout: each pair as name (when
+    it has one), rule, colorset, colors; then `seeds` by rule (sorted) and
+    width (ascending, as a string), each seed as row, generations, end,
+    when there are any. With `seeds` None the file's existing seeds are
+    carried through unchanged (odca-select never touches them)."""
     path = Path(path)
+    if seeds is None:
+        seeds = load_seeds(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     entries = []
     for p in pairs:
         e = {"name": p["name"]} if p.get("name") is not None else {}
         e.update({"rule": p["rule"], "colorset": p["colorset"], "colors": list(p["colors"])})
         entries.append(e)
-    path.write_text(json.dumps({"pairs": entries}, indent=1) + "\n")
+    root = {"pairs": entries}
+    section = {}
+    for rule_id in sorted(seeds):
+        widths = {w: lst for w, lst in seeds[rule_id].items() if lst}
+        if widths:
+            section[rule_id] = {str(w): [{"row": "".join(map(str, s["row"])), "generations": s["generations"],
+                                          "end": s["end"]} for s in merge_seeds(widths[w])]
+                                for w in sorted(widths)}
+    if section:
+        root["seeds"] = section
+    path.write_text(json.dumps(root, indent=1) + "\n")
 
 
 def next_pair_name(pairs):

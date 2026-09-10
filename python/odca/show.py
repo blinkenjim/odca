@@ -12,7 +12,7 @@ import importlib.util
 import json
 from pathlib import Path
 
-from .store import load_odca_file
+from .store import load_odca_file, load_seeds, merge_seed_maps
 
 
 class ShowError(Exception):
@@ -65,10 +65,11 @@ def _is_odca_file(path):
 
 
 def load_script(path):
-    """What a script plays (R-X7): (pairs, shuffle) — every pair of every
-    imported odca file in import order, or none when the script says
-    neither `play` nor `shuffle`, and which of the two it said. Imports are
-    relative to the script's directory."""
+    """What a script plays (R-X7): (pairs, shuffle, seeds) — every pair of
+    every imported odca file in import order, or none when the script says
+    neither `play` nor `shuffle`; which of the two it said; and the seeds
+    of every imported file, merged (R-X4). Imports are relative to the
+    script's directory."""
     path = Path(path)
     try:
         text = path.read_text(encoding="utf-8")
@@ -78,7 +79,7 @@ def load_script(path):
         statements = parse(text)
     except ShowError as e:
         raise ShowError(f"{path}:{e}") from None
-    pairs, plays, shuffle = [], False, False
+    pairs, seeds, plays, shuffle = [], {}, False, False
     for statement in statements:
         if "import" in statement:
             name = statement["import"]
@@ -88,24 +89,26 @@ def load_script(path):
             if not _is_odca_file(target):
                 raise ShowError(f"{path}:{statement['line']}: {name} is not an odca file")
             pairs.extend(load_odca_file(target))
+            seeds = merge_seed_maps(seeds, load_seeds(target))
         else:
             plays, shuffle = True, "shuffle" in statement
-    return (pairs, shuffle) if plays else ([], False)
+    return (pairs, shuffle, seeds) if plays else ([], False, {})
 
 
 def load_show(files):
     """The show for odca's command line (R-X1): one segment per file, in
-    the order given, {'file': name, 'pairs': [...], 'shuffle': bool}. A
-    `.odca` file is its own script: import it, play it, unshuffled.
-    Anything else is a play script."""
+    the order given, {'file': name, 'pairs': [...], 'shuffle': bool,
+    'seeds': {rule: {width: [...]}}} (the recorded seeds of every odca
+    file behind the segment, R-X4). A `.odca` file is its own script:
+    import it, play it, unshuffled. Anything else is a play script."""
     segments = []
     for file in files:
         file = Path(file)
         if file.suffix == ".odca":
-            pairs, shuffle = load_odca_file(file), False
+            pairs, shuffle, seeds = load_odca_file(file), False, load_seeds(file)
             if pairs is None:
                 raise ShowError(f"{file}: cannot read")
         else:
-            pairs, shuffle = load_script(file)
-        segments.append({"file": file.name, "pairs": pairs, "shuffle": shuffle})
+            pairs, shuffle, seeds = load_script(file)
+        segments.append({"file": file.name, "pairs": pairs, "shuffle": shuffle, "seeds": seeds})
     return segments

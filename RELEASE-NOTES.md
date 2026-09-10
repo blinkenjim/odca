@@ -5,6 +5,16 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.37.0 (Python) — 2026-09-09
+
+The Python player catches up with the seeds. `odca` opens a pair from
+its longest-lived recorded seed when the file has one for exactly the
+width on screen, `odca-select` carries a file's `seeds` section through
+untouched, and scripts pass along the seeds of the files they import.
+The file is written in the same bytes from either side. `odca-evolve`
+itself is still Swift-only; run it on the Mac, and the Pi will play
+what it finds.
+
 ## 3.36.0 (Swift, spec) — 2026-09-09
 
 A third program, and the first side path: **`odca-evolve`** looks for

@@ -1,7 +1,7 @@
 import numpy as np
 
 from odca.automaton import Rule
-from odca.store import load_odca_file, load_rule, save_odca_file, save_rule
+from odca.store import load_odca_file, load_rule, load_seeds, merge_seeds, save_odca_file, save_rule
 
 
 def test_save_and_load_round_trip(tmp_path):
@@ -127,3 +127,41 @@ def test_odca_file_edge_cases(tmp_path):  # PT-29
     assert '\\"hi\\"' in path.read_text()
     path.write_text("{not json")
     assert load_odca_file(path) == []
+
+
+def test_seeds_round_trip_layout_and_carry_through(tmp_path):  # PT-43, R-P3
+    kills3, all_zero = "3" + "1" * 19, "0" * 20
+    file = tmp_path / "pairs.odca"
+    pair = {"name": "pair-0000", "rule": kills3, "colorset": "ODCA default",
+            "colors": ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]}
+    def seed(text, generations, end="state 3 extinct"):
+        return {"row": [int(c) for c in text], "generations": generations, "end": end}
+    save_odca_file([pair], file, seeds={kills3: {8: [seed("31111111", 1), seed("33331111", 3)]},
+                                        all_zero: {8: [seed("01230123", 50, "survived")]}})
+    reference = (  # what the Swift writer produces for the same content (its test holds the same text)
+        '{\n "pairs": [\n  {\n   "name": "pair-0000",\n   "rule": "31111111111111111111",\n'
+        '   "colorset": "ODCA default",\n   "colors": [\n    "#121218",\n    "#EBEBE1",\n    "#FFA136",\n'
+        '    "#409CFF"\n   ]\n  }\n ],\n "seeds": {\n  "00000000000000000000": {\n   "8": [\n    {\n'
+        '     "row": "01230123",\n     "generations": 50,\n     "end": "survived"\n    }\n   ]\n  },\n'
+        '  "31111111111111111111": {\n   "8": [\n    {\n     "row": "33331111",\n     "generations": 3,\n'
+        '     "end": "state 3 extinct"\n    },\n    {\n     "row": "31111111",\n     "generations": 1,\n'
+        '     "end": "state 3 extinct"\n    }\n   ]\n  }\n }\n}\n')
+    assert file.read_text() == reference
+    assert load_odca_file(file) == [pair]
+    loaded = load_seeds(file)
+    assert loaded[kills3][8] == [seed("33331111", 3), seed("31111111", 1)]  # longest first
+    assert loaded[all_zero][8] == [seed("01230123", 50, "survived")]
+    save_odca_file([pair, pair], file)  # odca-select's path carries the section through
+    assert load_seeds(file) == loaded and len(load_odca_file(file)) == 2
+    save_odca_file([pair], file, seeds={})  # no seeds: no section
+    assert "seeds" not in file.read_text() and load_seeds(file) == {}
+    file.write_text('{"pairs": [], "seeds": {"%s": {"8": [{"row": "3111111", "generations": 1, "end": "x"},'
+                    ' {"row": "3111111a", "generations": 1, "end": "x"}, {"row": "31111111", "generations": 2,'
+                    ' "end": "state 3 extinct"}], "2": [{"row": "31", "generations": 1, "end": "x"}]},'
+                    ' "nonsense": {"8": []}}}' % kills3)
+    assert load_seeds(file) == {kills3: {8: [seed("31111111", 2)]}}  # malformed entries skipped
+    twelve = [seed("".join("3" if b == "1" else "1" for b in format(n, "08b")), n * 10) for n in range(12)]
+    merged = merge_seeds(twelve)
+    assert [s["generations"] for s in merged] == [110, 100, 90, 80, 70, 60, 50, 40, 30, 20]
+    assert merge_seeds(merged, merged) == merged
+    assert [ "".join(map(str, s["row"])) for s in merge_seeds([seed("11111131", 5), seed("11111113", 5)])] == ["11111113", "11111131"]
