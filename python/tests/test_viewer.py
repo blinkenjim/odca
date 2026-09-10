@@ -147,3 +147,15 @@ def test_fit_to_width_keeps_the_aspect():  # PT-44, R-X8
     assert fit_to_width(1200, 800, 600, 2) == (1.0, 400) and is_whole(1.0)
     assert fit_to_width(600, 50, 600, 2) == (0.5, 50)  # scaled down
     assert fit_to_width(600, 0, 600, 2)[1] == 1  # one row at least
+
+
+def test_render_counter_is_yellow_with_a_black_outline():  # R-U11
+    from odca.viewer import COUNTER_OUTLINE_WIDTH, render_counter
+    pygame.font.init()
+    surface = render_counter("12/40", pygame.font.Font(None, 40))
+    pixels = {tuple(surface.get_at((x, y)))[:3] for x in range(surface.get_width()) for y in range(surface.get_height())
+              if surface.get_at((x, y))[3] > 0}
+    assert (255, 255, 0) in pixels and (0, 0, 0) in pixels  # yellow glyphs and black around them
+    plain = pygame.font.Font(None, 40).render("12/40", True, (255, 255, 0))
+    assert surface.get_width() == plain.get_width() + 2 * COUNTER_OUTLINE_WIDTH  # room for the outline
+    assert surface.get_height() == plain.get_height() + 2 * COUNTER_OUTLINE_WIDTH

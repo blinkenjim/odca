@@ -26,6 +26,11 @@ from .session import Session  # noqa: E402
 
 FPS = 60  # refresh cap when the display cannot pace us (no vsync)
 COUNTER_INTERVAL = 0.2  # the generation counter on the terminal refreshes five times a second (R-O17)
+COUNTER_FONT_SIZE = 48  # the on-screen counter in full screen (R-U11), pixels
+COUNTER_INSET = 24  # from the lower-left corner
+COUNTER_COLOR = (255, 255, 0)  # yellow
+COUNTER_OUTLINE = (0, 0, 0)  # black, this many pixels around the glyphs
+COUNTER_OUTLINE_WIDTH = 2
 VSYNC_FPS_CAP = 240  # with vsync the display paces; this only bounds a runaway loop
 MIN_WINDOW = (160, 120)  # the smallest window in pixels, whatever the cell size (R-U2)
 
@@ -89,6 +94,25 @@ class TerminalStatus:
         return getattr(self.stream, name)
 
 
+def render_counter(text, font=None):
+    """The on-screen generation counter (R-U11): yellow text with a black
+    outline, on a transparent surface. The outline is the text drawn in
+    black at every offset within the outline width, the yellow on top."""
+    if font is None:
+        pygame.font.init()
+        font = pygame.font.Font(None, COUNTER_FONT_SIZE)
+    w = COUNTER_OUTLINE_WIDTH
+    yellow = font.render(text, True, COUNTER_COLOR)
+    black = font.render(text, True, COUNTER_OUTLINE)
+    surface = pygame.Surface((yellow.get_width() + 2 * w, yellow.get_height() + 2 * w), pygame.SRCALPHA)
+    for dx in range(-w, w + 1):
+        for dy in range(-w, w + 1):
+            if dx * dx + dy * dy <= w * w:
+                surface.blit(black, (w + dx, w + dy))
+    surface.blit(yellow, (w, w))
+    return surface
+
+
 def fit_to_width(width, height, cols, cell):
     """--longest (R-X8): the grid stretched to the window's width with its
     aspect kept: (factor, rows), the on-screen cell being cell * factor
@@ -123,6 +147,7 @@ class Viewer:
         self.fixed_cols = fixed_cols  # --longest (R-X8): the grid is this wide whatever the window
         self.factor = 1.0  # R-X8: the grid's scale, the window's width over the grid's natural width
         self._smooth = False  # the texture's filter: linear for a fractional factor
+        self._counter = None  # R-U11: (text, Texture) of the on-screen counter, full screen only
         if session is None:
             session = Session(*grid_size(width, height, cell_size))
         self.session = session
@@ -177,6 +202,17 @@ class Viewer:
         renderer.set_viewport(pygame.Rect(x, y, w, h))
         self._texture.draw(dstrect=pygame.Rect(0, -int(round(session.scroll_offset * cell)), w, int(round(h + cell))))
         renderer.set_viewport(None)
+        if self._counter is not None:  # R-U11: the counter in the lower-left corner
+            texture = self._counter[1]
+            texture.draw(dstrect=pygame.Rect(COUNTER_INSET, self.height - COUNTER_INSET - texture.height,
+                                             texture.width, texture.height))
+
+    def show_counter(self, renderer, text):
+        """Set the on-screen counter's text (None hides it), rendering afresh only when it changes."""
+        if text is None:
+            self._counter = None
+        elif self._counter is None or self._counter[0] != text:
+            self._counter = (text, Texture.from_surface(renderer, render_counter(text)))
 
     def toggle_full_screen(self, window):
         """`F` (R-K18): leave full screen if in it, by either route, else enter
@@ -252,9 +288,12 @@ class Viewer:
                 window.title = new_title
                 title = new_title
             since_counter += dt
-            if since_counter >= COUNTER_INTERVAL and status is not None and session.counter is not None:
+            if since_counter >= COUNTER_INTERVAL and session.counter is not None:
                 since_counter = 0.0
-                status.show(session.counter)  # R-O17: five times a second
+                if status is not None:
+                    status.show(session.counter)  # R-O17: five times a second
+                # R-U11: on screen too, in full screen only, at the same beat
+                self.show_counter(renderer, session.counter if self.is_full_screen(*window.size) else None)
             renderer.present()  # blocks until the refresh when vsync is on
         if status is not None:
             print("", end="")  # clears the counter line (a write) before the prompt returns
