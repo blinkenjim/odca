@@ -5,6 +5,18 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.70.1 (Swift, spec) and 3.63.1 (Python) — 2026-09-10
+
+The rest of the self-consistency audit, settled one item at a time
+with the user: no behavior changes, only the spec and test plan
+brought into line with the programs (the undo stack, the paused keys,
+the startup position, the value-option rule, the auto-init reason,
+what `i` leaves alone, the rule-change and arrival lists, the ages
+line, the screenful gloss, section 4e's optionality for Python, and a
+few stale numbers), plus one help-text fix: `odca --longest` plays each
+seed "to the end that was measured, an extinction or a confirmed
+cycle", which both programs print.
+
 ## 3.70.0 (Swift, spec) and 3.63.0 (Python) — 2026-09-10
 
 In `odca`, `n` and `p` now step between pairs while paused, as `N` and

@@ -1,10 +1,12 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.70.0, Swift 3.70.0, Python
-3.63.0: working through a self-consistency audit of REQTS the user
-had another Claude produce (items settled one at a time; 1–3 done:
-R-E5 wording, R-W3 arrangement, `n`/`p` live while paused in odca with
-R-K10 completed; items 4–11 and the stale/gap lists pending). Swift 3.68.0: the parity plan line counts the round trip's
+**YOU ARE HERE (2026-09-10):** Spec 3.70.1, Swift 3.70.1, Python
+3.63.1: a self-consistency audit of REQTS that the user had another
+Claude produce is fully settled, item by item with the user (eleven
+contradictions, three stale numbers, nine gaps); one behavior change
+came of it (3.70.0: `n`/`p` live while paused in odca), the rest is
+spec, test plan, and help text. The audit approach worked well; a
+repeat after the next few releases would be cheap. Swift 3.68.0: the parity plan line counts the round trip's
 rules, skips, and runs, and each running rule's line gives its place
 among those that run. Swift 3.66.0: ten survivors end a rule's turn early (R-E3). Swift 3.64.0: odca-evolve round trips until Ctrl-C (the user
 expected it to loop; it had made one pass), the parity plan is made up

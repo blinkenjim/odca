@@ -36,8 +36,9 @@ colors. The files play in turn, each its pairs in order, looping.
   --longest     play the seeds odca-evolve recorded instead: for every
                 pair with seeds at the width, its longest-lived seed, then
                 every pair's second longest, and so on, looping; each
-                plays to the extinction that was measured, with no
-                watchdog; seeds that survived the cap are left out, so a
+                plays to the end that was measured, an extinction or a
+                confirmed cycle, with no watchdog; seeds that survived
+                the cap are left out, so a
                 rule with nothing but survivors is left out. The window
                 opens as wide as the seeds, and the picture is scaled to
                 the width it has, cells staying square. With --shuffle

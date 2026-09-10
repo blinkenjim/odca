@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.70.0 — 2026-09-10
+Version 3.70.1 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -93,7 +93,10 @@ ten survivors end a turn early — R-E3, R-O16. 3.68.0: the parity plan
 line counts the round trip's rules, and each running rule its place
 among those that run — R-E5, R-O16. 3.70.0: `n`/`p` live while paused
 in `odca`, as `N`/`P` are; the paused-key list completed — R-K10, R-X6;
-clarifications from a self-consistency audit — R-E5, R-W3.)
+clarifications from a self-consistency audit — R-E5, R-W3. 3.70.1: the
+rest of that audit — R-O17, R-P3, R-U1, R-K4, R-K10, R-U9, R-X8, R-A2,
+R-K6, R-B1, R-K19, R-W9 (wording and place), R-O16, R-N2, R-U4, section
+4e's optionality; the `odca` help text on cycle-ended seeds.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -210,13 +213,13 @@ odca file of `odca-select`, section 4c; the show of `odca`, section 4d;
 4. Begin evolving and displaying immediately, in wrap mode.
 5. Load the persisted candidate stash (R-P2) and start the background
    search (R-S).
-6. Set the interesting-rule cycle position: if the loaded rule equals a
-   saved rule, on that rule's first occurrence with the unsaved slot
-   empty; otherwise on the unsaved slot, which holds the loaded rule
-   (R-B3). In 3.0.0 this reads: `odca-select` on a file with pairs opens
-   on pair 1 with the unsaved slot empty (R-W1); on an empty or missing
-   file the loaded rule occupies the unsaved slot. `odca` plays the
-   show's first pair at once (R-X1).
+6. Set the cycle position: `odca-select` on a file with pairs opens on
+   pair 1 (under `--longest`, on the first pair shown, R-W9) with the
+   unsaved slot empty (R-W1); on an empty or missing file the loaded
+   rule occupies the unsaved slot (R-B3). `odca` plays the show's first
+   pair at once (R-X1). (From 1.1 to 2.x the position went to the
+   loaded rule's first occurrence among the saved rules; since 3.0.0
+   the file's order wins.)
 
 **R-U2 (display geometry).** (Under `odca --longest` the grid is scaled
 to the window's width, R-X8; the rest of this requirement describes the
@@ -268,7 +271,9 @@ slots exist, bound to the digit keys `0`–`9`, loaded at startup from the
 shared library (R-P4); a slot the file does not define is
 undefined, and selecting it is a silent no-op. Slot 1 is the built-in
 default, `ODCA default`, defined even without the file, and is active at
-startup. The shipped file must define exactly these digit-bound sets
+startup until a pair's colors take over, which on a file with pairs
+they do at once (R-W1, R-X4). The shipped file must define exactly
+these digit-bound sets
 (this table is normative; a review session that changes the slots is a
 spec change made here, and a test holds the file to the table):
 
@@ -369,8 +374,13 @@ every flag and key. Changing a text is a spec change made in that file.
 Other command-line errors: a missing positional argument (or, for
 `odca-select`, an extra one) or an
 unknown option prints a one-line usage message and exits with status 2,
-as does an option that takes a value (`--watchdog`, `--grace`) given
-none, or one that is not a positive whole number;
+as does an option that takes a value (`--watchdog`, `--grace`,
+`--cells`, `--time`, `--cap`, `--limit`) given none, or a value that is
+not a whole number in the option's range — 1 or more unless the option
+says otherwise, `--cells` 3 or more (R-M2) and `--limit` 0 or more
+(R-E5); the message names the option and its unit, `<program>:
+<option> needs a whole number of <unit>`, with ` (3 or more)` appended
+for `--cells`;
 `odca` on a file that does not exist prints `error: <file> does not exist`
 and exits with status 1.
 
@@ -404,9 +414,10 @@ the file (R-W4) — a kept rule is never overwritten by a mutation, since a
 mutant is a different rule. Otherwise the mutation occupies the unsaved
 slot (R-B3). Cells are not reinitialized.
 
-**R-K4 (`u` — undo).** Rule changes (from `r`, `m`, `n`, `p`, `u`) push
+**R-K4 (`u` — undo).** Rule changes from `r`, `m`, `n`, and `p` push
 the outgoing rule onto an unbounded undo stack; `u` pops the stack and
-makes that rule current per R-B1. With an empty stack, `u` is a silent
+makes that rule current per R-B1, pushing nothing, so a run of `u`
+walks back through the changes in order. With an empty stack, `u` is a silent
 no-op. Undo does not alter the interesting-rule cycle position or the
 unsaved slot. `U` undoes many at once (R-K19).
 
@@ -425,8 +436,11 @@ confirmation (R-O12). Neither moves the cycle position. In `odca` the
 file is read-only and both keys do nothing.
 
 **R-K6 (`i` — initialize).** Set every cell to an independent uniformly
-random state. The rule, scroll buffer, and all other state are unchanged
-(the new row simply enters the scroll).
+random state (under `odca --longest`, to the item's seed row again,
+R-X8). The rule, the scroll buffer, the undo stack, the cycle position,
+and the colors are unchanged, the new row simply entering the scroll;
+the boring detectors start afresh (R-A3) and, in `odca`, the grace
+period restarts (R-X3).
 
 **R-K7 (`n` / `p` — cycle pairs).** See section 4; in `odca` they act as
 `N`/`P` (R-X6).
@@ -449,8 +463,9 @@ the spacebar, Return (R-K11), `s` (R-K13), `c`/`C` (R-K15), `[`/`]`
 (R-K17), the digits (R-K9), the pair keys `S`, `X`, `R` (section 4c) and
 `N`/`P` and, in `odca`, `n`/`p` (R-X6), `F` (R-K18), `o` (R-K20), and `q` is ignored; `q` quits normally. Those keys
 touch colors and files, never the running computation (the re-seed that
-navigation makes, R-W8, is the exception, being part of the navigation;
-the new field then waits for the resume), so they remain live. Pausing does not stop the background
+navigation makes, R-W8, and the screenful a color set review step fills,
+R-V7, are the exceptions, being part of the navigation; the new field
+then waits for the resume), so they remain live. Pausing does not stop the background
 search (R-S).
 
 **R-K11 (Return — single step).** While paused, Return computes and
@@ -506,8 +521,10 @@ persisted. Live while paused, like `F` (R-K18); nothing elsewhere.
 
 **R-K19 (`U` — undo all).** Undo, in one step, every rule change made
 since the last *arrival*: the pair under review being selected (R-B2),
-`r` bringing a fresh rule to the unsaved slot (R-B3), or, in `odca`, the
-pair starting to play (R-X4); before any arrival, since startup. A
+`r` bringing a fresh rule to the unsaved slot (R-B3), `s` on a mutated
+pair moving the position onto the pair it saved (R-W4; not under
+`--longest`, where the position stays, R-W9), or, in `odca`, the pair
+starting to play (R-X4); before any arrival, since startup. A
 mutation is an edit, never an arrival, on the unsaved slot as on a pair. The stack
 (R-K4) is unwound to that depth and the rule beneath becomes current per
 R-B1; the position, the unsaved slot, and the colors are untouched, so on
@@ -523,9 +540,10 @@ persisted.
 
 ## 4. The pair cycle (R-B)
 
-**R-B1 (rule change).** Whenever the current rule changes — via `r`, `m`,
-`u`, `n`, or `p` — the program must persist it as the current rule (R-P1)
-and print it (R-O1).
+**R-B1 (rule change).** Whenever the current rule changes, by whatever
+key or transition (`r`, `m`, `u`, `U`, `n`/`p`, `N`/`P`, the activation
+after `X`, a pair starting to play in `odca`), the program must persist
+it as the current rule (R-P1) and print it (R-O1).
 
 **R-B2 (the cycle).** In `odca-select`, the pairs of the odca file (R-P3),
 in *view order* (file order, or grouped by rule after `R`, R-W7), form a
@@ -600,8 +618,11 @@ classified.
 **R-A2 (trigger).** When the mode is on and the most recent `rows`
 consecutive generations were all boring — the display shows nothing but
 boring rows — the program re-initializes every cell exactly as `i` does
-(R-K6) and prints the reason (R-O6). The reason is the extinction, when
-present, else the repetition.
+(R-K6) and prints the reason (R-O6). The reason is the most recent
+generation's, the one that completed the screenful, taken in R-A1's
+order of precedence: the extinction when present, else the confirmed
+cycle (`repeating (period N)`), else the repetition, else the
+stagnation.
 
 **R-A3 (reset).** The consecutive-boring count and the repetition window
 reset on any rule change (R-B1) and on any re-initialization, manual or
@@ -731,13 +752,6 @@ once, as everything in `odca-select` does (R-X5); nothing is computed
 ahead. (2.24.1 to 3.22.0 filled the screen with a screenful at once
 instead; withdrawn as jarring beside `odca`.)
 
----
-
-## 4d. odca (R-X)
-
-The art: play a *show* — the pairs (R-P3) of one or more files, one
-after another.
-
 **R-W9 (`--longest`).** `odca-select <file.odca> --longest` behaves as
 without the flag except in which pairs it presents: only those whose
 rule has seeds in the file (R-P3, section 4e) at any width, survivors
@@ -751,8 +765,9 @@ rule occupies the unsaved slot as for an empty file (R-W1). Nothing is
 seeded from the recorded rows: every activation re-seeds at random as
 R-W8 says. `s` rewrites the pair under review's colors in place and `S`
 appends as R-W4 says; a pair appended here joins the cycle only if its
-rule has seeds (a copy of a shown pair does; one made after `r`, or by
-`s` after a mutation, does not, and is saved but not shown), and the
+rule has seeds: a copy of a shown pair does; one made after `r`, or by
+`s` after a mutation, does only when the rule it landed on has seeds,
+and is otherwise saved but not shown; and the
 position stays on the pair under review rather than moving onto the
 new pair.
 `X` deletes the rule's seeds from the file, at every width, and leaves
@@ -762,6 +777,13 @@ is written at once with the seeds it has left, and the cycle moves on
 as after R-W5 (to the next shown pair, or, with none left, the rule on
 screen becomes the unsaved rule). Without the flag the file's seeds are
 carried through every write untouched.
+
+---
+
+## 4d. odca (R-X)
+
+The art: play a *show* — the pairs (R-P3) of one or more files, one
+after another.
 
 **R-X1 (entry and order).** `odca <file> [<file> ...] [--shuffle]` — one
 or more files, each a play script (R-X7) or an odca file (R-P3), which
@@ -900,7 +922,8 @@ extinction is not interesting almost by definition, so a rule with
 nothing but survivors has none and is left out of the show, as is a
 pair whose rule has no seeds at all. The width is the one width at which
 the files record playable seeds for their pairs' rules; when they record
-several, `--cells N` chooses (`error: seeds at 600, 1080 cells: choose
+several, `--cells N` chooses (N a whole number of 3 or more, R-U9;
+`error: seeds at 600, 1080 cells: choose
 one with --cells` without it; `error: no seeds at N cells (600, 1080)`
 for a width that has none); with no playable seed anywhere, `error: no
 seeds to play`. All of this is settled before any window opens, exit
@@ -917,10 +940,14 @@ and then the last one as it is (a single pair with seeds allows no such
 order and plays its seeds in whatever order the draw gives). Playing an
 item is R-X4 with the seed's row as the cells, generation 0, announced
 as R-O13 says. There are no clocks: an item plays until the boring
-detector fires by extinction or by a confirmed cycle (R-A2: a screenful
-of rows past the extinction or the cycle `odca-evolve` measured, which
-the same detector, run from the same seed, finds at the same
-generation), and the next item begins with that reason; the
+detector fires by extinction or by a confirmed cycle (R-A2: the same
+detector, run from the same seed, finds the extinction or the cycle
+`odca-evolve` measured at the same generation, and fires once a
+screenful of boring rows has followed it, which a confirmed cycle
+guarantees, while an extinction holds only as long as the state stays
+extinct: a state produced again restarts the count, so such an item may
+outlive its recorded lifetime by more than a screenful), and the next
+item begins with that reason; the
 screenful-based repetition and stagnation never end an item (only the
 streak restarts, so the cycle detection keeps pace with the recording),
 and auto-initialization never re-seeds in place. `i` (R-K6) restarts the
@@ -951,7 +978,10 @@ instead.)
 
 ## 4e. odca-evolve (R-E)
 
-The search: which starting rows keep a rule alive longest?
+The search: which starting rows keep a rule alive longest? Optional for
+an implementation until it ships the program: the Python implementation
+has the player side of this section (R-P3's seeds, R-X4, R-X8, R-W9)
+and no `odca-evolve` yet, at the user's direction.
 
 **R-E1 (entry).** `odca-evolve <file.odca> --cells N --time SECONDS
 [--cap N] [--parity [--limit N]]` — the file is the one required argument and must exist and
@@ -1101,8 +1131,9 @@ key that is not a rule ID — are skipped. Malformed pairs
 are skipped; an unparseable file loads as empty;
 a missing file is distinguishable from an empty one (R-W1). Written in the
 layout of R-P4. The repository ships `interesting.odca`, the collection of
-pairs kept so far, as an example (until 3.0.0 `interesting-rules.json`
-with a `pairs` key, which is no longer read).
+pairs kept so far, as an example (until 3.0.0 `interesting-rules.json`,
+whose `pairs` entries had the 2.x shape; that file is not read, even
+though 3.26.0 brought the key name back for the new shape).
 
 ---
 
@@ -1178,8 +1209,8 @@ The program prints single-line, human-readable status to standard output:
   newline) five times a second, and cleared before any other line is
   printed, so the pair and rule lines stand alone; when standard output
   is not a terminal the counter is not shown. Nothing else prints in
-  place. In full screen the same counter is also drawn on the picture
-  (R-U11).
+  place. The same counter is also drawn on the picture, in any window,
+  until `o` hides it (R-U11).
 - **R-O16.** In `odca-evolve` (section 4e), and nothing else, every
   line opening with the time then left on the rule's budget in the
   `hh:mm:ss` of R-E4 and a space, so the lines compare with each other
@@ -1195,7 +1226,8 @@ The program prints single-line, human-readable status to standard output:
   cells, skipped: shortest <s> × 0.9 outlives <l>` and nothing else;
   when a turn ends early on ten survivors (R-E3), `all ten survived the
   cap: turn ended early`; when the rule is done
-  (budget spent or interrupted), before the file is written and the next
+  (budget spent, interrupted, or ended early on ten survivors, R-E3),
+  before the file is written and the next
   rule taken up, the ages of the kept rows in generations, longest first,
   as bare numbers separated by `, ` (`4821, 3990, 2210, ...`; no line
   when none was kept); and on a terminal the countdown of R-E4. The R-O1
@@ -1294,8 +1326,9 @@ the quality of a modern 64-bit PRNG (PCG, xoshiro, Mersenne Twister).
 Cross-implementation reproducibility of random streams is *not* required.
 
 **R-N2.** The engine must sustain at least 16,384 generations/second on a
-300-cell row on commodity hardware (this is the top of the speed range,
-R-K8), display included.
+600-cell row, the default width (300, the 4-point default, until 3.26.0),
+on commodity hardware (this is the top of the speed range, R-K8),
+display included.
 
 **R-N3.** Screening throughput should permit interactive use: a
 synchronous `r` (empty stash) should typically return within a few hundred
