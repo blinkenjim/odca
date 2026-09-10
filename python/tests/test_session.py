@@ -1115,6 +1115,58 @@ def test_longest_shuffle_keeps_rules_and_colors_apart(make_store, odca_file):  #
     assert [(i, rank) for _, i, rank in plain.play_order] == [(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1)]
 
 
+def test_select_longest_presents_only_the_pairs_with_seeds(make_store, odca_file, capsys):  # PT-45, R-W9
+    from odca.store import load_seeds
+    store = review_store(make_store)
+    file = odca_file(name="curate.odca")
+    a, b, c = ALL_PRODUCIBLE, FOUR[1], ALL_ZERO
+    save_odca_file([{"rule": a.id, "colorset": "A", "colors": grey(10)},
+                    {"rule": c.id, "colorset": "C", "colors": grey(30)},  # no seeds: not shown
+                    {"rule": a.id, "colorset": "A2", "colors": grey(40)},  # shares A's rule and seeds
+                    {"rule": b.id, "colorset": "B", "colors": grey(20)}], file, seeds={
+        a.id: {32: [{"row": [1] * 32, "generations": 9, "end": "state 2 extinct"}]},
+        b.id: {40: [{"row": [2] * 40, "generations": 100000, "end": "survived"}]}})  # any seeds count, any width
+    s = make_session(store, select_file=file, select_longest=True)
+    out = capsys.readouterr().out
+    assert "odca curate.odca: 4 pairs, 3 with seeds" in out and "pair 1/3 pair-0000 A" in out
+    assert s.select_longest and s.view_order == [0, 2, 3] and s.pair_index == 0
+    assert list(s.automaton.cells) != [1] * 32 or s.cols != 32  # no seeding from the vectors
+    s.handle_key("n")
+    assert "pair 2/3 pair-0002 A2" in capsys.readouterr().out
+    s.handle_key("n")
+    s.handle_key("n")  # then the unsaved slot is empty: wraps to the first
+    assert "pair 1/3 pair-0000 A" in capsys.readouterr().out
+    s.handle_key("R")  # grouped within the shown set
+    assert s.view_order == [0, 2, 3]
+    s.handle_key("R")
+    s.handle_key("2")  # colors change and s saves them in place, as ever
+    s.handle_key("s")
+    assert "saved pair 1/3" in capsys.readouterr().out
+    assert load_odca_file(file)[0]["colorset"] == "S2"
+    s.handle_key("S")  # appends a copy on A's rule, which has seeds: shown; the position stays
+    assert "added pair 5/5" in capsys.readouterr().out
+    assert len(load_odca_file(file)) == 5 and s.view_order == [0, 2, 3, 4] and s.pair_index == 0
+    s.handle_key("m")  # a mutation then s: appended on a rule without seeds, not shown, position kept
+    s.handle_key("s")
+    assert "added pair 6/6" in capsys.readouterr().out
+    assert s.pair_index == 0 and s.view_order == [0, 2, 3, 4]
+    assert load_seeds(file) == {a.id: {32: [{"row": [1] * 32, "generations": 9, "end": "state 2 extinct"}]},
+                                b.id: {40: [{"row": [2] * 40, "generations": 100000, "end": "survived"}]}}
+    s.handle_key("u")
+    s.handle_key("X")  # deletes A's seeds: both of A's pairs drop out, the file keeps its pairs
+    out = capsys.readouterr().out
+    assert "deleted seeds of pair 1/4 pair-0000 S2" in out and "pair 1/1 pair-0003 B" in out
+    assert s.view_order == [3] and len(load_odca_file(file)) == 6
+    assert load_seeds(file) == {b.id: {40: [{"row": [2] * 40, "generations": 100000, "end": "survived"}]}}
+    s.handle_key("X")  # the last shown pair: nothing to show, the rule on screen is the unsaved rule
+    assert s.view_order == [] and s.pair_index is None and s.unsaved_rule == b
+    assert load_seeds(file) == {} and len(load_odca_file(file)) == 6
+    s.handle_key("n")
+    assert "no pairs" in capsys.readouterr().out
+    plain = make_session(store, select_file=file)  # without the flag: every pair, seeds carried through
+    assert plain.view_order == list(range(6)) and not plain.select_longest
+
+
 def test_brackets_walk_the_pool_in_base_mode(make_store, capsys):  # PT-33
     store = review_store(make_store)
     s = make_session(store)

@@ -64,7 +64,7 @@ import numpy as np
 from .automaton import N_STATES, Automaton, Rule
 from .classify import find_candidate
 from .search import CandidateSearch
-from .store import DEFAULT_COLOR_SETS, SURVIVED, Store, load_odca_file, next_pair_name, save_odca_file
+from .store import DEFAULT_COLOR_SETS, SURVIVED, Store, load_odca_file, load_seeds, next_pair_name, save_odca_file
 
 DEFAULT_COLOR_SET = 1  # slot active at startup (R-U4)
 KEY_ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]  # digit keys in review order (R-V2, R-K17)
@@ -98,7 +98,7 @@ def _rgb(c):
 
 class Session:
     def __init__(self, cols, rows, store=None, search=None, rng=None,
-                 review_mode=False, select_file=None, show=None, shuffle=False, longest=False,
+                 review_mode=False, select_file=None, select_longest=False, show=None, shuffle=False, longest=False,
                  initial_delay=INITIAL_DELAY, play_timeout=PLAY_TIMEOUT, play_grace=PLAY_GRACE):
         self.cols = cols
         self.rows = rows
@@ -123,6 +123,10 @@ class Session:
         if self.show is not None:
             select_file = None
         self.select_file = Path(select_file) if select_file else None
+        # odca-select --longest (R-W9): only the pairs whose rule has seeds are
+        # presented; X deletes the rule's seeds instead of the pair.
+        self.select_longest = bool(select_longest) and self.select_file is not None
+        self.select_seeds = {}  # the file's seeds, {rule: {width: [...]}}, under --longest
         self.review_mode = bool(review_mode) and self.select_file is None and self.show is None
 
         # Startup per R-U1: previous rule (random fallback), random cells.
@@ -730,25 +734,31 @@ class Session:
 
     # ------------------------------------------------------------ pair cycle
 
+    def _shown(self, index):
+        """R-W9: under odca-select --longest only pairs whose rule has seeds are presented."""
+        return not self.select_longest or bool(self.select_seeds.get(self.pairs[index]["rule"]))
+
     def _rebuild_view_order(self):  # R-W7: n/p order, file order or grouped by rule
+        shown = [i for i in range(len(self.pairs)) if self._shown(i)]
         if self.grouped:
             groups, rule_order = {}, []
-            for i, p in enumerate(self.pairs):
+            for i in shown:
+                p = self.pairs[i]
                 if p["rule"] not in groups:
                     groups[p["rule"]] = []
                     rule_order.append(p["rule"])
                 groups[p["rule"]].append(i)
             self.view_order = [i for r in rule_order for i in groups[r]]
         else:
-            self.view_order = list(range(len(self.pairs)))
+            self.view_order = shown
         self.view_position = (self.view_order.index(self.pair_index)
                               if self.pair_index is not None and self.pair_index in self.view_order else None)
 
     def _rule_group(self, index):
         seen = []
-        for p in self.pairs:
-            if p["rule"] not in seen:
-                seen.append(p["rule"])
+        for i in self.view_order:
+            if self.pairs[i]["rule"] not in seen:
+                seen.append(self.pairs[i]["rule"])
         return seen.index(self.pairs[index]["rule"]) + 1, len(seen)
 
     def _activate_pair(self, position, push_undo=True):  # R-B2, R-W8
@@ -767,7 +777,7 @@ class Session:
             self._set_rule(rule)
         self._show_colors(pair["colorset"], pair["colors"])
         self._undo_mark = len(self.undo_stack)
-        print(f"pair {position + 1}/{len(self.pairs)} {self._label(pair)}")  # R-O4
+        print(f"pair {position + 1}/{len(self.view_order)} {self._label(pair)}")  # R-O4
         self.init_cells()  # R-W8: the pair grows in from a fresh field below the old rows
 
     def select_pair(self, step):  # R-B2, R-B3: n/p
@@ -806,16 +816,23 @@ class Session:
         for p in self.pairs:  # R-P3: every pair gets a name; the file is written at exit at the latest
             if p.get("name") is None:
                 p["name"] = next_pair_name(self.pairs)
+        if self.select_longest:
+            self.select_seeds = load_seeds(self.select_file)
         self._rebuild_view_order()
-        print(f"odca {self.select_file.name}: {len(self.pairs)} pairs")  # R-O12
-        if self.pairs:
+        if self.select_longest:  # R-W9, R-O12
+            print(f"odca {self.select_file.name}: {len(self.pairs)} pairs, {len(self.view_order)} with seeds")
+        else:
+            print(f"odca {self.select_file.name}: {len(self.pairs)} pairs")  # R-O12
+        if self.view_order:
             # Open on pair 1; the unsaved slot stays empty until r or m fires.
             self.unsaved_rule = None
             self.unsaved_set = None
             self._activate_pair(0, push_undo=False)
 
     def _save_pairs(self):
-        save_odca_file(self.pairs, self.select_file)
+        # R-W9: under --longest the seeds are written back as held here (X
+        # removes a rule's); otherwise the file's own are carried through.
+        save_odca_file(self.pairs, self.select_file, seeds=self.select_seeds if self.select_longest else None)
         n = len(self.pairs)
         print(f"saved {n} pair{'' if n == 1 else 's'} to {self.select_file.name}")  # R-O12
 
@@ -826,16 +843,19 @@ class Session:
         i = self.pair_index
         if self.automaton.rule.id != self.pairs[i]["rule"]:
             # R-K3: a mutated pair is a new pair; a kept rule is never overwritten.
-            # The position moves onto the new pair, so further edits refine it.
+            # The position moves onto the new pair, so further edits refine it —
+            # except under --longest (R-W9), where the new pair, having no
+            # seeds, cannot be shown: the position stays.
             self.append_pair()
-            self.pair_index = len(self.pairs) - 1
-            self._rebuild_view_order()
-            self._undo_mark = len(self.undo_stack)  # an arrival (R-K19)
+            if not self.select_longest:
+                self.pair_index = len(self.pairs) - 1
+                self._rebuild_view_order()
+                self._undo_mark = len(self.undo_stack)  # an arrival (R-K19)
             return
         self.pairs[i] = {**self.pairs[i], "colorset": self.active_name,
                          "colors": self._arranged_active_colors()}  # the name and the rule stay
         self._save_pairs()
-        print(f"saved pair {self.view_position + 1}/{len(self.pairs)}")  # R-O12
+        print(f"saved pair {self.view_position + 1}/{len(self.view_order)}")  # R-O12
 
     def append_pair(self):  # R-W4: 'S' appends a copy of the screen; the position is unchanged
         self.pairs.append(self._current_pair())
@@ -843,16 +863,22 @@ class Session:
         self._save_pairs()
         print(f"added pair {len(self.pairs)}/{len(self.pairs)}")  # R-O12
 
-    def delete_pair(self):  # R-W5
+    def delete_pair(self):  # R-W5; under --longest R-W9: the rule's seeds go, the pair stays
         if self.pair_index is None:
             return
-        position = self.view_position
-        del self.pairs[self.pair_index]
+        position, shown = self.view_position, len(self.view_order)
+        if self.select_longest:
+            pair = self.pairs[self.pair_index]
+            self.select_seeds.pop(pair["rule"], None)
+            print(f"deleted seeds of pair {position + 1}/{shown} {self._label(pair)}")  # R-O12
+        else:
+            del self.pairs[self.pair_index]
         self.pair_index = None
         self._rebuild_view_order()
         self._save_pairs()
-        print(f"deleted pair {position + 1}/{len(self.pairs) + 1}")  # R-O12
-        if self.pairs:
+        if not self.select_longest:
+            print(f"deleted pair {position + 1}/{shown}")  # R-O12
+        if self.view_order:
             self._activate_pair(min(position, len(self.view_order) - 1))
         else:
             # Nothing left to review: the rule on screen becomes the unsaved rule.

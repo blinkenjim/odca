@@ -47,6 +47,17 @@ def test_usage_errors(capsys, tmp_path):  # R-W1, R-X1
     with pytest.raises(SystemExit) as e:
         select_main(["x.odca", "--fullscreen"])  # odca's flag only (R-U2)
     assert e.value.code == 2 and "unknown option --fullscreen" in capsys.readouterr().out
+    from odca import select
+    calls = []
+    monkeypatch_run = lambda kwargs, fullscreen=False, cell=4, cols=None: calls.append(kwargs)
+    original = select.run
+    select.run = monkeypatch_run
+    try:
+        select_main(["x.odca", "--longest"])  # R-W9
+        select_main(["x.odca"])
+    finally:
+        select.run = original
+    assert [k["select_longest"] for k in calls] == [True, False]
 
 
 def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
