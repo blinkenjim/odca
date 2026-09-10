@@ -123,3 +123,18 @@ def test_F_toggles_full_screen_by_window_size(viewer, monkeypatch):  # R-K18, R-
     viewer.toggle_full_screen(window)  # and back, judged by the size, not by memory
     assert not viewer.is_full_screen(*window.size)
     assert calls == [("full", True), ("windowed",)]
+
+
+def test_terminal_status_clears_the_counter_before_a_line():  # R-O17
+    import io
+    from odca.viewer import TerminalStatus
+    out = io.StringIO()
+    status = TerminalStatus(out)
+    status.show("12/40")
+    assert out.getvalue() == "\r\x1b[K12/40" and status.shown
+    print("pair 2/3 B", file=status)  # an ordinary line clears the counter first
+    assert out.getvalue() == "\r\x1b[K12/40\r\x1b[Kpair 2/3 B\n" and not status.shown
+    status.show("13/40")
+    status.show("14/40")  # redrawn in place, nothing cleared in between
+    assert out.getvalue().endswith("\r\x1b[K13/40\r\x1b[K14/40")
+    assert status.isatty() == out.isatty()  # everything else passes through

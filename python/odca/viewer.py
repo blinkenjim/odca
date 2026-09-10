@@ -14,6 +14,7 @@ session.py for the controls and programs.
 """
 
 import os
+import sys
 
 import numpy as np
 
@@ -24,7 +25,7 @@ from pygame._sdl2.video import Renderer, Texture, Window  # noqa: E402
 from .session import Session  # noqa: E402
 
 FPS = 60  # refresh cap when the display cannot pace us (no vsync)
-TITLE_INTERVAL = 0.2  # the title (and its generation counter) refreshes five times a second (R-U6)
+COUNTER_INTERVAL = 0.2  # the generation counter on the terminal refreshes five times a second (R-O17)
 VSYNC_FPS_CAP = 240  # with vsync the display paces; this only bounds a runaway loop
 MIN_WINDOW = (160, 120)  # the smallest window in pixels, whatever the cell size (R-U2)
 
@@ -57,6 +58,35 @@ def map_key(key, unicode=""):
     if pygame.K_0 <= key <= pygame.K_9:
         return str(key - pygame.K_0)
     return _KEYS.get(key)
+
+
+class TerminalStatus:
+    """Standard output with one line redrawn in place (R-O17): the --longest
+    generation counter on a terminal. Installed as sys.stdout for the run,
+    it clears that line before any ordinary write, so the session's status
+    lines never collide with it."""
+
+    def __init__(self, stream):
+        self.stream = stream
+        self.shown = False
+
+    def show(self, text):
+        """Draw the in-place line: carriage return, erase to the end, the text, no newline."""
+        self.stream.write("\r\x1b[K" + text)
+        self.stream.flush()
+        self.shown = True
+
+    def write(self, text):
+        if self.shown:
+            self.stream.write("\r\x1b[K")
+            self.shown = False
+        return self.stream.write(text)
+
+    def flush(self):
+        self.stream.flush()
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
 
 
 def grid_size(width, height, cell):
@@ -163,7 +193,12 @@ class Viewer:
         pygame.mouse.set_visible(not self.is_full_screen(*window.size))  # R-U2
         clock = pygame.time.Clock()
         title = None
-        since_title = float("inf")
+        since_counter = float("inf")
+        # R-O17: the counter is drawn in place on a terminal only; the wrapper
+        # clears it before any line the session prints.
+        status = TerminalStatus(sys.stdout) if session.longest and sys.stdout.isatty() else None
+        if status is not None:
+            sys.stdout = status
         running = True
         while running:
             resized = False
@@ -186,14 +221,18 @@ class Viewer:
                 dt = 0.0  # R-U8: frozen while resizing; time resumes now, no catch-up
             session.tick(dt)
             self.draw(renderer)
-            since_title += dt
-            if since_title >= TITLE_INTERVAL:  # R-U6: five times a second, not every frame
-                since_title = 0.0
-                new_title = session.title
-                if new_title != title:
-                    window.title = new_title
-                    title = new_title
+            new_title = session.title  # R-U6
+            if new_title != title:
+                window.title = new_title
+                title = new_title
+            since_counter += dt
+            if since_counter >= COUNTER_INTERVAL and status is not None and session.counter is not None:
+                since_counter = 0.0
+                status.show(session.counter)  # R-O17: five times a second
             renderer.present()  # blocks until the refresh when vsync is on
+        if status is not None:
+            print("", end="")  # clears the counter line (a write) before the prompt returns
+            sys.stdout = status.stream
         session.finish()  # odca-select writes its file; review saves (R-V5)
         session.stop_search()
         pygame.quit()
