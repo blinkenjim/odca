@@ -23,7 +23,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for window in NSApp.windows {
                 window.contentResizeIncrements = NSSize(width: ViewerModel.cellSize, height: ViewerModel.cellSize)
                 window.collectionBehavior.insert(.fullScreenPrimary)
-                if ViewerModel.fixedCols == nil {  // R-X8: a fixed-width window opens at its width every time
+                if let cols = ViewerModel.fixedCols {  // R-X8: a fixed-width window opens at its width every time
+                    // SwiftUI restores the last run's frame on its own, so the
+                    // width is set outright; the restored height stays.
+                    let content = window.contentView?.frame.size ?? NSSize(width: 0, height: 800)
+                    window.setContentSize(NSSize(width: CGFloat(cols * ViewerModel.cellSize), height: content.height))
+                } else {
                     window.setFrameAutosaveName("ODCA main window")
                 }
                 if AppDelegate.fullScreenAtLaunch { window.toggleFullScreen(nil) }

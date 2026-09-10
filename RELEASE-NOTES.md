@@ -5,6 +5,14 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.48.1 (Swift) — 2026-09-10
+
+The `--longest` window now opens at the seeds' width every time. The
+Mac restores a window's last frame on its own, so after an ordinary
+run that left the window wider, the fixed-width show came up between
+black bars; the width is now set outright when the window appears,
+the height as restored.
+
 ## 3.48.0 (Swift, spec) and 3.49.0 (Python) — 2026-09-10
 
 The `--longest` generation counter moves from the title to the

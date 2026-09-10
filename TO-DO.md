@@ -1,7 +1,9 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.48.0, Swift 3.48.0, Python
-3.49.0: under `--longest` the generation counter `<n>/<m>` is redrawn
+**YOU ARE HERE (2026-09-10):** Spec 3.48.0, Swift 3.48.1, Python
+3.49.0. Swift 3.48.1: the `--longest` window sets its width outright
+once it exists (SwiftUI restores the last frame by itself; the user saw
+black bands in a plain window). 3.48.0 / 3.49.0: under `--longest` the generation counter `<n>/<m>` is redrawn
 in place on the terminal five times a second, cleared before any line
 (R-O17; 3.46.0 / 3.47.0 had put it in the title, the user: "I'd really
 prefer it to stdout"). Before that, 3.44.0 / 3.45.0: `odca --longest` (R-X8) plays the recorded seeds, every pair's
