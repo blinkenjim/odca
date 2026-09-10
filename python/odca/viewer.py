@@ -89,6 +89,20 @@ class TerminalStatus:
         return getattr(self.stream, name)
 
 
+def fit_to_width(width, height, cols, cell):
+    """--longest (R-X8): the grid stretched to the window's width with its
+    aspect kept: (factor, rows), the on-screen cell being cell * factor
+    pixels and rows how many such rows fit the height (at least one)."""
+    factor = width / (cols * cell)
+    return factor, max(1, int(height / (cell * factor)))
+
+
+def is_whole(factor):
+    """A whole-number factor keeps every cell the same size under nearest
+    scaling; otherwise linear filtering avoids uneven cells (R-X8)."""
+    return abs(factor - round(factor)) < 1e-9
+
+
 def grid_size(width, height, cell):
     """Whole cells that fit a window of the given size, at least the minimum window's (R-U2)."""
     return max(MIN_WINDOW[0] // cell, width // cell), max(MIN_WINDOW[1] // cell, height // cell)
@@ -107,6 +121,8 @@ class Viewer:
         self.width, self.height = width, height
         self.fullscreen = fullscreen  # open full screen at launch (--fullscreen, R-U2)
         self.fixed_cols = fixed_cols  # --longest (R-X8): the grid is this wide whatever the window
+        self.factor = 1.0  # R-X8: the grid's scale, the window's width over the grid's natural width
+        self._smooth = False  # the texture's filter: linear for a fractional factor
         if session is None:
             session = Session(*grid_size(width, height, cell_size))
         self.session = session
@@ -138,22 +154,28 @@ class Viewer:
     def draw(self, renderer):
         """Compose one frame on the renderer (present() is the caller's)."""
         session = self.session
-        cell = self.cell_size
+        cell = self.cell_size * self.factor  # R-X8: the on-screen cell, scaled under --longest
         size = (session.cols, session.rows + 1)
-        if self._texture is None or (self._texture.width, self._texture.height) != size:
+        smooth = self.fixed_cols is not None and not is_whole(self.factor)
+        if self._texture is None or (self._texture.width, self._texture.height) != size or smooth != self._smooth:
+            # SDL reads the scale-quality hint when the texture is made: nearest
+            # for a whole-number factor, linear for a fractional one (R-X8).
+            os.environ["SDL_RENDER_SCALE_QUALITY"] = "1" if smooth else "0"
             self._texture = Texture(renderer, size, streaming=True)
+            self._smooth = smooth
         self._texture.update(pygame.surfarray.make_surface(self.frame().transpose(1, 0, 2)))
-        x, y, w, h = grid_rect(self.width, self.height, session.cols, session.rows, cell)
+        if self.fixed_cols is None:
+            x, y, w, h = grid_rect(self.width, self.height, session.cols, session.rows, self.cell_size)
+        else:  # R-X8: the grid spans the width; the rows are centered in the height
+            w, h = self.width, int(round(session.rows * cell))
+            x, y = 0, (self.height - h) // 2
         renderer.draw_color = self.background() + (255,)
         renderer.clear()
         # R-U3: the texture is one row taller than the grid; scroll_offset says
         # how far into the top row the view is (continuous at slow speeds).
-        # The viewport is the grid rectangle clipped to the window (a fixed
-        # width wider than the window is cropped, centered: R-X8), so the
-        # slide never paints the margins.
-        vx, vy = max(x, 0), max(y, 0)
-        renderer.set_viewport(pygame.Rect(vx, vy, min(w, self.width - vx), min(h, self.height - vy)))
-        self._texture.draw(dstrect=pygame.Rect(x - vx, y - vy - int(round(session.scroll_offset * cell)), w, h + cell))
+        # The viewport is the grid rectangle, so the slide never paints the margins.
+        renderer.set_viewport(pygame.Rect(x, y, w, h))
+        self._texture.draw(dstrect=pygame.Rect(0, -int(round(session.scroll_offset * cell)), w, int(round(h + cell))))
         renderer.set_viewport(None)
 
     def toggle_full_screen(self, window):
@@ -166,10 +188,14 @@ class Viewer:
 
     def fit(self, width, height):
         """Follow the window: as many whole cells as fit (R-U8); under
-        --longest only the height follows (R-X8)."""
+        --longest the grid is stretched to the width, aspect kept, and the
+        rows are counted in scaled cells (R-X8)."""
         self.width, self.height = width, height
-        cols, rows = grid_size(width, height, self.cell_size)
-        self.session.resize(self.fixed_cols or cols, rows)
+        if self.fixed_cols is None:
+            self.session.resize(*grid_size(width, height, self.cell_size))
+        else:
+            self.factor, rows = fit_to_width(width, height, self.fixed_cols, self.cell_size)
+            self.session.resize(self.fixed_cols, rows)
 
     @staticmethod
     def is_full_screen(width, height):

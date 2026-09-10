@@ -138,3 +138,12 @@ def test_terminal_status_clears_the_counter_before_a_line():  # R-O17
     status.show("14/40")  # redrawn in place, nothing cleared in between
     assert out.getvalue().endswith("\r\x1b[K13/40\r\x1b[K14/40")
     assert status.isatty() == out.isatty()  # everything else passes through
+
+
+def test_fit_to_width_keeps_the_aspect():  # PT-44, R-X8
+    from odca.viewer import fit_to_width, is_whole
+    factor, rows = fit_to_width(1920, 1080, 600, 2)
+    assert abs(factor - 1.6) < 1e-12 and rows == 337 and not is_whole(factor)  # 1080 / 3.2
+    assert fit_to_width(1200, 800, 600, 2) == (1.0, 400) and is_whole(1.0)
+    assert fit_to_width(600, 50, 600, 2) == (0.5, 50)  # scaled down
+    assert fit_to_width(600, 0, 600, 2)[1] == 1  # one row at least
