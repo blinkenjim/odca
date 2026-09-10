@@ -60,12 +60,19 @@ for (index, id) in rules.enumerated() {
     search.onKept = { seed, rank in
         say("kept \(seed.generations) generations, rank \(rank) (\(seed.end))", at: deadline)
     }
+    // The rate shown is recent, not cumulative: rows finished over the last
+    // ten seconds of ticks. A cumulative average carries the rows still in
+    // flight (one per worker) as a deficit that shrinks like 1/t, so it
+    // would creep upward long after the search had settled.
+    var samples: [(elapsed: Double, tried: Int)] = []
     let kept = search.run(until: deadline) { remaining in
         if interrupted { search.stop() }
-        // The time left in the column of the times that open the lines, then
-        // the rule's rate so far: rows measured per second of its budget.
         let elapsed = Double(budget) - remaining
-        let rate = elapsed > 0 ? Double(search.tried) / elapsed : 0
+        samples.append((elapsed, search.tried))
+        if samples.count > Evolve.rateWindow + 1 { samples.removeFirst() }
+        let first = samples[0], last = samples[samples.count - 1]
+        let span = last.elapsed - first.elapsed
+        let rate = span > 0 ? Double(last.tried - first.tried) / span : 0
         countdown("\(Evolve.hms(remaining))  \(Int(rate.rounded())) seeds/s")
     }
     outputLock.lock()

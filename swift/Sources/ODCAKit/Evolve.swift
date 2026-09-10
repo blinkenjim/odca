@@ -7,6 +7,7 @@ import Foundation
 public enum Evolve {
     public static let keep = 10  // the seeds kept per rule and width (R-E3)
     public static let defaultCap = 100_000  // generations a row may live before it counts as surviving (R-E2)
+    public static let rateWindow = 10  // seconds the countdown's rows-per-second looks back over (R-E4)
 
     /// A span of seconds as `hh:mm:ss`, rounded up to the second: the
     /// countdown, and the time left that opens every status line (R-E4, R-O16).

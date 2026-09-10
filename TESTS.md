@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.42.0 — 2026-09-09
+Version 3.42.1 — 2026-09-09
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -176,8 +176,9 @@ from `REQTS.md`.
   pairs in order, announcing `playing <file>` at each change (R-X).
 - **M-14** `odca-evolve my.odca --cells 600 --time 60` on a terminal:
   each rule's line, the countdown (`00:00:59  1234 seeds/s` downward, in
-  the column of the times that open the lines, the rate settling as the
-  rule runs) ticking in place below it, the `kept` lines scrolling up as rows join, every line
+  the column of the times that open the lines, the rate over the last
+  ten seconds, settling within them and steady after) ticking in place
+  below it, the `kept` lines scrolling up as rows join, every line
   opening with the time then left (`00:01:00 rule ...`, `00:00:41 kept
   ...`), the ten ages on one line (`00:00:00 4821, 3990, ...`) as each
   rule ends, Ctrl-C writing the rule in hand; then

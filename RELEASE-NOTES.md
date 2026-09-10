@@ -5,6 +5,15 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.42.1 (Swift, spec) — 2026-09-09
+
+The countdown's `seeds/s` is now the rate over the last ten seconds
+rather than the average since the rule began. The average crept upward
+for the whole run (the user noticed): the rows still in flight, one per
+processor, sat as a deficit that faded like 1/t, so the number lagged
+the search long after it had settled. The recent rate settles within
+ten seconds and then holds.
+
 ## 3.42.0 (Swift, spec) — 2026-09-09
 
 The countdown now shows how fast the search is going: after the time
