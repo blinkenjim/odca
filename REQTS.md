@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.60.0 — 2026-09-10
+Version 3.62.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -84,7 +84,9 @@ window to its natural size — R-U12. 3.56.0: `odca-select --longest`,
 curating the pairs with seeds — R-W9, R-W1, R-O12, R-U9, section 10.
 3.58.0: `odca-evolve --parity` — R-E5, R-E1, R-O16, section 10. 3.60.0:
 a confirmed cycle ends a row in `odca-evolve` and an item in `odca
---longest` — R-E2, R-X8, R-P3; conformance vectors 1.2.)
+--longest` — R-E2, R-X8, R-P3; conformance vectors 1.2. 3.62.0:
+`--parity` judges against the other rule furthest behind, not the one
+furthest ahead — R-E5.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -994,16 +996,21 @@ Then the next rule.
 comes (R-E2), on the seeds as they stand at that moment — the file's,
 and those this run has found and written for the rules before it: if
 the rule's *shortest* recorded lifetime at the run's width, times 0.9,
-is longer than the *longest* lifetime any other rule of the file's
-pairs holds at that width, the rule gives up its turn — it prints its
-line with `, skipped: shortest <s> × 0.9 outlives <l>` (R-O16), no
-seeds line, and the program takes up the next rule at once, the time
-going to the rest. Lifetimes count as recorded, a survivor's as the
-cap, so a rule holding nothing but survivors gives up its turn for as
-long as another rule holds anything shorter. A rule with fewer than
+is longer than the *longest* lifetime of *some* other rule of the
+file's pairs at that width — that is, of the other rule furthest
+behind, whose longest is the smallest of the others' longests — the
+rule gives up its turn, so the time flows to whoever is furthest
+behind: it prints its line with `, skipped: shortest <s> × 0.9 outlives
+<l>` (R-O16), l that smallest longest, no seeds line, and the program
+takes up the next rule at once. Lifetimes count as recorded, a
+survivor's as the cap, so a rule holding nothing but survivors gives
+up its turn for as long as any other rule holds anything shorter, and
+its survivors never keep another rule running. A rule with fewer than
 ten seeds is judged on those it has; one with none never gives up its
 turn, and neither does any rule when no other rule holds seeds at the
-width. Seeds of rules not among the file's pairs do not count.
+width. Seeds of rules not among the file's pairs do not count. (3.58.0
+judged against the longest of all the others, so a single immortal
+rule kept every rule running; withdrawn.)
 
 **R-E4 (countdown and interruption).** While a rule is searched and
 standard output is a terminal, the time left in its budget is shown as

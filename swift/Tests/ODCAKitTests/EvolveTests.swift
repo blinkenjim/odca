@@ -181,13 +181,15 @@ final class EvolveTests: XCTestCase {
     func testParityGivesUpTheTurnOfARuleFarAhead() {  // PT-46, R-E5
         func seeds(_ lengths: [Int]) -> [Seed] { lengths.map { Seed(row: [UInt8](repeating: 0, count: 8), generations: $0, end: "x") } }
         let a = "a", b = "b", c = "c", rules = [a, b, c]
-        var all: Seeds = [a: [8: seeds([5000, 4000, 3000])], b: [8: seeds([2000, 1500])], c: [8: seeds([4500])]]
-        // a: shortest 3000 × 0.9 = 2700 > 2000 (b's longest)? c's 4500 is longer: a runs.
-        XCTAssertNil(Evolve.givesUpTurn(rule: a, width: 8, seeds: all, rules: rules))
-        all[c] = nil  // c gone (a stray seed of a rule not in the file does not count either)
+        var all: Seeds = [a: [8: seeds([5000, 4000, 3000])], b: [8: seeds([2000, 1500])], c: [8: seeds([100_000])]]
+        // a: shortest 3000 × 0.9 = 2700 outlives b's longest 2000: a gives up its
+        // turn, whatever c holds (a survivor, say) — the rule furthest behind decides.
         XCTAssertEqual(Evolve.givesUpTurn(rule: a, width: 8, seeds: all, rules: rules)?.shortest, 3000)
         XCTAssertEqual(Evolve.givesUpTurn(rule: a, width: 8, seeds: all, rules: rules)?.longest, 2000)
-        XCTAssertNil(Evolve.givesUpTurn(rule: b, width: 8, seeds: all, rules: rules))  // behind: runs
+        XCTAssertEqual(Evolve.givesUpTurn(rule: c, width: 8, seeds: all, rules: rules)?.longest, 2000)  // c too
+        XCTAssertNil(Evolve.givesUpTurn(rule: b, width: 8, seeds: all, rules: rules))  // furthest behind: runs
+        all[c] = nil  // c gone (a stray seed of a rule not in the file does not count either)
+        XCTAssertNotNil(Evolve.givesUpTurn(rule: a, width: 8, seeds: all, rules: rules))
         XCTAssertNil(Evolve.givesUpTurn(rule: c, width: 8, seeds: all, rules: rules))  // no seeds: runs
         all[a] = [8: seeds([2222, 2221])]  // 2221 × 0.9 = 1998.9 < 2000: not far enough ahead
         XCTAssertNil(Evolve.givesUpTurn(rule: a, width: 8, seeds: all, rules: rules))

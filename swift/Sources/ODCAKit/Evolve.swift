@@ -13,14 +13,15 @@ public enum Evolve {
 
     /// `--parity` (R-E5): whether `rule` gives up its turn at `width` — its
     /// shortest recorded lifetime times the margin outlives the longest
-    /// lifetime any other rule among `rules` holds at that width. Returns
-    /// the two lifetimes for the message, or nil when the rule runs: it has
-    /// no seeds, no other rule has any, or it is not that far ahead.
+    /// lifetime of some other rule among `rules` at that width, that is,
+    /// of the other rule furthest behind. Returns the two lifetimes for
+    /// the message, or nil when the rule runs: it has no seeds, no other
+    /// rule has any, or no other rule is that far behind it.
     public static func givesUpTurn(rule: String, width: Int, seeds: Seeds, rules: [String]) -> (shortest: Int, longest: Int)? {
         guard let shortest = seeds[rule]?[width]?.map(\.generations).min() else { return nil }
         let others = rules.filter { $0 != rule }.compactMap { seeds[$0]?[width]?.map(\.generations).max() }
-        guard let longest = others.max(), Double(shortest) * parityMargin > Double(longest) else { return nil }
-        return (shortest, longest)
+        guard let behind = others.min(), Double(shortest) * parityMargin > Double(behind) else { return nil }
+        return (shortest, behind)
     }
 
     /// A span of seconds as `hh:mm:ss`, rounded up to the second: the

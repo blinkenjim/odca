@@ -105,8 +105,8 @@ the keyboard:
   the file has one for exactly the width on screen. A recorded row that
   outlives the cap (100000 generations by default) is kept as `survived`.
   `--parity` lets a rule far ahead give up its turn: when its shortest
-  recorded lifetime times 0.9 outlives the longest any other rule holds
-  at that width, it is skipped and the time goes to the rest.
+  recorded lifetime times 0.9 outlives the longest of some other rule
+  at that width, it is skipped and the time goes to the rules behind.
 - **`odca-select <file.odca> [--longest] [--4 | --3 | --2 | --1]`** is the workbench that composes them: it
   shows screened random rules, you dress each in a color set, and `s`/`S`
   save the result as a pair in the named file (created if missing). `n`/`p`

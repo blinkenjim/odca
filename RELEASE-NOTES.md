@@ -5,6 +5,16 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.62.0 (Swift, spec) — 2026-09-10
+
+`--parity` now does what it was for. A rule gives up its turn when its
+shortest recorded lifetime times 0.9 outlives the longest of *some*
+other rule, the one furthest behind, so the time flows to the
+laggards. 3.58.0 had compared against the longest of *all* the others,
+which meant a single immortal rule in the file kept every rule
+running (the user caught it on the first run: rule 2, at 56211,
+should have stood aside for rule 1 at 15274).
+
 ## 3.60.0 (Swift, spec) and 3.61.0 (Python) — 2026-09-10
 
 Periodicity joins the test. `odca-evolve` now ends a row when a cycle

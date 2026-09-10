@@ -20,8 +20,9 @@ holds one for exactly the width on screen.
                   having survived and stops there; 100000 by default
   --parity        a rule far ahead gives up its turn: when its shortest
                   recorded lifetime at this width, times 0.9, outlives the
-                  longest any other rule of the file holds, it is skipped
-                  with a line saying so, and the time goes to the rest
+                  longest of some other rule of the file, it is skipped
+                  with a line saying so, and the time goes to the rules
+                  behind
 
 Output: a line as each rule is taken up, a line for every row that joins
 the ten (its generations, its rank, how it ended), and when the rule is

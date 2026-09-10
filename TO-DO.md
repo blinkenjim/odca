@@ -1,7 +1,10 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.60.0, Swift 3.60.0, Python
-3.61.0: a confirmed cycle (Brent's) ends a row in odca-evolve and an
+**YOU ARE HERE (2026-09-10):** Spec 3.62.0, Swift 3.62.0, Python
+3.61.0. Swift 3.62.0: `--parity` judges against the other rule
+furthest behind (its longest the smallest of the others'), not the one
+furthest ahead — 3.58.0 had read "any" as "every" and an immortal rule
+kept everyone running. Before that, a confirmed cycle (Brent's) ends a row in odca-evolve and an
 item in `odca --longest` (R-E2, R-X8; conformance vectors 1.2; the
 user: the lag in Brent's "not even on the radar"). Open from the
 --parity exchange: whether a rule of ten survivors should stand aside
