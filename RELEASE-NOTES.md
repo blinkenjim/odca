@@ -5,6 +5,10 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.52.1 (Swift, spec) and 3.53.1 (Python) — 2026-09-10
+
+The on-screen counter is 12 points, not 36: "way too big".
+
 ## 3.52.0 (Swift, spec) and 3.53.0 (Python) — 2026-09-10
 
 In full screen under `--longest` the generation count `<n>/<m>` now

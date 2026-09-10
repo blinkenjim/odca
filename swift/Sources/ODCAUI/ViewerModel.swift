@@ -287,8 +287,8 @@ final class AutomatonView: NSView {
 /// over the grid, transparent, and never takes events.
 @MainActor
 final class CounterView: NSView {
-    static let inset: CGFloat = 24
-    static let font = NSFont.monospacedDigitSystemFont(ofSize: 36, weight: .bold)
+    static let inset: CGFloat = 12
+    static let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .bold)
 
     var text: String? {
         didSet { if text != oldValue { needsDisplay = true } }
@@ -303,7 +303,7 @@ final class CounterView: NSView {
             .font: Self.font,
             .foregroundColor: NSColor.yellow,
             .strokeColor: NSColor.black,
-            .strokeWidth: -4,  // negative: fill and stroke; the outline is 4% of the point size
+            .strokeWidth: -8,  // negative: fill and stroke; the outline is 8% of the point size, about a point
         ]
         let string = NSAttributedString(string: text, attributes: attributes)
         let size = string.size()
