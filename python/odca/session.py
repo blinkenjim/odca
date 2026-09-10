@@ -532,11 +532,13 @@ class Session:
                 print(f"screen {self.screen_counter}")  # R-O7
         if self.auto_init and self._boring_streak >= self.rows:
             reason = self._boring_reason
-            if self.longest:  # R-X8: a seed plays to its extinction, then the next; nothing else ends it
-                if self._boring_by_extinction:
+            if self.longest:  # R-X8: a seed plays to its extinction or its confirmed cycle, then the next
+                # The screenful-based repetition and stagnation are ignored: only
+                # the streak restarts, so Brent's keeps pace with the recording.
+                if self._boring_by_extinction or self.cycle_period is not None:
                     self._next_play_pair(reason)
                 else:
-                    self._reset_boredom()
+                    self._boring_streak = 0
             elif self.play_mode and self.play_order and self.play_elapsed >= self.play_timeout:
                 self._next_play_pair(reason)  # R-X3: watchdog expired, a re-init transitions
             else:
