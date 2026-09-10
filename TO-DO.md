@@ -312,6 +312,25 @@ viewer sees. Roadmap, roughly in order:
       there never was one — the screen fill was what `n`/`p` did in
       odca-select from 2.24.1 to 3.24.0. Proposed `b`, a screenful at
       once in every mode (R-K20); awaiting the user's word.
+- [ ] odca-evolve (user, 2026-09-09; under discussion, not yet
+      specified): a third program that, for every distinct rule in an
+      odca file, spends a time budget (`--time SECONDS`) drawing random
+      rows of a given width (`--cells N`), evolving each in wrap mode
+      until the boring detector fires, and keeping the ten longest-lived;
+      writes them to the file per rule as the budget runs out, then the
+      next rule. Workers in parallel on independent vectors (processes in
+      Python, threads in Swift, as the candidate search does). Proposed:
+      the detector pulled out of Session into a shared piece with rows as
+      a parameter (`--rows N`, default 400) so a seed's score is the
+      generation at which odca would have re-seeded; a generation cap,
+      with a seed that reaches it recorded as having survived; seeds in
+      one top-level file section keyed by rule ID then cell count (row as
+      a digit string, generations, reason, rows), runs merging to keep the
+      best ten; odca-select's writers on both sides must carry the section
+      through (R-P3), since they rewrite the whole file. Open: whether
+      odca then plays a pair from its best seed for the current width;
+      both languages (recommended: yes, the Pi can only run Python);
+      writing the current rule's seeds on Ctrl-C.
 - [ ] Scriptable screensaver mode (the interactive mode absorbs the same
       ability). In progress since 3.28.0: play scripts (`import`,
       `play`, `shuffle`; R-X7) on a flex/bison C parser shared by both
