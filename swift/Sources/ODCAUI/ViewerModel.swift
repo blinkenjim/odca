@@ -31,6 +31,8 @@ public final class ViewerModel: ObservableObject {
     private(set) var frame: CGImage?
     private(set) var scrollOffset = 0.0  // cells, see Session.scrollOffset (R-U3)
     @Published var title = "ODCA"
+    static let titleInterval = 0.2  // the title (and its generation counter) refreshes five times a second (R-U6)
+    private var sinceTitle = Double.infinity
 
     private var keyMonitor: Any?
 
@@ -77,8 +79,12 @@ public final class ViewerModel: ObservableObject {
         session.tick(dt)
         frame = renderImage()
         scrollOffset = session.scrollOffset
-        let newTitle = "ODCA — rule \(session.ruleID)"  // R-U6
-        if newTitle != title { title = newTitle }
+        sinceTitle += dt
+        if sinceTitle >= Self.titleInterval {  // R-U6: five times a second, not every frame
+            sinceTitle = 0
+            let newTitle = session.title
+            if newTitle != title { title = newTitle }
+        }
     }
 
     /// R-U3/R-U8: the image is one row taller than the window (rows + 1) and

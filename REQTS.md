@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.44.0 — 2026-09-10
+Version 3.46.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -73,7 +73,8 @@ a rule is done — R-O16. 3.40.1: the countdown starts at the left margin
 second — R-E4. 3.42.1: that rate is over the last ten seconds, not
 cumulative — R-E4. 3.44.0: `odca --longest`, the show of the recorded
 seeds in a fixed-width window — R-X8, R-X1, R-U8, R-O13, R-U9, section
-10.)
+10. 3.46.0: the generation counter in the title under `--longest` —
+R-U6.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -305,7 +306,12 @@ frame changes); when the resize ends, time resumes from that moment with
 no catch-up.
 
 **R-U6 (window title).** The window title must show the current rule ID
-(format: `ODCA — rule <id>`), kept current as the rule changes.
+(format: `ODCA — rule <id>`), kept current as the rule changes. Under
+`odca --longest` (R-X8) it also carries a generation counter, `ODCA —
+rule <id> — <n>/<m>`: n the generation on screen (the seed's row is 0),
+m the seed's recorded lifetime. The title is refreshed five times a
+second, not every frame, so the counter reads in steps of about a fifth
+of a second of generations.
 
 **R-U7 (shutdown).** Pressing `q` or closing the window exits the program
 cleanly, stopping all background workers.

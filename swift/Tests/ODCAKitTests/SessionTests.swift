@@ -1106,6 +1106,9 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(session.playOrder.map { [$0.segment, $0.index, $0.seed!] }, [[0, 0, 0], [0, 1, 0], [0, 0, 1]])
         XCTAssertEqual(session.automaton.cells, block(16, in: 32))
         XCTAssertEqual(session.automaton.rule, a)
+        XCTAssertEqual(session.title, "ODCA — rule \(a.id) — 0/8")  // R-U6: the generation counter
+        session.tick(session.delay * 3)
+        XCTAssertEqual(session.title, "ODCA — rule \(a.id) — 3/8")
         // The rule keys and auto-init are inert; the colors keys are not.
         for key in [Session.Key.r, .m, .u, .U, .a] { _ = session.handleKey(key) }
         XCTAssertEqual(session.automaton.rule, a)

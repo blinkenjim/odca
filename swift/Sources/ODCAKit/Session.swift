@@ -230,6 +230,18 @@ public final class Session {
 
     public var ruleID: String { automaton.rule.id }
 
+    /// The window title (R-U6): the rule, and under `--longest` (R-X8) the
+    /// generation counter `<n>/<m>`, this generation over the seed's
+    /// recorded lifetime. The UI refreshes it five times a second.
+    public var title: String {
+        var text = "ODCA — rule \(ruleID)"
+        if longest, let position = playPosition, let rank = playOrder[position].seed {
+            let seed = playableSeeds(playOrder[position].segment, playOrder[position].index)[rank]
+            text += " — \(automaton.generation)/\(seed.generations)"
+        }
+        return text
+    }
+
     public func startSearch() { search.start() }
     public func stopSearch() { search.stop() }
 

@@ -5,6 +5,12 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.46.0 (Swift, spec) and 3.47.0 (Python) — 2026-09-10
+
+Under `--longest` the window title counts generations: `ODCA — rule
+<id> — 1234/5947`, the generation on screen over the seed's recorded
+lifetime, refreshed five times a second.
+
 ## 3.44.0 (Swift, spec) and 3.45.0 (Python) — 2026-09-10
 
 The player plays what `odca-evolve` found. **`odca my.odca --longest`**
