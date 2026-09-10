@@ -127,9 +127,9 @@ holds one for exactly the width on screen.
 
 Output: a line as each rule is taken up, a line for every row that joins
 the ten (its generations, its rank, how it ended), each opening with the
-time of day as hh:mm:ss, and on a terminal the time left on the rule as
-hh:mm:ss, counted down in place. Ctrl-C writes what the current rule has
-so far and exits.
+time then left on the rule as hh:mm:ss, and on a terminal that time
+counted down in place. Ctrl-C writes what the current rule has so far
+and exits.
 
 Files: the odca file is rewritten with its pairs unchanged and a seeds
 section by rule and width; nothing under ~/.odca is touched, and no

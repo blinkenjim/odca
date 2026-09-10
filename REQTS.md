@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.38.0 — 2026-09-09
+Version 3.38.1 — 2026-09-09
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -66,7 +66,8 @@ word after it — R-X7. 3.36.0: `odca-evolve`, the search for a rule's
 longest-lived seeds — section 4e, R-P3 (the `seeds` section), R-X4
 (`odca` plays a pair from its best seed), R-O16, R-U9, section 10;
 conformance vectors 1.1 (`lifetimes`). 3.38.0: `odca-evolve` clocks as
-`hh:mm:ss`, the time of day opening every line — R-E4, R-O16.)
+`hh:mm:ss` — R-E4, R-O16. 3.38.1: its lines open with the time left on
+the rule, not the time of day — R-O16.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -967,13 +968,14 @@ The program prints single-line, human-readable status to standard output:
   Arrangement messages (R-O9) name the set.
 - **R-O14.** On a geometry change (R-U8): `resized <cols>x<rows>`.
 - **R-O16.** In `odca-evolve` (section 4e), and nothing else, every
-  line opening with the local time of day as `hh:mm:ss` (24-hour) and a
-  space: as each rule is taken up, `rule <id> (<i>/<n>): <cells> cells,
-  <hh:mm:ss>` with the budget in the format of R-E4; as each row joins
-  the ten, `kept <generations> generations, rank <r> (<end>)` with its
-  1-based place at the moment it joined; and on a terminal the countdown
-  of R-E4, which carries no time of day. The R-O1 rule line is not
-  printed: no rule becomes current.
+  line opening with the time then left on the rule's budget in the
+  `hh:mm:ss` of R-E4 and a space, so the lines compare with each other
+  and with the countdown: as each rule is taken up, `rule <id>
+  (<i>/<n>): <cells> cells` (opening with the whole budget); as each row
+  joins the ten, `kept <generations> generations, rank <r> (<end>)` with
+  its 1-based place at the moment it joined; and on a terminal the
+  countdown of R-E4. The R-O1 rule line is not printed: no rule becomes
+  current.
 - **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> pairs`
   for each file in command-line order, `, shuffled` appended when its
   script said `shuffle` (R-X7); in a show of two or more files

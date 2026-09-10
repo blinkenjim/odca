@@ -26,9 +26,9 @@ for pair in pairs where !rules.contains(pair.rule) { rules.append(pair.rule) }
 var interrupted = false
 signal(SIGINT) { _ in interrupted = true }
 
-// Terminal output (R-O16): lines, each opening with the time of day, and on
-// a terminal a countdown redrawn in place, cleared before any line is
-// printed over it.
+// Terminal output (R-O16): lines, each opening with the time left on the
+// rule, and on a terminal a countdown redrawn in place, cleared before any
+// line is printed over it.
 let terminal = isatty(1) != 0
 let outputLock = NSLock()
 var countdownShown = false
@@ -38,10 +38,10 @@ func clearCountdown() {
         countdownShown = false
     }
 }
-func say(_ line: String) {
+func say(_ line: String, at deadline: Date) {
     outputLock.lock()
     clearCountdown()
-    print("\(Evolve.timeOfDay()) \(line)")
+    print("\(Evolve.hms(deadline.timeIntervalSinceNow)) \(line)")
     outputLock.unlock()
 }
 func countdown(_ text: String) {
@@ -54,10 +54,13 @@ func countdown(_ text: String) {
 }
 for (index, id) in rules.enumerated() {
     let rule = try! Rule(id: id)  // loadOdcaFile keeps only valid rule IDs
-    say("rule \(id) (\(index + 1)/\(rules.count)): \(cells) cells, \(Evolve.hms(Double(budget)))")
+    let deadline = Date().addingTimeInterval(Double(budget))
+    say("rule \(id) (\(index + 1)/\(rules.count)): \(cells) cells", at: deadline)  // opens with the whole budget
     let search = SeedSearch(rule: rule, cells: cells, cap: cap, kept: seeds[id]?[cells] ?? [])
-    search.onKept = { seed, rank in say("kept \(seed.generations) generations, rank \(rank) (\(seed.end))") }
-    let kept = search.run(until: Date().addingTimeInterval(Double(budget))) { remaining in
+    search.onKept = { seed, rank in
+        say("kept \(seed.generations) generations, rank \(rank) (\(seed.end))", at: deadline)
+    }
+    let kept = search.run(until: deadline) { remaining in
         if interrupted { search.stop() }
         countdown("  \(Evolve.hms(remaining))")
     }

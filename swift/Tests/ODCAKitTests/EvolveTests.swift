@@ -163,14 +163,11 @@ final class EvolveTests: XCTestCase {
         XCTAssertEqual(Store.loadSeeds(file), [kills3.id: [8: [seed("31111111", 2)]]])
     }
 
-    func testClocksReadHoursMinutesSeconds() {  // PT-41, R-E4, R-O16
+    func testTheClockReadsHoursMinutesSeconds() {  // PT-41, R-E4, R-O16
         XCTAssertEqual(Evolve.hms(0), "00:00:00")
         XCTAssertEqual(Evolve.hms(0.2), "00:00:01")  // rounded up: a second left until it is gone
         XCTAssertEqual(Evolve.hms(59.5), "00:01:00")
         XCTAssertEqual(Evolve.hms(4 * 3600 + 5 * 60 + 6), "04:05:06")
-        XCTAssertEqual(Evolve.hms(-3), "00:00:00")
-        var parts = DateComponents()
-        parts.year = 2026; parts.month = 9; parts.day = 9; parts.hour = 13; parts.minute = 7; parts.second = 9
-        XCTAssertEqual(Evolve.timeOfDay(Calendar.current.date(from: parts)!), "13:07:09")
+        XCTAssertEqual(Evolve.hms(-3), "00:00:00")  // a line printed just past the deadline
     }
 }
