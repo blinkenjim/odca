@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.40.0 — 2026-09-09
+Version 3.40.1 — 2026-09-09
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -68,7 +68,8 @@ longest-lived seeds — section 4e, R-P3 (the `seeds` section), R-X4
 conformance vectors 1.1 (`lifetimes`). 3.38.0: `odca-evolve` clocks as
 `hh:mm:ss` — R-E4, R-O16. 3.38.1: its lines open with the time left on
 the rule, not the time of day — R-O16. 3.40.0: the ages of the ten when
-a rule is done — R-O16.)
+a rule is done — R-O16. 3.40.1: the countdown starts at the left margin
+— R-E4.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -850,10 +851,11 @@ Then the next rule.
 
 **R-E4 (countdown and interruption).** While a rule is searched and
 standard output is a terminal, the time left in its budget is shown as
-`  hh:mm:ss` (two digits each, rounded up to the second, so `00:04:59`
-with just under five minutes to go), redrawn in place about once a
-second and cleared before any other line is printed; when output is not
-a terminal it is not shown. On SIGINT (Ctrl-C) the workers are stopped, the rule in hand is
+`hh:mm:ss` (two digits each, rounded up to the second, so `00:04:59`
+with just under five minutes to go), starting at the left margin so it
+sits in the column of the times that open the status lines (R-O16),
+redrawn in place about once a second and cleared before any other line
+is printed; when output is not a terminal it is not shown. On SIGINT (Ctrl-C) the workers are stopped, the rule in hand is
 written as R-E3 says with the seeds it has so far, and the program exits
 with status 130 without taking up the next rule.
 

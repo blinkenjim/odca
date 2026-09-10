@@ -5,6 +5,11 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.40.1 (Swift, spec) — 2026-09-09
+
+The countdown now starts at the left margin, in the same column as the
+times that open the status lines, instead of two spaces in.
+
 ## 3.40.0 (Swift, spec) — 2026-09-09
 
 When `odca-evolve` finishes a rule it prints the ages of the ten rows

@@ -62,7 +62,7 @@ for (index, id) in rules.enumerated() {
     }
     let kept = search.run(until: deadline) { remaining in
         if interrupted { search.stop() }
-        countdown("  \(Evolve.hms(remaining))")
+        countdown(Evolve.hms(remaining))  // in the column of the times that open the lines
     }
     outputLock.lock()
     clearCountdown()

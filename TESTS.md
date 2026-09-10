@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.40.0 — 2026-09-09
+Version 3.40.1 — 2026-09-09
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -175,8 +175,8 @@ from `REQTS.md`.
   --shuffle` plays the files in a different order each pass, each file's
   pairs in order, announcing `playing <file>` at each change (R-X).
 - **M-14** `odca-evolve my.odca --cells 600 --time 60` on a terminal:
-  each rule's line, the countdown (`  00:00:59` downward) ticking in
-  place below it, the `kept` lines scrolling up as rows join, every line
+  each rule's line, the countdown (`00:00:59` downward, in the column
+  of the times that open the lines) ticking in place below it, the `kept` lines scrolling up as rows join, every line
   opening with the time then left (`00:01:00 rule ...`, `00:00:41 kept
   ...`), the ten ages on one line (`00:00:00 4821, 3990, ...`) as each
   rule ends, Ctrl-C writing the rule in hand; then
