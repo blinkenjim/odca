@@ -26,11 +26,11 @@ from .session import Session  # noqa: E402
 
 FPS = 60  # refresh cap when the display cannot pace us (no vsync)
 COUNTER_INTERVAL = 0.2  # the generation counter on the terminal refreshes five times a second (R-O17)
-COUNTER_FONT_SIZE = 48  # the on-screen counter in full screen (R-U11), pixels
-COUNTER_INSET = 24  # from the lower-left corner
+COUNTER_FONT_SIZE = 16  # the on-screen counter in full screen (R-U11): pygame's default face at 16 px is about 12 pt
+COUNTER_INSET = 12  # from the lower-left corner
 COUNTER_COLOR = (255, 255, 0)  # yellow
 COUNTER_OUTLINE = (0, 0, 0)  # black, this many pixels around the glyphs
-COUNTER_OUTLINE_WIDTH = 2
+COUNTER_OUTLINE_WIDTH = 1
 VSYNC_FPS_CAP = 240  # with vsync the display paces; this only bounds a runaway loop
 MIN_WINDOW = (160, 120)  # the smallest window in pixels, whatever the cell size (R-U2)
 
