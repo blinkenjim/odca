@@ -72,8 +72,11 @@ while true {
     let made = Evolve.parityPlan(rules: rules, width: cells, seeds: seeds, limit: limit)
     plan = made.skips
     let limited = limit > 0 ? " (limit \(limit))" : ""
-    say("parity: \(plan.count) of \(made.ahead) rules ahead give up their turn\(limited)", at: whole)
+    let running = rules.count - plan.count
+    say("parity: \(rules.count) rules this round trip, \(plan.count) of \(made.ahead) ahead give up their turn, \(running) run\(limited)", at: whole)
   }
+  let toRun = rules.count - plan.count
+  var ran = 0
   for (index, id) in rules.enumerated() {
     let rule = try! Rule(id: id)  // loadOdcaFile keeps only valid rule IDs
     let deadline = Date().addingTimeInterval(Double(budget))
@@ -81,7 +84,9 @@ while true {
         say("rule \(id) (\(index + 1)/\(rules.count)): \(cells) cells, skipped: shortest \(shortest) × 0.9 outlives \(longest)", at: deadline)
         continue
     }
-    say("rule \(id) (\(index + 1)/\(rules.count)): \(cells) cells", at: deadline)  // opens with the whole budget
+    ran += 1
+    let place = parity ? ", running \(ran) of \(toRun)" : ""  // R-O16: its place among the rules that run
+    say("rule \(id) (\(index + 1)/\(rules.count)\(place)): \(cells) cells", at: deadline)  // opens with the whole budget
     let search = SeedSearch(rule: rule, cells: cells, cap: cap, kept: seeds[id]?[cells] ?? [])
     search.onKept = { seed, rank in
         say("kept \(seed.generations) generations, rank \(rank) (\(seed.end))", at: deadline)

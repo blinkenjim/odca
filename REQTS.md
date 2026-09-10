@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.66.0 — 2026-09-10
+Version 3.68.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -89,7 +89,9 @@ a confirmed cycle ends a row in `odca-evolve` and an item in `odca
 furthest ahead — R-E5. 3.64.0: `odca-evolve` round trips until
 interrupted; the parity plan is made as each round trip starts, at most
 `--limit` skips — R-E2, R-E4, R-E5, R-E1, R-O16, section 10. 3.66.0:
-ten survivors end a turn early — R-E3, R-O16.)
+ten survivors end a turn early — R-E3, R-O16. 3.68.0: the parity plan
+line counts the round trip's rules, and each running rule its place
+among those that run — R-E5, R-O16.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1026,8 +1028,11 @@ width. Seeds of rules not among the file's pairs do not count. With
 `--limit N`, N above 0, at most N rules give up their turn per round
 trip: those furthest ahead by their shortest lifetime, ties in file
 order; the rest of the qualifiers run. The plan is announced as the
-round trip starts: `parity: <k> of <m> rules ahead give up their turn`,
-with ` (limit <N>)` appended when a limit is set (R-O16). (3.58.0
+round trip starts: `parity: <n> rules this round trip, <k> of <m>
+ahead give up their turn, <r> run`, with ` (limit <N>)` appended when
+a limit is set, n the rules of the round trip, m those ahead, k those
+skipped, r = n − k; and each rule that runs carries its place among
+those, `rule <id> (<i>/<n>, running <j>/<r>)` (R-O16). (3.58.0
 judged against the longest of all the others, so a single immortal
 rule kept every rule running, and 3.62.0 judged each rule as its turn
 came; withdrawn.)
@@ -1177,7 +1182,9 @@ The program prints single-line, human-readable status to standard output:
   and with the countdown: as each round trip begins, `round trip <k>`
   and, under `--parity`, the plan line of R-E5 (both opening with the
   whole budget); as each rule is taken up, `rule <id>
-  (<i>/<n>): <cells> cells` (opening with the whole budget); as each row
+  (<i>/<n>): <cells> cells` (opening with the whole budget), under
+  `--parity` `rule <id> (<i>/<n>, running <j> of <r>): <cells> cells`
+  with j its place among the r rules that run this round trip (R-E5); as each row
   joins the ten, `kept <generations> generations, rank <r> (<end>)` with
   its 1-based place at the moment it joined; under `--parity` (R-E5), a
   rule that gives up its turn prints `rule <id> (<i>/<n>): <cells>
