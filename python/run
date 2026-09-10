@@ -1,10 +1,11 @@
 #!/bin/bash
 # Run odca or odca-select straight out of a fresh clone: makes the venv and
 # installs the package (editable, with the test extras) on first use, then
-# runs the program with the remaining arguments. The install compiles the
-# play script parser (python/odca/cshow, C; needs cc), and is repeated
-# whenever that C is newer than the compiled library (after script/regen).
-# File paths are relative to where you run this from, not to this script.
+# runs the program with the remaining arguments. The install fetches numpy
+# and pygame-ce and compiles the play script parser (python/odca/cshow, C;
+# needs cc), and is repeated whenever that C is newer than the compiled
+# library (after script/regen). File paths are relative to where you run
+# this from, not to this script.
 #
 #   python/run odca show.play [more files] [--shuffle] [--fullscreen]
 #   python/run odca-select my-pairs.odca
@@ -16,16 +17,45 @@ case "$prog" in
   odca|odca-select|pytest) shift ;;
   *) echo "usage: python/run odca|odca-select|pytest [arguments]"; exit 2 ;;
 esac
+
+# Install, and on a failure show the end of pip's own output followed by
+# the three things that actually go wrong, rather than leaving someone to
+# read fifty lines of another project's build log.
+install() {
+  local log
+  log="$(mktemp)"
+  if "$dir/.venv/bin/pip" install --upgrade pip setuptools >"$log" 2>&1 \
+     && "$dir/.venv/bin/pip" install -e "$dir[test]" >>"$log" 2>&1; then
+    rm -f "$log"
+    return 0
+  fi
+  tail -n 15 "$log" >&2
+  rm -f "$log"
+  cat >&2 <<'MSG'
+
+python/run: the install failed. What usually causes it:
+  * No wheel for this python3. pygame-ce publishes them a release or two
+    behind the newest Python, and without one pip builds it from source,
+    which needs the SDL development headers. Build the venv with an older
+    interpreter and run this again:
+        rm -rf python/.venv && python3.13 -m venv python/.venv
+  * No C compiler for the play script parser: on Debian and Ubuntu,
+    apt install build-essential; on macOS, xcode-select --install.
+  * An old .venv holding upstream pygame, which cannot share a directory
+    with pygame-ce: rm -rf python/.venv and run this again.
+MSG
+  exit 1
+}
+
 lib="$(ls "$dir"/odca/_show*.so 2>/dev/null | head -1)"
 if [ ! -x "$dir/.venv/bin/$prog" ]; then
   python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' \
     || { echo "python/run: needs python3 >= 3.9 on PATH"; exit 1; }
   echo "python/run: first use, creating $dir/.venv and installing (about a minute)" >&2
   python3 -m venv "$dir/.venv"
-  "$dir/.venv/bin/pip" install --quiet --upgrade pip setuptools
-  "$dir/.venv/bin/pip" install --quiet -e "$dir[test]"
+  install
 elif [ -z "$lib" ] || [ -n "$(find "$dir/odca/cshow" -type f -newer "$lib")" ]; then
   echo "python/run: the play script parser changed, rebuilding" >&2
-  "$dir/.venv/bin/pip" install --quiet -e "$dir[test]"
+  install
 fi
 exec "$dir/.venv/bin/$prog" "$@"

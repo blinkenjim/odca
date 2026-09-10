@@ -41,7 +41,7 @@ its own directory.
 | `interesting.odca` | the pairs (rule + color set) kept so far — an odca file, playable with `odca interesting.odca` |
 | `conformance/` | golden engine vectors, the `--help` texts, and the play script cases (`scripts/`), byte-identical across implementations |
 | `script/` | the play script grammar (`show.l`, `show.y`) and `regen`, which generates the C parser into both implementations |
-| `python/` | the reference implementation (Python + pygame); see `python/README.md` |
+| `python/` | the reference implementation (Python + pygame-ce); see `python/README.md` |
 | `REQ-python.md` | implementation notes for the Python version |
 | `swift/` | Swift implementation (macOS, `swift/run odca <file>`); see `swift/README.md` |
 | `REQ-swift.md` | implementation notes for the Swift version |

@@ -7,7 +7,11 @@ name = "odca"
 description = "One-dimensional cellular automata as art: the odca player and the odca-select workbench"
 requires-python = ">=3.9"
 dynamic = ["version"]
-dependencies = ["numpy", "pygame"]
+# pygame-ce, the community fork, not upstream pygame: it publishes wheels
+# for new Python versions, which upstream has not done since 3.13. The two
+# both install a module named `pygame` and cannot share a virtual
+# environment; `import pygame` is the same either way.
+dependencies = ["numpy", "pygame-ce"]
 
 [project.optional-dependencies]
 test = ["pytest"]

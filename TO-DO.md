@@ -1,7 +1,14 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-08):** Spec 3.32.0, Swift 3.32.0, Python
-3.33.0: the show script has `import <file>`, `play`, and `shuffle`
+**YOU ARE HERE (2026-09-09):** Spec 3.32.0, Swift 3.32.0, Python
+3.35.0. Python 3.35.0 (today) swaps upstream `pygame` for `pygame-ce`:
+the user's fresh clone on Ubuntu with Python 3.14 could not install,
+because upstream has shipped no wheel since 3.13 and the source build
+wants SDL headers; the fork has wheels through 3.15 and a newer SDL
+(2.32), `import pygame` is unchanged, and `python/run` now explains a
+failed install. An existing `.venv` must be removed, not upgraded, as
+the two cannot share one. Awaiting the user's word that Ubuntu and the
+Pi are happy. Before that, spec 3.32.0: the show script has `import <file>`, `play`, and `shuffle`
 (R-X7; the user, 2026-09-08: "the shuffle is a verb, so it's not `play
 shuffle` but simply `shuffle`" — both words are verbs, a script says
 one of them). Python now line-buffers its output as Swift does. `odca` plays a show of one or more files, each a play script

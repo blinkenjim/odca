@@ -5,6 +5,37 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.35.0 (Python) — 2026-09-09
+
+The Python version now depends on **pygame-ce**, the community fork,
+instead of upstream pygame. Nothing about the program changes; this is
+about being installable.
+
+Upstream pygame has published no wheel since Python 3.13. On a machine
+whose `python3` is newer, pip falls back to building it from C source,
+which needs the SDL development headers, and the install dies in fifty
+lines of someone else's build log. That is what a fresh clone did on
+Ubuntu with Python 3.14. The fork ships wheels for 3.14 and 3.15, and
+carries a newer SDL besides, 2.32 against 2.28, which is the layer the
+GPU display path runs on.
+
+`import pygame` is unchanged everywhere, the renderer path included, so
+no code moved. **One thing to know:** both packages install a module
+named `pygame` and cannot share a virtual environment. An existing
+checkout needs its venv rebuilt rather than upgraded:
+
+```sh
+rm -rf python/.venv
+python/run odca interesting.odca      # builds it again, about a minute
+```
+
+`python/run` now says what went wrong when an install fails, with the
+end of pip's own output and the three things that actually cause it: no
+wheel for this Python, no C compiler for the script parser, or an old
+venv holding upstream pygame. Wheels still lag a brand-new Python by a
+release or two, and the message says to build the venv with an older
+`python3` when that is the trouble.
+
 ## 3.32.0 (Swift) and 3.33.0 (Python) — 2026-09-08
 
 Two small corrections to yesterday's pair.

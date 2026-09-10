@@ -1,6 +1,6 @@
 # ODCA — Python Implementation Notes
 
-Version 3.33.0 — 2026-09-08 (`shuffle` a statement of its own, line-buffered output; 3.31.0: a script shuffles its pairs; 3.29.0: play scripts: `show.py` over the C parser in `odca/cshow/`, built by `setup.py`; 3.27.0: pairs, named; 2-point default; 3.25.0: navigation scrolls the pair in; 3.23.0: a mutated pair saves as a new pair; 3.21.0: `--3`; 3.19.0: `U` undoes all; 3.17.0: `m` edits the pair under review; 3.15.0: `--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
+Version 3.35.0 — 2026-09-09 (`pygame-ce` replaces upstream `pygame`; 3.33.0: `shuffle` a statement of its own, line-buffered output; 3.31.0: a script shuffles its pairs; 3.29.0: play scripts: `show.py` over the C parser in `odca/cshow/`, built by `setup.py`; 3.27.0: pairs, named; 2-point default; 3.25.0: navigation scrolls the pair in; 3.23.0: a mutated pair saves as a new pair; 3.21.0: `--3`; 3.19.0: `U` undoes all; 3.17.0: `m` edits the pair under review; 3.15.0: `--watchdog`, `--grace`; 3.13.0: shuffle constraints; 3.11.0: initial delay scales with the cell; 3.9.0: cell size flags; 3.7.0: `F` toggles full screen; `python/run` wrapper; 3.5.0: `--fullscreen`; 3.3.0: per-row palette table, rows keep their colors for good; 3.1.1: drawing through SDL's renderer with vsync; 3.1.0: resizable window with full screen, deep history; 3.0.0: two programs, `odca` and `odca-select`, installed as console scripts; odca files and `library.json`)
 
 Non-normative companion to `REQTS.md` describing the reference Python
 implementation in this repository. A re-implementation in Python need not
@@ -8,8 +8,18 @@ copy these choices, but they are known to work.
 
 ## Environment
 
-- Python ≥ 3.9 on macOS or Linux; dependencies: `numpy`, `pygame`,
+- Python ≥ 3.9 on macOS or Linux; dependencies: `numpy`, `pygame-ce`,
   `pytest` (`pyproject.toml`; `requirements.txt` lists the same).
+- **`pygame-ce`, not upstream `pygame`** (3.35.0): the fork publishes
+  wheels for new Python versions, which upstream stopped doing after
+  3.13, so a fresh clone on a current Linux built pygame from source and
+  failed for want of the SDL headers. The two are the same to this code
+  (`import pygame` throughout, the `pygame._sdl2.video` renderer path
+  included) but both install a module of that name, so they cannot share
+  a virtual environment: an existing `.venv` must be removed, not
+  upgraded. A wheel still lags a brand-new Python by a release or two;
+  the venv then wants an older `python3`, which is what `python/run`
+  says when the install fails.
 - The implementation lives in the `python/` directory of the monorepo;
   run all commands from there. Setup: `python3 -m venv .venv &&
   .venv/bin/pip install --upgrade pip setuptools && .venv/bin/pip install
