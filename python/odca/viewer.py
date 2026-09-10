@@ -26,11 +26,11 @@ from .session import Session  # noqa: E402
 
 FPS = 60  # refresh cap when the display cannot pace us (no vsync)
 COUNTER_INTERVAL = 0.2  # the generation counter on the terminal refreshes five times a second (R-O17)
-COUNTER_FONT_SIZE = 16  # the on-screen counter in full screen (R-U11): pygame's default face at 16 px is about 12 pt
+COUNTER_FONT_SIZE = 24  # the on-screen counter in full screen (R-U11): pygame's default face at 24 px is about 18 pt
 COUNTER_INSET = 12  # from the lower-left corner
 COUNTER_COLOR = (255, 255, 0)  # yellow
 COUNTER_OUTLINE = (0, 0, 0)  # black, this many pixels around the glyphs
-COUNTER_OUTLINE_WIDTH = 1
+COUNTER_OUTLINE_WIDTH = 2
 VSYNC_FPS_CAP = 240  # with vsync the display paces; this only bounds a runaway loop
 MIN_WINDOW = (160, 120)  # the smallest window in pixels, whatever the cell size (R-U2)
 
@@ -101,6 +101,7 @@ def render_counter(text, font=None):
     if font is None:
         pygame.font.init()
         font = pygame.font.Font(None, COUNTER_FONT_SIZE)
+        font.set_bold(True)
     w = COUNTER_OUTLINE_WIDTH
     yellow = font.render(text, True, COUNTER_COLOR)
     black = font.render(text, True, COUNTER_OUTLINE)
@@ -288,12 +289,11 @@ class Viewer:
                 window.title = new_title
                 title = new_title
             since_counter += dt
-            if since_counter >= COUNTER_INTERVAL and session.counter is not None:
+            if since_counter >= COUNTER_INTERVAL and status is not None and session.counter is not None:
                 since_counter = 0.0
-                if status is not None:
-                    status.show(session.counter)  # R-O17: five times a second
-                # R-U11: on screen too, in full screen only, at the same beat
-                self.show_counter(renderer, session.counter if self.is_full_screen(*window.size) else None)
+                status.show(session.counter)  # R-O17: five times a second
+            # R-U11: on screen too, in full screen only, every frame
+            self.show_counter(renderer, session.counter if self.is_full_screen(*window.size) else None)
             renderer.present()  # blocks until the refresh when vsync is on
         if status is not None:
             print("", end="")  # clears the counter line (a write) before the prompt returns
