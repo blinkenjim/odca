@@ -1,7 +1,10 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.48.0, Swift 3.48.1, Python
-3.49.0. Swift 3.48.1: the `--longest` window sets its width outright
+**YOU ARE HERE (2026-09-10):** Spec 3.50.0, Swift 3.50.0, Python
+3.51.0: under `--longest` the grid is scaled to the window's width in
+both directions (nearest for a whole-number factor, linear otherwise;
+the user's question about the black bands in full screen, and my two
+recommendations, both taken). Before that, Swift 3.48.1: the `--longest` window sets its width outright
 once it exists (SwiftUI restores the last frame by itself; the user saw
 black bands in a plain window). 3.48.0 / 3.49.0: under `--longest` the generation counter `<n>/<m>` is redrawn
 in place on the terminal five times a second, cleared before any line

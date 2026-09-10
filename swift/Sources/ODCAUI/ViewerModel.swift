@@ -199,11 +199,18 @@ final class AutomatonView: NSView {
         layer?.addSublayer(gridLayer)
     }
 
-    /// R-U8: the grid follows the view — as many whole cells as fit.
+    /// R-U8: the grid follows the view — as many whole cells as fit. Under
+    /// --longest (R-X8) the width is the seeds' and the grid is stretched to
+    /// the view's width, so the rows are counted in scaled cells.
     override func layout() {
         super.layout()
         let cell = CGFloat(ViewerModel.cellSize)
-        model.resize(cols: Int(bounds.width / cell), rows: Int(bounds.height / cell))
+        if model.session.longest {
+            let fit = Geometry.fitToWidth(width: bounds.width, height: bounds.height, cols: model.cols, cell: ViewerModel.cellSize)
+            model.resize(cols: model.cols, rows: fit.rows)
+        } else {
+            model.resize(cols: Int(bounds.width / cell), rows: Int(bounds.height / cell))
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -234,10 +241,18 @@ final class AutomatonView: NSView {
             lastTimestamp = link.timestamp
             model.frameTick(dt: dt)
         }
-        let cell = CGFloat(ViewerModel.cellSize)
+        var cell = CGFloat(ViewerModel.cellSize)
+        if model.session.longest {
+            // R-X8: the grid is stretched to the view's width, aspect kept:
+            // nearest-neighbor scaling for a whole-number factor, linear otherwise.
+            let factor = Geometry.fitToWidth(width: bounds.width, height: bounds.height,
+                                             cols: model.cols, cell: ViewerModel.cellSize).factor
+            cell *= factor
+            let filter: CALayerContentsFilter = Geometry.isWhole(factor) ? .nearest : .linear
+            imageLayer.magnificationFilter = filter
+            imageLayer.minificationFilter = filter
+        }
         let gridW = CGFloat(model.cols) * cell, gridH = CGFloat(model.rows) * cell
-        // R-X8: under --longest the width is fixed; a wider window shows black
-        // bars, a narrower one crops the grid (centered, the layer clips).
         let bg = model.session.longest ? RGB(r: 0, g: 0, b: 0) : model.session.palette[0]
         CATransaction.begin()
         CATransaction.setDisableActions(true)  // no implicit animation of the slide

@@ -88,7 +88,8 @@ the keyboard:
   longest, and so on, looping; each runs to the extinction that was
   measured, with no watchdog. Seeds that survived the cap are left out,
   so a rule with nothing but survivors drops out of the show. The window
-  is as wide as the seeds: wider shows black bars, narrower crops.
+  opens as wide as the seeds, and the picture is scaled to whatever
+  width the window or screen has, cells staying square.
   `--shuffle` mixes the seeds under the usual no-repeat rule; `--cells`
   picks the width when the files record more than one. The rule keys do
   nothing; `i` restarts the seed on screen.

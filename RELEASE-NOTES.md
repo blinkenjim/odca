@@ -5,6 +5,19 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.50.0 (Swift, spec) and 3.51.0 (Python) — 2026-09-10
+
+Under `--longest` the picture now fills the width it is given. The
+window still opens as wide as the seeds, but make it wider, narrower,
+or full screen and the GPU stretches or shrinks the grid to span it,
+in both directions alike so cells stay square; the rows are recounted
+in scaled cells, with black above and below for the remainder. A
+whole-number factor (a 1200-point window on a 2400-point screen) is
+drawn crisp; a fractional one (1200 on 1920 is 1.6) is drawn with
+linear filtering, so cells do not alternate in size, at the price of
+slightly soft edges. The black side bars and the centered crop of
+3.44.0 are gone.
+
 ## 3.48.1 (Swift) — 2026-09-10
 
 The `--longest` window now opens at the seeds' width every time. The

@@ -239,4 +239,19 @@ final class PropertyTests: XCTestCase {
         Store.saveOdcaFile(Store.loadOdcaFile(reference)!, to: url)
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original)
     }
+
+    func testFitToWidthKeepsTheAspect() {  // PT-44, R-X8
+        var fit = Geometry.fitToWidth(width: 1920, height: 1080, cols: 600, cell: 2)
+        XCTAssertEqual(fit.factor, 1.6, accuracy: 1e-12)
+        XCTAssertEqual(fit.rows, 337)  // 1080 / 3.2
+        XCTAssertFalse(Geometry.isWhole(fit.factor))
+        fit = Geometry.fitToWidth(width: 1200, height: 800, cols: 600, cell: 2)
+        XCTAssertEqual(fit.factor, 1)
+        XCTAssertEqual(fit.rows, 400)
+        XCTAssertTrue(Geometry.isWhole(fit.factor))
+        fit = Geometry.fitToWidth(width: 600, height: 50, cols: 600, cell: 2)  // scaled down, one row at least
+        XCTAssertEqual(fit.factor, 0.5)
+        XCTAssertEqual(fit.rows, 50)
+        XCTAssertEqual(Geometry.fitToWidth(width: 600, height: 0, cols: 600, cell: 2).rows, 1)
+    }
 }

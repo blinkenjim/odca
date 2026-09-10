@@ -21,7 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         DispatchQueue.main.async {  // the window exists by now (R-U2, R-U8)
             for window in NSApp.windows {
-                window.contentResizeIncrements = NSSize(width: ViewerModel.cellSize, height: ViewerModel.cellSize)
+                if ViewerModel.fixedCols == nil {  // R-X8: a scaled grid needs no snapping
+                    window.contentResizeIncrements = NSSize(width: ViewerModel.cellSize, height: ViewerModel.cellSize)
+                }
                 window.collectionBehavior.insert(.fullScreenPrimary)
                 if let cols = ViewerModel.fixedCols {  // R-X8: a fixed-width window opens at its width every time
                     // SwiftUI restores the last run's frame on its own, so the

@@ -34,9 +34,10 @@ colors. The files play in turn, each its pairs in order, looping.
                 every pair's second longest, and so on, looping; each
                 plays to the extinction that was measured, with no
                 watchdog; seeds that survived the cap are left out, so a
-                rule with nothing but survivors is left out. The window is
-                as wide as the seeds: a wider one shows black bars, a
-                narrower one crops. With --shuffle the seeds play in a
+                rule with nothing but survivors is left out. The window
+                opens as wide as the seeds, and the picture is scaled to
+                the width it has, cells staying square. With --shuffle
+                the seeds play in a
                 fresh random order each pass in which no rule and no
                 color set follows itself. r, m, u, U, and a do nothing;
                 i restarts the seed on screen

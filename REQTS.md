@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.48.0 — 2026-09-10
+Version 3.50.0 — 2026-09-10
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -75,7 +75,8 @@ cumulative — R-E4. 3.44.0: `odca --longest`, the show of the recorded
 seeds in a fixed-width window — R-X8, R-X1, R-U8, R-O13, R-U9, section
 10. 3.46.0: the generation counter in the title under `--longest` —
 R-U6. 3.48.0: the counter moves to standard output, in place on a
-terminal — R-O17, R-U6.)
+terminal — R-O17, R-U6. 3.50.0: the `--longest` grid is stretched to the
+window's width, aspect kept — R-X8, R-U2.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -200,7 +201,9 @@ odca file of `odca-select`, section 4c; the show of `odca`, section 4d;
    file the loaded rule occupies the unsaved slot. `odca` plays the
    show's first pair at once (R-X1).
 
-**R-U2 (display geometry).** The display is a grid of square cells,
+**R-U2 (display geometry).** (Under `odca --longest` the grid is scaled
+to the window's width, R-X8; the rest of this requirement describes the
+natural size.) The display is a grid of square cells,
 `cell_size` points on a side: 2 by default (since 3.26.0; 4 before), or
 4, 3, or 1 for the run when either program is given `--4`, `--3`, or
 `--1` (`--2` names the default; at most one of the four, more is a usage
@@ -853,14 +856,23 @@ nothing; `s`, `S`, `X`, and `R` do nothing as in every show; the color
 keys, `N`/`P` and `n`/`p` (R-X6), speed, pause, and single step keep
 their meanings.
 
-The window is as wide as the seeds, `cols × cell_size` points, and opens
-at that width, its height the default (or the screen's under
-`--fullscreen`); the width in cells never changes. A wider window or
-screen (full screen, `F`, a drag) shows the grid centered between black
-bars; a narrower one shows the grid's center, cropped equally at both
-edges; only the height follows the window (R-U8's cropping and padding
-apply to rows alone), and every margin is black rather than the state-0
-color. The cell size flags apply as ever.
+The window opens as wide as the seeds, `cols × cell_size` points, its
+height the default (or the screen's under `--fullscreen`); the width in
+cells never changes. Whatever the window's or screen's width afterwards
+(full screen, `F`, a drag), the grid is stretched or shrunk to span it,
+in both directions alike so cells stay square: the on-screen cell is
+`cell_size × factor` points with `factor` = window width / (`cols` ×
+`cell_size`), the rows are as many such cells as fit the height,
+`rows` = ⌊height / (`cell_size` × `factor`)⌋ (never fewer than one),
+centered with the remainder in black margins above and below, and
+scrolling moves in scaled cells. A whole-number factor is drawn with
+nearest-neighbor scaling, every cell the same size; a fractional one
+with linear filtering, so cells do not alternate in size (a faint
+softness at the edges is the price). The rows follow the window (R-U8's
+cropping and padding apply to rows alone). The cell size flags set the
+natural size, and so the window's width at launch. (3.44.0 to 3.48.1
+kept the natural size and showed black bars or a centered crop
+instead.)
 
 ---
 
