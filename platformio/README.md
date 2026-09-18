@@ -10,22 +10,29 @@ scroll (see `src/main.cpp`'s own comment for why — correctness before
 speed). Confirmed genuinely running on the board via serial and, for
 the display, the user's own eyes.
 
-The ESP32-C6 board (Waveshare ESP32-C6-LCD-1.47) is a new port just
-getting started: same 172×320 ST7789 panel and driver chip as the
-RP2350 board, confirmed from the manufacturers' own spec pages, so the
-engine and detector libraries and the Adafruit_GFX/ST7789 stack are
-expected to carry over unchanged once the port gets that far — only
-pin numbers, the RNG call, and the BOOT-button read differ per board.
-So far, only the toolchain itself is proven (`src/main_esp32c6_hello.cpp`):
-build, flash, and a serial heartbeat, confirmed directly over
-`pio device monitor`.
+The ESP32-C6 board (Waveshare ESP32-C6-LCD-1.47) now runs the same
+firmware too (`src/main_esp32c6.cpp`): same 172×320 ST7789 panel and
+driver chip as the RP2350 board, confirmed from the manufacturers' own
+spec pages, and confirmed correct on the real panel — right colors,
+right orientation, on the first try. Engine, detector, display, and the
+BOOT-button speed cycle all running, confirmed live over serial through
+several screenfuls and a couple of auto-reinits. One real, board-
+specific bug found and fixed: this chip runs FreeRTOS under the Arduino
+core (the RP2350 side doesn't), and a `loop()` with no yielding calls
+starved its task watchdog, seen as a garbled serial line and a
+multi-second stall every couple of screenfuls; `src/main_esp32c6.cpp`'s
+own comment has the details. Speed is untuned so far — its SPI clock
+started at the RP2350 side's original conservative value, not its later
+80MHz, since these pins are GPIO-matrix-routed rather than the RP2350's
+dedicated hardware SPI pins and may have a different reliable ceiling.
 
 ## Build
 
 ```sh
 pio run                 # RP2350, the real firmware (src/main.cpp)
 pio run -e display      # RP2350, the display link test
-pio run -e esp32c6      # ESP32-C6, the toolchain smoke test
+pio run -e esp32c6      # ESP32-C6, the real firmware (src/main_esp32c6.cpp)
+pio run -e esp32c6-hello # ESP32-C6, the toolchain smoke test
 ```
 
 The RP2350 side, via the
@@ -72,7 +79,8 @@ each firmware's own serial output once it's running.
 | `lib/odca_boring/` | the boring detector (R-A): extinction, Brent's cycle detection, and the two now-fixed windows (R-A1, 3.72.0/3.73.0) — this module has no notion of a display at all; `odca_lifetime` is the R-E2 "how long did this seed live" measurement odca-evolve uses, and `odca_detector` is the continuously-running version the firmware plays through. Same portability rules as the engine. PlatformIO auto-links both into the firmware; nothing else needs to know they're there |
 | `host_test/` | proves both libraries on this machine, no board, no PlatformIO: `./host_test/run` regenerates `conformance/vectors.json` as C data, compiles each library with plain `cc`, and runs two binaries — `count_vectors`, `valid_rule_ids`, `invalid_rule_ids`, `evolution`, and `lifetimes` all pass against the golden data; the detector's window and precedence behavior, which has no golden vectors of its own on the desktop either, is checked the same way `python/tests` and `swift/Tests` do it, by hand-built cases |
 | `src/main_display_test.cpp` | a separate RP2350 firmware, kept apart from `src/main.cpp`: cycles the ST7789 through solid colors, the four ODCA palette colors as vertical stripes, and single corner pixels, over Adafruit_GFX/Adafruit_ST7789. `pio run -e display -t upload` builds and flashes this instead of the real firmware. The six pin numbers and the rotation value at the top of the file started as a guess from two independent sources plus this board's default hardware SPI0 pins, and are confirmed correct: right colors, right orientation, against the real panel |
-| `src/main_esp32c6_hello.cpp` | the ESP32-C6 side's own toolchain smoke test, the same first step the RP2350 side took: a serial heartbeat, nothing more. `pio run -e esp32c6 -t upload` builds and flashes this |
+| `src/main_esp32c6.cpp` | the real ESP32-C6 firmware, ported from `src/main.cpp`: same engine/detector/display/speed-cycle behavior, board-specific pins, RNG (`esp_random()`), and BOOT-button read (a plain GPIO, unlike the RP2350's special BOOTSEL object), plus a `yield()` each loop() and `delay()` instead of a busy-spin at the slow speeds — this chip's FreeRTOS task watchdog needs the yield, something the RP2350 side never had to consider |
+| `src/main_esp32c6_hello.cpp` | the ESP32-C6 side's own toolchain smoke test, the same first step the RP2350 side took: a serial heartbeat, nothing more. `pio run -e esp32c6-hello -t upload` builds and flashes this |
 
 The automaton's width is 320, not the panel's native 172: the display
 runs rotated, its long axis as the automaton's width, since a wider

@@ -44,7 +44,7 @@ its own directory.
 | `python/` | the reference implementation (Python + pygame-ce); see `python/README.md` |
 | `REQ-python.md` | implementation notes for the Python version |
 | `swift/` | Swift implementation (macOS, `swift/run odca <file>`); see `swift/README.md` |
-| `platformio/` | early MCU port, two boards: on RP2350, the engine (R-M), boring detector (R-A), and display are running together; on ESP32-C6, only the toolchain is proven so far; see `platformio/README.md` |
+| `platformio/` | early MCU port, two boards: the engine (R-M), boring detector (R-A), and display are running together on both the RP2350 and the ESP32-C6; see `platformio/README.md` |
 | `REQ-swift.md` | implementation notes for the Swift version |
 
 Planned: `cpp/`.
