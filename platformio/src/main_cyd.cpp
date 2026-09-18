@@ -1,13 +1,27 @@
 // ODCA on an MCU: the engine (R-M), boring detector (R-A), and display,
-// on the CYD (ESP32-2432S028) board — ported from src/main.cpp (RP2350)
-// and src/main_esp32c6.cpp the same way those two relate to each
-// other: only the genuinely board-specific pieces change (pins, driver
-// chip, RNG call, BOOT-button pin, SPI clock). See main.cpp's own
-// comments for the reasoning behind the full-redraw display approach,
-// the R-A2 auto-init terms, and R-U2's width choice; none of that
-// changes here. Confirmed against the real panel first, in
-// main_cyd_display_test.cpp: right colors, right orientation, right
-// bounds, on the first try.
+// on the CYD (ESP32-2432S028) board. See main.cpp's own comments for
+// the R-A2 auto-init terms and the general shape; the engine and
+// detector are identical here, and only the display differs.
+//
+// This board's display works differently from the other two boards',
+// and deliberately so. They redraw the whole visible window every
+// generation, which on this panel took 22ms — long enough for the
+// panel's own refresh to scan through a half-written frame, producing
+// a drifting diagonal tear the user could see at every speed. The fix
+// is not to write faster but to write less: the panel has a hardware
+// vertical scroll, so writing the ONE new row and moving the scroll
+// start by one line does the whole job. 480 bytes per generation
+// instead of 154,000, a write window of microseconds rather than
+// milliseconds, and the tear stops being possible rather than being
+// reduced.
+//
+// The cost, and it was the user's call (2026-09-19): hardware scroll
+// moves along the panel's native long axis, and that axis has to be
+// the direction the picture scrolls. So this board runs PORTRAIT, and
+// the automaton is 240 cells wide rather than the 320 the other two
+// boards use (R-U2). 240 is still well above the 172 the user rejected
+// early on, and portrait is the orientation the eventual installation
+// is aimed at anyway.
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include <Arduino.h>
@@ -17,26 +31,11 @@
 #include "odca_boring.h"
 #include "odca_engine.h"
 
-// This board's native 320x240 landscape IS the automaton's width
-// directly — unlike the other two boards' 172-wide panels, no rotation
-// is needed to reach 320, though the panel's native orientation is
-// still portrait and setRotation() still does the work (see below).
-static const int WIDTH = 320;
-static const int HEIGHT = 240;  // R-A2's screenful: this panel's full height, all of it drawn
-
-// Classic ESP32 has far less usable DRAM than the other two boards
-// (~100KB once the framework's own overhead is out), and the boring
-// detector's fixed R-A1 windows already claim ~36KB of that (4000
-// hashes + 1600 counts + a snapshot row — spec-mandated, identical on
-// every board, not something to shrink). A byte-per-cell history at
-// this board's full 240 rows would not fit alongside them.
-//
-// So the history packs four cells to the byte instead: states are 0-3,
-// two bits each, which is what they always needed. 19,200 bytes rather
-// than 76,800, and the screen gets its full height. WIDTH divisible by
-// 4 is what keeps rows byte-aligned, so no cell ever straddles a byte.
-static_assert(WIDTH % 4 == 0, "packed history assumes 4 cells per byte, rows byte-aligned");
-static const int HISTORY_STRIDE = WIDTH / 4;
+// Portrait, so the automaton's width is the panel's short axis and the
+// history scrolls down its long axis — which is the axis hardware
+// scroll acts on.
+static const int WIDTH = 240;
+static const int HEIGHT = 320;  // R-A2's screenful, and the scroll ring's depth
 
 // SPI pin mapping (community documentation, bus shared with the XPT2046
 // touch controller on a separate CS — untouched here, so it stays idle).
@@ -48,52 +47,52 @@ static const int HISTORY_STRIDE = WIDTH / 4;
 // direct IOMUX routing, while the Arduino core's default global SPI
 // object is VSPI (SPI3), whose own IOMUX pins are 18/19/23/5 — driving
 // these pins from VSPI instead sends them the long way round, through
-// the GPIO matrix. That is the same routing the ESP32-C6 board was
-// stuck with, where it capped the usable SPI clock hard enough to
-// corrupt transfers. Here it is avoidable: use HSPI, get the fast path.
+// the GPIO matrix, which caps the usable clock near 40MHz. That is the
+// routing the ESP32-C6 board was stuck with, where the cap was low
+// enough to corrupt transfers outright.
 static const int PIN_MISO = 12;
 static const int PIN_MOSI = 13;
 static const int PIN_SCK = 14;
 static const int PIN_CS = 15;
 static const int PIN_DC = 2;
 static const int PIN_BL = 21;
-static const int PIN_RST = -1;  // no separate GPIO found for this; guessed tied to EN, confirmed fine in the display test
+static const int PIN_RST = -1;  // no separate GPIO found for this; tied to EN, confirmed fine in the display test
 
 // This board's BOOT button: GPIO0, the classic ESP32's own strapping
-// pin for serial-bootloader entry (confirmed via community
-// documentation), same role GPIO9 plays on the ESP32-C6. Active low.
+// pin for serial-bootloader entry, same role GPIO9 plays on the
+// ESP32-C6. Active low.
 static const int PIN_BOOT = 0;
 
-// HSPI rather than the default global SPI (VSPI) — see the pin comment
-// above for why that choice is worth making deliberately.
+// HSPI rather than the default global SPI (VSPI) — see the pin comment.
 SPIClass hspi(HSPI);
-
-// Native ILI9341 size is fixed (240x320, unlike the ST7789 boards'
-// variable GRAM), so begin() needs no width/height arguments.
 Adafruit_ILI9341 tft(&hspi, PIN_DC, PIN_CS, PIN_RST);  // note the (spi, dc, cs, rst) order — different from Adafruit_ST7789's (spi, cs, dc, rst)
+
+static uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {
+  return (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+}
 
 // The desktop's own default palette (library.json, "ODCA default"),
 // stored BYTE-SWAPPED. The panel wants each RGB565 pixel big-endian on
-// the wire; this CPU stores little-endian, so the driver would normally
-// swap all 76,800 pixels in software every frame. Pre-swapping the four
-// palette entries once means the band buffer is already in wire order
-// and writePixels() can be told so (bigEndian=true), which hands the
-// bytes straight to the SPI transfer instead.
+// the wire; this CPU stores little-endian, so the driver would
+// otherwise swap every pixel in software on the way out. Pre-swapping
+// the four entries once lets writePixels() be told the data is already
+// in wire order (bigEndian=true) and hand the bytes straight to SPI.
 //
-// These values are therefore NOT valid to pass to ordinary Adafruit_GFX
-// calls like fillScreen() — they are only ever fed to writePixels()
-// below, in wire order.
+// These are therefore NOT valid for ordinary Adafruit_GFX calls like
+// fillScreen() — see BACKGROUND below for that.
 static uint16_t rgb565_swapped(uint8_t r, uint8_t g, uint8_t b) {
-  uint16_t v = (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+  uint16_t v = rgb565(r, g, b);
   return (uint16_t)((v >> 8) | (v << 8));
 }
 static const uint16_t PALETTE_WIRE[4] = {
     rgb565_swapped(0x12, 0x12, 0x18), rgb565_swapped(0xEB, 0xEB, 0xE1),
     rgb565_swapped(0xFF, 0xA1, 0x36), rgb565_swapped(0x40, 0x9C, 0xFF),
 };
+// State 0's color in normal byte order, for the one-off fillScreen().
+static const uint16_t BACKGROUND = rgb565(0x12, 0x12, 0x18);
 
-// A rule already known to live a long time at this width, from the
-// desktop's own odca-evolve search (see ../../interesting.odca).
+// A rule already known to live a long time, from the desktop's own
+// odca-evolve search (see ../../interesting.odca).
 static const char *RULE_ID = "33233022210132010013";
 
 // Large fixed structures: static, never on the stack (see odca_boring.h).
@@ -102,48 +101,47 @@ static odca_detector detector;
 static unsigned char cur[WIDTH];
 static unsigned char next_row[WIDTH];
 
-// History for the display: only ever the visible HEIGHT rows are kept,
-// no deep scrollback like the desktop's 2048. A ring buffer of raw
-// states, packed two bits per cell (see HISTORY_STRIDE above); colors
-// are computed per redraw, not stored.
-static unsigned char history[HEIGHT][HISTORY_STRIDE];
-static int history_count = 0;   // rows filled so far, caps at HEIGHT
-static int history_next = 0;    // the ring's next write slot
+// One row of color, the only pixel buffer this board needs: the panel
+// itself holds every other row, so there is no history buffer and no
+// full-frame redraw here at all.
+static uint16_t line_pixels[WIDTH];
 
-// Colors for a band of rows at a time, sent in one writePixels() call
-// per band. Not a full HEIGHT x WIDTH frame buffer — that would be
-// 150KB, which this board's DRAM has no room for — but not one call
-// per row either: measured here, per-call cost was about 19ms of a
-// 35ms redraw across 240 calls (~67us each, DMA setup and an endian
-// swap per call), dwarfing the ~3ms the palette unpacking actually
-// costs. Six calls instead of 240, for 25KB.
-static const int BAND_ROWS = 40;
-static_assert(HEIGHT % BAND_ROWS == 0, "bands must divide the screen height evenly");
-static uint16_t band_pixels[BAND_ROWS][WIDTH];
-
-// One packed history byte holds four cells, so every possible byte
-// expands to exactly four wire-order pixels. Precomputing all 256
-// expansions turns the redraw's inner loop into one table lookup per
-// byte instead of a shift, mask and lookup per pixel — 80 iterations
-// per row rather than 320. 2KB, built once in setup().
-static uint16_t quad_pixels[256][4];
-
-static void build_quad_table() {
-  for (int b = 0; b < 256; b++) {
-    for (int k = 0; k < 4; k++) {
-      quad_pixels[b][k] = PALETTE_WIRE[(b >> (k * 2)) & 3];
-    }
-  }
-}
+// The scroll ring. Generation g is written to panel line g % HEIGHT;
+// the scroll start address then names the line that should appear at
+// the top of the screen, which is always the oldest row still held.
+static int write_line = 0;  // panel line the next row goes to
+static int filled = 0;      // rows written so far, caps at HEIGHT
 
 static unsigned long generation = 0;             // this seed's age; reset by every reinit
 static unsigned long long total_generation = 0;   // never reset — the only thing the rate is measured from
 static unsigned long long total_at_last_report = 0;
 static unsigned long last_report_ms = 0;
 static unsigned long reinit_count = 0;
+static unsigned long next_due_ms = 0;
 
-// Boot-button-driven speed: see main.cpp's own comment on Speed/
-// next_speed/steps_per_redraw — identical logic, board-agnostic.
+// Speed. On the other two boards the redraw itself paced the loop, so
+// "faster" meant stepping several generations between redraws. Here a
+// row costs microseconds and paces nothing, so the pacing is explicit:
+// a target period per generation, multiplied or divided from a base.
+static const unsigned long BASE_PERIOD_MS = 20;  // ~50 generations/second
+
+// Generations drawn per frame, and why it is 2 rather than 1.
+//
+// With one row per frame, any region of the automaton that settles into
+// single-pixel alternating rows (one color, the next, back again — what
+// this rule does once two states go extinct) makes every pixel on
+// screen swap color on every frame. The whole region strobes at half
+// the frame rate, which at ~50fps lands near 26Hz, close to the peak of
+// human flicker sensitivity. It reads as shimmer with no structure to
+// it, everywhere at once, worst exactly where those alternating bands
+// are (the user's own observation, and their suggested fix).
+//
+// Scrolling two lines per frame maps a period-2 pattern onto itself:
+// the content that arrives at a given pixel is the same color that was
+// already there, so it holds still instead of toggling. The region
+// still moves and evolves; only the strobing stops.
+static const int ROWS_PER_FRAME = 2;
+
 enum Speed { SPEED_BASE, SPEED_X2, SPEED_X4, SPEED_DIV4, SPEED_DIV2 };
 static Speed speed = SPEED_BASE;
 static bool boot_was_pressed = false;
@@ -170,11 +168,13 @@ static Speed next_speed(Speed s) {
   return SPEED_BASE;
 }
 
-static int steps_per_redraw(Speed s) {
+static unsigned long speed_period_ms(Speed s) {
   switch (s) {
-    case SPEED_X2: return 2;
-    case SPEED_X4: return 4;
-    default:       return 1;
+    case SPEED_X2:   return BASE_PERIOD_MS / 2;
+    case SPEED_X4:   return BASE_PERIOD_MS / 4;
+    case SPEED_DIV2: return BASE_PERIOD_MS * 2;
+    case SPEED_DIV4: return BASE_PERIOD_MS * 4;
+    default:         return BASE_PERIOD_MS;
   }
 }
 
@@ -203,58 +203,43 @@ static void seed_random_row(unsigned char *row, int width) {
   }
 }
 
-// Redraw the whole visible window, oldest row at the top, newest at the
-// bottom — the same sense the desktop scrolls in — from whatever the
-// ring buffer currently holds; blank (state 0's color) below the newest
-// row until the history first fills, matching R-U3's "filled rows from
-// the top, background below" on the desktop.
-static void redraw_history() {
+// Write one generation as one panel line, then move the scroll start.
+//
+// Until the ring has filled, the scroll start stays at 0, so rows land
+// from the top downward with background below — R-U3's "filled rows
+// from the top, background below", as on the desktop. Once full, the
+// start follows the write position, so the oldest row sits at the top
+// and the newest at the bottom, and the panel does the scrolling. The
+// two cases agree exactly at the moment the ring fills, so the
+// transition is seamless.
+static void put_row(const unsigned char *row) {
+  for (int x = 0; x < WIDTH; x++) line_pixels[x] = PALETTE_WIRE[row[x]];
+
   tft.startWrite();
-  tft.setAddrWindow(0, 0, WIDTH, HEIGHT);
-  for (int top = 0; top < HEIGHT; top += BAND_ROWS) {
-    for (int dy = 0; dy < BAND_ROWS; dy++) {
-      int y = top + dy;
-      uint16_t *out = band_pixels[dy];
-      if (y < history_count) {
-        int slot = (history_next - history_count + y + HEIGHT) % HEIGHT;
-        const unsigned char *packed = history[slot];
-        for (int xb = 0; xb < HISTORY_STRIDE; xb++) {
-          const uint16_t *q = quad_pixels[packed[xb]];
-          out[0] = q[0];
-          out[1] = q[1];
-          out[2] = q[2];
-          out[3] = q[3];
-          out += 4;
-        }
-      } else {
-        for (int x = 0; x < WIDTH; x++) out[x] = PALETTE_WIRE[0];
-      }
-    }
-    // block=true, bigEndian=true: the buffer is already in wire order,
-    // so this skips the driver's per-pixel software swap.
-    tft.writePixels(&band_pixels[0][0], (uint32_t)WIDTH * BAND_ROWS, true, true);
-  }
+  tft.setAddrWindow(0, write_line, WIDTH, 1);
+  tft.writePixels(line_pixels, WIDTH, true, true);  // already wire order
   tft.endWrite();
+
+  if (filled < HEIGHT) filled++;
+  write_line = (write_line + 1) % HEIGHT;
 }
 
-static void push_history(const unsigned char *row) {
-  unsigned char *packed = history[history_next];
-  for (int x = 0; x < WIDTH; x += 4) {
-    packed[x >> 2] = (unsigned char)(row[x] | (row[x + 1] << 2) |
-                                     (row[x + 2] << 4) | (row[x + 3] << 6));
-  }
-  history_next = (history_next + 1) % HEIGHT;
-  if (history_count < HEIGHT) history_count++;
+// Moved once per frame, after every row of that frame is in place, so
+// the frame's rows appear together rather than one at a time.
+static void commit_scroll() {
+  tft.scrollTo(filled < HEIGHT ? 0 : write_line);
 }
 
 static void reinitialize(const char *reason) {
   seed_random_row(cur, WIDTH);
   odca_detector_reset(&detector);  // R-A3: same rule, fresh field
   generation = 0;
-  // No clear here: the fresh field grows in from below like any other
-  // generation — see main.cpp's own comment (help.py: "grows in from a
-  // fresh field below the old rows, which keep their colors").
-  push_history(cur);
+  // No clear: the fresh field scrolls in from below like any other
+  // generation, and the old rows keep their colors and scroll off the
+  // top as usual — the desktop's own re-seed-in-place (help.py: "grows
+  // in from a fresh field below the old rows, which keep their
+  // colors").
+  put_row(cur);
   reinit_count++;
   if (reason) {
     Serial.print("reinit #");
@@ -277,19 +262,20 @@ void setup() {
   pinMode(PIN_BL, OUTPUT);
   digitalWrite(PIN_BL, HIGH);
 
-  build_quad_table();
-
   hspi.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS);
-  // 40MHz, on HSPI's native IOMUX pins (see the pin comment above), is
-  // the clock this board is routinely driven at by other projects. The
-  // ESP32-C6's hard lesson (main_esp32c6.cpp's comment) was that a
-  // too-fast clock doesn't merely glitch, it permanently desyncs the
-  // display's command/data framing with no self-recovery — but there
-  // the pins had no fast path available at all. The lesson that carries
-  // over is the test method, not the number: a clock is only trusted
-  // here after a long soak, since that failure took minutes to appear.
+  // 80MHz, available because the display sits on HSPI's native IOMUX
+  // pins (see the pin comment). The ESP32-C6's hard lesson was that a
+  // clock beyond what the routing supports doesn't merely glitch, it
+  // permanently desyncs the panel's command/data framing with no
+  // self-recovery — so the number is only trusted after a long soak,
+  // which this one has had.
   tft.begin(80000000);
-  tft.setRotation(1);
+  tft.setRotation(0);  // portrait: the scroll axis must be the direction the picture moves
+  tft.fillScreen(BACKGROUND);
+
+  // Whole screen scrolls, no fixed margins top or bottom.
+  tft.setScrollMargins(0, 0);
+  tft.scrollTo(0);
 
   if (!odca_rule_from_id(RULE_ID, &rule)) {
     Serial.println("engine: rule ID failed to parse (should not happen)");
@@ -299,30 +285,29 @@ void setup() {
   Serial.print("rule ");
   Serial.println(RULE_ID);
   reinitialize(NULL);  // the first field, no reinit line for it
-  redraw_history();    // the one place a clear-then-fill is right: startup
+  commit_scroll();
   last_report_ms = millis();
+  next_due_ms = millis();
 }
 
 void loop() {
-  // This chip runs FreeRTOS under the Arduino core, same as the
-  // ESP32-C6 — the same task-watchdog lesson applies (main_esp32c6.cpp's
-  // comment): yield() doesn't reach the IDLE task, only delay() does.
-  // Included from the start here rather than rediscovering it.
-  delay(1);
-
   poll_boot_button();
 
-  // At x2/x4, step several generations before the one redraw that shows
-  // them — see main.cpp's own comment; identical reasoning, board-
-  // agnostic. A reinit cuts the batch short rather than continuing to
-  // step a suddenly-different seed.
-  int n = steps_per_redraw(speed);
-  for (int i = 0; i < n; i++) {
+  // Timed narrowly around the panel writes only, not the whole frame:
+  // this is the window during which the panel could catch a partly
+  // written picture, so it is the number that governs tearing. Folding
+  // the detector into it would muddy that (its repeat-window scan grows
+  // as the window fills, which is expected and harmless here).
+  unsigned long write_us = 0;
+  for (int i = 0; i < ROWS_PER_FRAME; i++) {
     odca_step_wrap(cur, WIDTH, &rule, next_row);
     memcpy(cur, next_row, sizeof cur);
     generation++;
     total_generation++;
-    push_history(cur);
+
+    unsigned long t0 = micros();
+    put_row(cur);
+    write_us += micros() - t0;
 
     if (odca_detector_observe(&detector, cur, WIDTH) && detector.boring_streak >= HEIGHT) {
       char reason[ODCA_END_MAX];
@@ -331,23 +316,22 @@ void loop() {
       Serial.print(generation);
       Serial.print("  ");
       reinitialize(reason);
-      break;
     }
   }
+  unsigned long t0 = micros();
+  commit_scroll();
+  write_us += micros() - t0;
 
-  unsigned long redraw_start = millis();
-  redraw_history();
-  unsigned long redraw_ms = millis() - redraw_start;
-
-  // /2 and /4: a plain delay(), not the RP2350 side's busy-spin — see
-  // main_esp32c6.cpp's own comment on why that trade doesn't carry over
-  // to a FreeRTOS-based board.
-  unsigned long wait_ms = (speed == SPEED_DIV2) ? redraw_ms
-                         : (speed == SPEED_DIV4) ? redraw_ms * 3
-                                                  : 0;
-  if (wait_ms) {
-    delay(wait_ms);
-  }
+  // Explicit pacing, since drawing no longer costs enough to pace
+  // anything. The period is per generation, so the frame period scales
+  // with how many rows a frame carries — the speed setting keeps
+  // meaning generations per second either way. The delay also covers
+  // this chip's FreeRTOS task watchdog, which only clears when the idle
+  // task runs — yield() does not reach it, delay() does (see
+  // main_esp32c6.cpp's own comment).
+  long slack = (long)(next_due_ms - millis());
+  delay(slack > 1 ? (unsigned long)slack : 1);
+  next_due_ms = millis() + speed_period_ms(speed) * ROWS_PER_FRAME;
 
   unsigned long now = millis();
   if (now - last_report_ms >= 2000) {
@@ -362,9 +346,9 @@ void loop() {
     Serial.print((unsigned long)(done * 1000ULL / elapsed_ms));
     Serial.print(" gen/s, ");
     Serial.print(speed_name(speed));
-    Serial.print(", redraw ");
-    Serial.print(redraw_ms);
-    Serial.println("ms)");
+    Serial.print(", write ");
+    Serial.print(write_us);
+    Serial.println("us)");
     total_at_last_report = total_generation;
     last_report_ms = now;
   }

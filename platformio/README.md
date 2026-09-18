@@ -28,30 +28,48 @@ and a `loop()` that never blocks starves its task watchdog — `yield()`
 is not enough, since it never reaches the idle task; `delay()` is.
 
 The CYD board (ESP32-2432S028, a classic ESP32-WROOM-32 with a 2.8"
-320×240 ILI9341 panel — a different driver chip from the other two)
-runs `src/main_cyd.cpp`, confirmed correct on the real panel on the
-first try. Two things about it are worth knowing:
+ILI9341 panel — a different driver chip from the other two) runs
+`src/main_cyd.cpp`. It works differently from the other two boards, and
+deliberately so.
+
+It is the only board here that does **not** redraw the whole window
+every generation. It runs **portrait**, uses the panel's **hardware
+vertical scroll**, and writes only the new rows: the panel does the
+scrolling itself. The write window is ~210µs against a ~16ms refresh,
+where a full redraw was 22ms — so tearing stops being possible rather
+than merely being reduced. The cost, and it was the user's call, is
+that hardware scroll only moves along the panel's native long axis, so
+that axis has to be the direction the picture scrolls; this board's
+automaton is therefore 240 cells wide, not the 320 the other two use
+(R-U2). Portrait is also the orientation the eventual installation is
+aimed at.
+
+Two other things worth knowing about it:
 
 - Its display pins (14/12/13/15) are exactly classic ESP32's **HSPI
   native IOMUX pins**, almost certainly by design. The Arduino core's
   default `SPI` object is VSPI, whose own IOMUX pins are 18/19/23/5, so
   driving this display through the default object routes it the long
   way through the GPIO matrix — the same penalised path the ESP32-C6 is
-  permanently stuck on, capped near 40MHz. Using HSPI instead gets the
-  direct path and makes 80MHz available.
-- This chip has far less usable DRAM than the other two (~100KB once
-  the framework's overhead is out, of which the detector's fixed R-A1
-  windows claim ~36KB). The history therefore packs four cells to the
-  byte — states are 0-3, so two bits was always enough — which is what
-  buys the panel's full 240-row height.
+  permanently stuck on, capped near 40MHz. Using HSPI gets the direct
+  path and makes 80MHz available.
+- It draws **two generations per frame**, not one. Where the automaton
+  settles into single-pixel alternating rows (which this rule does once
+  two states go extinct), a one-row-per-frame scroll makes every pixel
+  swap color every frame — the region strobes at half the frame rate,
+  near the peak of human flicker sensitivity. A two-row step maps a
+  period-2 pattern onto itself so it holds still. The user diagnosed
+  this one from the screen.
 
-Redraw there went 101ms to 22ms (9 to 41 generations/second) across
-four measured changes: HSPI at 80MHz, then skipping the driver's
-per-pixel endian swap by keeping the palette pre-swapped in wire order,
-then a 256-entry table expanding each packed history byte to four
+The road there is worth recording so it isn't re-walked. Before the
+scroll rewrite, the full-redraw version got from 101ms to 22ms across
+three measured changes — HSPI at 80MHz, then keeping the palette
+pre-swapped in wire order so the driver skips its per-pixel endian
+swap, then a 256-entry table expanding a packed history byte to four
 pixels at once. Batching the per-row writes into bands made no
-measurable difference, the same null result the RP2350 saw — worth
-recording so it isn't retried a third time.
+measurable difference, the same null result the RP2350 saw. None of
+that was enough: at 22ms the panel still refreshed mid-write, and the
+tear showed as a drifting diagonal. Only writing less fixed it.
 
 ## Build
 
@@ -115,7 +133,7 @@ each firmware's own serial output once it's running.
 | `src/main_display_test.cpp` | a separate RP2350 firmware, kept apart from `src/main.cpp`: cycles the ST7789 through solid colors, the four ODCA palette colors as vertical stripes, and single corner pixels, over Adafruit_GFX/Adafruit_ST7789. `pio run -e display -t upload` builds and flashes this instead of the real firmware. The six pin numbers and the rotation value at the top of the file started as a guess from two independent sources plus this board's default hardware SPI0 pins, and are confirmed correct: right colors, right orientation, against the real panel |
 | `src/main_esp32c6.cpp` | the real ESP32-C6 firmware, ported from `src/main.cpp`: same engine/detector/display/speed-cycle behavior, board-specific pins, RNG (`esp_random()`), and BOOT-button read (a plain GPIO, unlike the RP2350's special BOOTSEL object), plus a `yield()` each loop() and `delay()` instead of a busy-spin at the slow speeds — this chip's FreeRTOS task watchdog needs the yield, something the RP2350 side never had to consider |
 | `src/main_esp32c6_hello.cpp` | the ESP32-C6 side's own toolchain smoke test, the same first step the RP2350 side took: a serial heartbeat, nothing more. `pio run -e esp32c6-hello -t upload` builds and flashes this |
-| `src/main_cyd.cpp` | the real CYD firmware: same engine/detector/display/speed-cycle behavior as the other two, on an ILI9341 panel over HSPI, with the history packed four cells to the byte and the palette held pre-swapped in wire order (see its own comments — both are memory and speed decisions specific to this board) |
+| `src/main_cyd.cpp` | the real CYD firmware: same engine, detector and speed cycle as the other two, but a different display approach — portrait, hardware vertical scroll, two new rows written per frame and no history buffer at all, since the panel holds the picture. Its own comments carry the reasoning |
 | `src/main_cyd_display_test.cpp` | the CYD's display link test, the same role `main_display_test.cpp` plays for the RP2350: solid colors, palette stripes, corner pixels. This one had more to prove than the others — the driver chip itself was unconfirmed (most CYD units are ILI9341, some later batches ST7789), as were backlight polarity and whether RST is wired at all |
 | `src/main_cyd_hello.cpp` | the CYD's toolchain smoke test, a serial heartbeat. Note this board has a real CH340 USB-UART bridge rather than the other two boards' native USB, so reading its serial needs the baud rate set explicitly — plain `cat` on the device gets garbage |
 

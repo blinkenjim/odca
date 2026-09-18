@@ -201,19 +201,31 @@ script design.
       equivalent escape before assuming it doesn't. A defensive
       periodic display re-init was offered as a self-healing safety net
       and not taken up; still available.
-- [ ] platformio: CYD shimmer. Redraw is down to 22ms (from 101ms) and
-      the user still reports shimmer. On the RP2350 the same artifact
-      cleared once redraw dropped to ~15ms, so the remaining gap is the
-      likely explanation, but 22ms is close to this board's floor for
-      full-frame redraw: 15ms of it is irreducible SPI transfer at
-      80MHz, which is ESP32's IOMUX ceiling. Going meaningfully below
-      needs a different architecture, not more tuning — writing only
-      the one new row per generation via the panel's hardware vertical
-      scroll. Checked and NOT available as things stand, for the same
-      reason as the RP2350: scroll acts on the panel's native long axis,
-      which the rotation maps to the automaton's *width*, not the
-      direction the picture scrolls. It would need R-U2's fixed 320
-      width revisited, which is the user's call.
+- [x] (2026-09-19) platformio: CYD tearing, fixed by hardware scroll.
+      Tuning the full redraw (101ms down to 22ms) never fixed it — the
+      panel still refreshed mid-write and the tear showed as a drifting
+      diagonal, which is what finally identified the mechanism. The cure
+      was writing less, not faster: portrait orientation so the panel's
+      scroll axis is the direction the picture moves, then one hardware
+      scroll step per frame and only the new rows written. Write window
+      22ms to ~210us. The user took the tradeoff it required, a 240-cell
+      automaton on this board instead of 320 (R-U2).
+- [ ] platformio: CYD residual shimmer. Mostly gone after the above plus
+      drawing two generations per frame (the user's own diagnosis: with
+      a one-row step, single-pixel alternating rows make every pixel
+      swap color every frame, strobing at half the frame rate near the
+      eye's most sensitive band; a two-row step maps a period-2 pattern
+      onto itself). "Still a bit of shimmer, but significantly reduced."
+      What is left looks fundamental rather than fixable by tuning: a
+      vertical pattern of period p scrolled s rows per frame at f frames
+      per second makes each pixel cycle at f*gcd(p,s)/p, which is zero
+      only when s is a multiple of p, and no single step size satisfies
+      every p the automaton produces. Two escapes if it is worth
+      chasing: step 4 rows per frame instead of 2 (kills period-4 as
+      well as period-2, at the cost of chunkier motion — 12.5fps at the
+      current generation rate), or raise the frame rate far enough that
+      any residual flicker sits above perception (changes the pace of
+      the art).
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
 - [ ] "Most interesting of the interesting" score, layered on the 'r'
