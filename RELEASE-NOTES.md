@@ -5,6 +5,21 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.72.0 (Swift, spec) and 3.73.0 (Python) — 2026-09-16
+
+The repetition and stagnation windows no longer know the screen exists.
+They used to be sized in *screenfuls*, ten and four times the current
+window's row count, so resizing the window, or running on a tiny
+display, changed what counted as boring. They are now fixed at 4000 and
+1600 generations, the same on every run, every window size, and every
+implementation, decoupled entirely from `rows`. The only two places
+screen size still enters auto-initialization are the ones the user
+actually asked for: the re-initialization trigger waits a screenful of
+boring rows so extinct cells scroll off first (R-A2), and the paused
+`s` key zips one screenful (R-K13). Nothing else changes: the numbers
+were chosen to match the desktop's own default window size, so a
+session at its default size behaves exactly as before.
+
 ## 3.70.1 (Swift, spec) and 3.63.1 (Python) — 2026-09-10
 
 The rest of the self-consistency audit, settled one item at a time

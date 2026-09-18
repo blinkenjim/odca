@@ -1,6 +1,6 @@
 # ODCA — Test Plan
 
-Version 3.70.1 — 2026-09-10
+Version 3.72.0 — 2026-09-16
 
 Companion to `REQTS.md` (requirement IDs cited below are defined there).
 This plan is normative for every implementation, in every language, on
@@ -117,10 +117,10 @@ PT-35, as it is from the `lifetimes` vectors; every other row binds it.
 | PT-15 | R-K12, R-A2 | With auto-init on (the startup default) and a rule whose rows repeat (e.g. the all-zero rule), the cells are re-initialized exactly when the `rows`-th consecutive boring generation is computed (generation counter returns to 0, reason `repeating (period 1)` printed); after `a` turns the mode off, nothing happens. |
 | PT-16 | R-A1, R-A2 | With a rule under which a producible state dies out, the re-initialization reason names that state as extinct. |
 | PT-16a | R-A1 | A row with one producible state extinct is boring when the remaining states are all real populations (≥ 10%), but not boring while another producible state survives as a minority (> 0 and < 10% of cells); two extinct states with no minority are boring. |
-| PT-18 | R-A1 | Feeding non-repeating rows that carry a constant minority population: nothing is boring until the 4 × `rows` window is full, then every generation is boring with reason `stagnant`; rows whose minority population swings widely are never stagnant. |
+| PT-18 | R-A1 | Feeding non-repeating rows that carry a constant minority population: nothing is boring until the fixed STAGNATION_WINDOW (1600 generations) is full, then every generation is boring with reason `stagnant`; rows whose minority population swings widely are never stagnant. |
 | PT-19 | R-K13 | While paused, `s` queues exactly `rows` generations that advance at one eighth the delay (elapsed time t yields ⌊8t/delay⌋ of them) and stop when the screenful is done, still paused; a second `s` queues a second screenful; space cancels the queue; when not paused `s` saves and queues nothing. |
 | PT-20 | R-K14 | No counter before the first resume; resume sets it to 0; after exactly `rows` further generations it reads 1 and `screen 1` is printed; generations from running, zipped screenfuls, and single steps all count; a further resume restarts it at 0. |
-| PT-21 | R-A1 | A row recurring exactly 10 × `rows` generations after its first appearance is boring (`repeating`); one recurring 10 × `rows` + 1 generations later is not. |
+| PT-21 | R-A1 | A row recurring exactly REPEAT_WINDOW (4000) generations after its first appearance is boring (`repeating`); one recurring REPEAT_WINDOW + 1 generations later is not. |
 | PT-22 | R-A1, R-O8 | Feeding a transient followed by a cycle of distinct rows whose period exceeds the repetition window, the detected period equals the true period exactly, `cycle period <n>` is printed once, subsequent reasons read `repeating (period <n>)`, and a rule change clears the detector; a short cycle (period 7) is likewise detected exactly. |
 | PT-23 | R-K15, R-K9 | With a stubbed color sets file: `c` yields the next lexicographic arrangement (first press swaps states 2 and 3), 24 presses return to the original, `C` steps back and wraps from 1 to 24, the arrangement is remembered per set across set switches, an undefined slot's digit is a no-op, and without a file only slot 1 exists. |
 | PT-24 | R-K16, R-P4 | Baking (reachable only without a program) writes the active set's arranged colors into its library entry (reloading shows them) and resets its arrangement to 1; the library loader tolerates malformed entries, out-of-range slots, and unparseable files, always supplying slot 1. |

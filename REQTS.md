@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.70.1 — 2026-09-10
+Version 3.72.0 — 2026-09-16
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -96,7 +96,9 @@ in `odca`, as `N`/`P` are; the paused-key list completed — R-K10, R-X6;
 clarifications from a self-consistency audit — R-E5, R-W3. 3.70.1: the
 rest of that audit — R-O17, R-P3, R-U1, R-K4, R-K10, R-U9, R-X8, R-A2,
 R-K6, R-B1, R-K19, R-W9 (wording and place), R-O16, R-N2, R-U4, section
-4e's optionality; the `odca` help text on cycle-ended seeds.)
+4e's optionality; the `odca` help text on cycle-ended seeds. 3.72.0: the
+repetition and stagnation windows are fixed generation counts, not
+screenfuls — R-A1, R-U8.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -323,8 +325,9 @@ stays put while the frame changes around it (the wrap seam moves; that is
 accepted). The history remembers up to 2048 rows (never fewer than
 `rows` + 1), so a taller window uncovers older generations rather than
 showing blank rows; a shorter window hides them. Every boring detector
-(R-A) restarts, since a resized automaton is a new system, and the
-screenful-based windows take the new `rows`. A resize is not a rule
+(R-A) restarts, since a resized automaton is a new system (R-A1's
+windows are fixed generation counts and are untouched by the resize).
+A resize is not a rule
 change: undo and the interesting-rule cycle are untouched. Prints R-O14.
 While the window is being resized interactively, the animation and its
 computation are frozen (the current state is simply re-fitted as the
@@ -593,8 +596,9 @@ interesting row has just scrolled off the top of the display.
   so once a cycle is recognized every later generation is boring. Two
   mechanisms recognize cycles, and either suffices:
   - a *window*: the row is identical to a row produced within the
-    previous 10 × `rows` generations (ten display heights, R-U2), which
-    catches cycles of period up to ten screens one period after lock-in;
+    previous REPEAT_WINDOW generations (4000, a fixed count, independent
+    of the display), which catches cycles of period up to that many
+    generations, one period after lock-in;
   - *Brent's algorithm*: a single saved row, compared against each new
     generation and replaced by the current row whenever the number of
     generations since it was saved reaches a power of two. A match means
@@ -603,14 +607,18 @@ interesting row has just scrolled off the top of the display.
     multiple of transient plus period; the period is printed on detection
     (R-O8) and reported in the reason. Or
 - *stagnation*: the minority population — the total number of cells in
-  living-minority states — has held steady over the previous 4 × `rows`
-  generations: its swing (maximum minus minimum, divided by its mean) is
+  living-minority states — has held steady over the previous
+  STAGNATION_WINDOW generations (1600, likewise fixed): its swing (maximum minus minimum, divided by its mean) is
   below 0.25, with a nonzero mean. A steady minority population is a
   structure drifting in parallel with nothing growing or shrinking: a
   long-period repetition that exact row matching cannot see.
 The reason reported (R-O6) is the first of extinction, repetition with a
 known period (`repeating (period <n>)`), window repetition (`repeating`),
-stagnation that applies.
+stagnation that applies. REPEAT_WINDOW and STAGNATION_WINDOW are fixed:
+set once, the same on every run and every implementation, and never
+derived from the display or resize; the boring detector has no notion
+of a screenful. R-A2's re-initialization trigger and R-K13's paused zip
+are the only two places screen size enters auto-initialization at all.
 Generations are classified whenever they are computed, whether by timed
 evolution (R-U5) or single step (R-K11); the seed row itself is not
 classified.

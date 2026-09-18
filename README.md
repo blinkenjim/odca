@@ -185,7 +185,7 @@ consume candidates.
 | C   | the same cycle in reverse |
 | space | pause / resume (while paused, only space, return, `s`, the color keys `c`/`C`/`[`/`]`/digits, the pair keys, `F`, and `q` are live); resuming starts a screen counter that prints `screen N` after every screenful |
 | return | while paused: single-step one generation, staying paused |
-| a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last ten screens, or a minority population stagnant for four screens), re-initialize the cells as `i` does; on at startup |
+| a   | toggle auto-init: once every row on screen is boring (a producible state extinct with no minority state still alive, a cycle of any period (detected by Brent's algorithm, period printed) or a row repeating one from the last 4000 generations, or a minority population stagnant for 1600 generations — fixed counts, independent of the window), re-initialize the cells as `i` does; on at startup |
 | q   | quit                                         |
 
 The window is resizable, with full screen available through the platform's

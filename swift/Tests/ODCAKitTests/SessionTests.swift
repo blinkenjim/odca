@@ -341,10 +341,10 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(s3.boringReason, "state 0 extinct")
     }
 
-    func testStagnantMinorityAfterFourScreens() throws {
+    func testStagnantMinorityAfterAFixedWindow() throws {  // R-A1: STAGNATION_WINDOW, independent of rows
         let session = makeSession(try makeStore(currentRule: allProducible))
         var rng = Xoshiro256(seed: 3)
-        let window = Session.stagnationScreens * session.rows
+        let window = Session.stagnationWindow
         func row(minority count: Int) -> [UInt8] {
             var r = (0..<32).map { _ in UInt8.random(in: 2...3, using: &rng) }
             var positions = Array(0..<32).shuffled(using: &rng)
@@ -364,12 +364,12 @@ final class SessionTests: XCTestCase {
         }
     }
 
-    func testRepetitionWindowSpansTenScreens() throws {
+    func testRepetitionWindowIsAFixedGenerationCount() throws {  // R-A1: REPEAT_WINDOW, independent of rows
         let session = makeSession(try makeStore(currentRule: allProducible))
-        let rows = distinctRows(Session.repeatScreens * session.rows + 1, seed: 9)
+        let rows = distinctRows(Session.repeatWindow + 1, seed: 9)
         for row in rows.dropLast() { session.observe(row) }
         XCTAssertEqual(session.boringStreak, 0)
-        session.observe(rows[0])  // exactly ten screens later: still in window
+        session.observe(rows[0])  // exactly REPEAT_WINDOW generations later: still in window
         XCTAssertEqual(session.boringStreak, 1)
         XCTAssertEqual(session.boringReason, "repeating")
 
@@ -379,10 +379,21 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(s2.boringStreak, 0)
     }
 
+    func testBoringWindowsDoNotDependOnTheDisplay() throws {  // R-A1: no rows/resize coupling
+        let tiny = makeSession(try makeStore(currentRule: allProducible))  // 32 x 16
+        XCTAssertTrue(tiny.resize(cols: 32, rows: 400))  // a display many times the window sizes
+        let rows = distinctRows(Session.repeatWindow + 1, seed: 21)
+        for row in rows.dropLast() { tiny.observe(row) }
+        XCTAssertEqual(tiny.boringStreak, 0)  // the window is still REPEAT_WINDOW, not 10 x 400
+        tiny.observe(rows[0])
+        XCTAssertEqual(tiny.boringStreak, 1)
+        XCTAssertEqual(tiny.boringReason, "repeating")
+    }
+
     func testBrentFindsPeriodBeyondTheWindow() throws {
         let lines = Lines()
         let session = makeSession(try makeStore(currentRule: allProducible), lines: lines)
-        let period = 3 * Session.repeatScreens * session.rows
+        let period = Session.repeatWindow + 500  // past the fixed repetition window
         let all = distinctRows(37 + period, seed: 12)
         let transient = Array(all[0..<37]), cycle = Array(all[37...])
         for row in transient { session.observe(row) }

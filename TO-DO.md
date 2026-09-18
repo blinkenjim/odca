@@ -1,7 +1,16 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-10):** Spec 3.70.1, Swift 3.70.1, Python
-3.63.1: a self-consistency audit of REQTS that the user had another
+**YOU ARE HERE (2026-09-16):** Spec 3.72.0, Swift 3.72.0, Python
+3.73.0: the repetition and stagnation windows (R-A1) are fixed
+generation counts, 4000 and 1600, no longer `10 x rows` / `4 x rows`;
+R-A2's re-init trigger and R-K13's paused zip are the only places
+screen size still enters auto-initialization (the user, weighing an
+MCU port: "make the boringness detector independent of the notion of
+a screenful"). Considered and set aside: sizing the windows from
+available memory per platform, since memory is not actually the
+constraint (a hashed repetition window at MCU scale is tens of KB) and
+the windows are a pacing choice, not a resource one. Before that, a
+self-consistency audit of REQTS that the user had another
 Claude produce is fully settled, item by item with the user (eleven
 contradictions, three stale numbers, nine gaps); one behavior change
 came of it (3.70.0: `n`/`p` live while paused in odca), the rest is

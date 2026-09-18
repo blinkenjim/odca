@@ -37,9 +37,9 @@ public final class Session {
     public static let stepCap = 2000  // per-tick catch-up cap (R-U5)
     public static let smoothScrollDelay = 2 * Session.initialDelay  // slower: continuous scrolling (R-U3)
     public static let screenSpeedup = 8.0  // paused 's' zips at delay / 8 (R-K13)
-    public static let repeatScreens = 10  // repetition window in screens (R-A1)
+    public static let repeatWindow = 4000  // repetition window in generations, fixed, independent of the display (R-A1)
     public static let minorityFraction = 0.10  // a producible state below this share is a minority (R-A1)
-    public static let stagnationScreens = 4  // minority population steady this long -> stagnant (R-A1)
+    public static let stagnationWindow = 1600  // minority population steady this long -> stagnant, fixed (R-A1)
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
     public static let playTimeout = 120.0  // odca: a pair's screen time before it may advance (R-X3)
     public static let playGrace = 60.0  // odca: no transition within this long of an initialization (R-X3)
@@ -933,11 +933,11 @@ public final class Session {
                 }
             }
         }
-        // Window repetition: seen within the last repeatScreens screens.
+        // Window repetition: seen within the last repeatWindow generations.
         let repeating = (recentCounts[row] ?? 0) > 0
         recentRows.append(row)
         recentCounts[row, default: 0] += 1
-        if recentRows.count > Session.repeatScreens * rows {
+        if recentRows.count > Session.repeatWindow {
             let old = recentRows.removeFirst()
             if let n = recentCounts[old] {
                 if n <= 1 { recentCounts[old] = nil } else { recentCounts[old] = n - 1 }
@@ -946,7 +946,7 @@ public final class Session {
         // Census: extinction with living-minority patience, and stagnation.
         let (extinction, minorityPopulation) = Session.census(of: row, rule: automaton.rule)
         minorityCounts.append(minorityPopulation)
-        let window = Session.stagnationScreens * rows
+        let window = Session.stagnationWindow
         if minorityCounts.count > window { minorityCounts.removeFirst() }
         var stagnant = false
         if minorityCounts.count == window {
