@@ -349,11 +349,11 @@ def _rows_with_minority(rng, n, count):
         yield row
 
 
-def test_stagnant_minority_is_boring_after_four_screens(make_store):  # PT-18
-    from odca.session import STAGNATION_SCREENS
+def test_stagnant_minority_is_boring_after_a_fixed_window(make_store):  # PT-18, R-A1: STAGNATION_WINDOW
+    from odca.session import STAGNATION_WINDOW
     s = make_session(make_store(current=Rule.from_id("0123" * 5)))
     rng = np.random.default_rng(3)
-    window = STAGNATION_SCREENS * s.rows
+    window = STAGNATION_WINDOW
     rows = list(_rows_with_minority(rng, window + 10, 2))
     for row in rows[: window - 1]:
         s._observe(row)
@@ -364,10 +364,10 @@ def test_stagnant_minority_is_boring_after_four_screens(make_store):  # PT-18
 
 
 def test_changing_minority_is_not_stagnant(make_store):  # PT-18
-    from odca.session import STAGNATION_SCREENS
+    from odca.session import STAGNATION_WINDOW
     s = make_session(make_store(current=Rule.from_id("0123" * 5)))
     rng = np.random.default_rng(4)
-    window = STAGNATION_SCREENS * s.rows
+    window = STAGNATION_WINDOW
     for g in range(window + 20):
         row = next(_rows_with_minority(rng, 1, 1 if g % 2 else 3))  # 1 and 3: both minorities, swing 1.0
         s._observe(row)
@@ -428,22 +428,35 @@ def test_screen_counter_runs_from_resume(make_store, capsys):  # PT-20
     assert s.screen_counter == 0
 
 
-def test_repetition_window_spans_ten_screens(make_store):  # R-A1
-    from odca.session import REPEAT_SCREENS
+def test_repetition_window_is_a_fixed_generation_count(make_store):  # R-A1: REPEAT_WINDOW, independent of rows
+    from odca.session import REPEAT_WINDOW
     s = make_session(make_store(current=Rule.from_id("0123" * 5)))
     rng = np.random.default_rng(9)
-    rows = [rng.integers(0, 4, 32).astype(np.uint8) for _ in range(REPEAT_SCREENS * s.rows)]
+    rows = [rng.integers(0, 4, 32).astype(np.uint8) for _ in range(REPEAT_WINDOW)]
     for row in rows:
         s._observe(row)  # all distinct, all four states present: nothing boring
     assert s._boring_streak == 0
-    s._observe(rows[0])  # recurs exactly REPEAT_SCREENS screens later: still in window
+    s._observe(rows[0])  # recurs exactly REPEAT_WINDOW generations later: still in window
     assert s._boring_streak == 1 and s._boring_reason == "repeating"
     s._reset_boredom()
     for row in rows:
         s._observe(row)
     s._observe(rng.integers(0, 4, 32).astype(np.uint8))  # pushes rows[0] out of the window
     s._observe(rows[0])
-    assert s._boring_streak == 0  # forgotten: beyond ten screens
+    assert s._boring_streak == 0  # forgotten: beyond the window
+
+
+def test_boring_windows_do_not_depend_on_the_display(make_store):  # R-A1: no rows/resize coupling
+    from odca.session import REPEAT_WINDOW
+    s = make_session(make_store(current=Rule.from_id("0123" * 5)))
+    assert s.resize(32, 400)  # a display many times the window sizes
+    rng = np.random.default_rng(21)
+    rows = [rng.integers(0, 4, 32).astype(np.uint8) for _ in range(REPEAT_WINDOW)]
+    for row in rows:
+        s._observe(row)
+    assert s._boring_streak == 0  # the window is still REPEAT_WINDOW, not 10 x 400
+    s._observe(rows[0])
+    assert s._boring_streak == 1 and s._boring_reason == "repeating"
 
 
 def _distinct_rows(rng, n):
@@ -459,10 +472,10 @@ def _distinct_rows(rng, n):
 
 
 def test_brent_finds_period_beyond_the_window(make_store, capsys):  # PT-22
-    from odca.session import REPEAT_SCREENS
+    from odca.session import REPEAT_WINDOW
     s = make_session(make_store(current=Rule.from_id("0123" * 5)))
     rng = np.random.default_rng(12)
-    period = 3 * REPEAT_SCREENS * s.rows  # far longer than the repetition window
+    period = REPEAT_WINDOW + 500  # past the fixed repetition window
     transient, cycle = _distinct_rows(rng, 37), _distinct_rows(rng, period)
     for row in transient:
         s._observe(row)

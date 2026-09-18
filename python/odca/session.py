@@ -73,9 +73,9 @@ INITIAL_DELAY = 1 / 60  # seconds between generations (R-U5)
 MIN_DELAY = 1 / 16384  # R-K8
 MAX_DELAY = 8.0
 MAX_CANDIDATES = 64  # stash cap; background workers throttle once full (R-S3)
-REPEAT_SCREENS = 10  # a row recurring within this many screens is repeating (R-A1)
+REPEAT_WINDOW = 4000  # a row recurring within this many generations is repeating; fixed, independent of the display (R-A1)
 MINORITY_FRACTION = 0.10  # a producible state below this share is a minority (R-A1)
-STAGNATION_SCREENS = 4  # minority population steady this many screens -> stagnant
+STAGNATION_WINDOW = 1600  # minority population steady this many generations -> stagnant; fixed
 STAGNATION_SWING = 0.25  # (max - min) / mean below this counts as steady
 STEP_CAP = 2000  # per-tick catch-up cap so a stall can't freeze the UI (R-U5)
 SMOOTH_SCROLL_DELAY = 2 * INITIAL_DELAY  # slower than this: continuous scrolling (R-U3)
@@ -163,15 +163,15 @@ class Session:
         self._boring_streak = 0
         self._boring_reason = None
         self._boring_by_extinction = False
-        self._recent_rows = deque()  # row bytes of the last REPEAT_SCREENS screens
+        self._recent_rows = deque()  # row bytes of the last REPEAT_WINDOW generations
         self._recent_counts = Counter()
         # Brent's cycle detection: one saved row, refreshed at powers of two.
         self._brent_snapshot = None
         self._brent_power = 1
         self._brent_steps = 0
         self.cycle_period = None  # exact period once a cycle is detected
-        # minority-state cell counts over the last STAGNATION_SCREENS screens
-        self._minority_counts = deque(maxlen=STAGNATION_SCREENS * rows)
+        # minority-state cell counts over the last STAGNATION_WINDOW generations, fixed
+        self._minority_counts = deque(maxlen=STAGNATION_WINDOW)
 
         # Colors (R-U4, R-K17): every mode but color set review draws through
         # the active set, which may be any pool member; it starts as the
@@ -381,7 +381,6 @@ class Session:
                 self._buf[self._end - 1] = cells
         self.rows = rows
         self._trim_history()
-        self._minority_counts = deque(maxlen=STAGNATION_SCREENS * rows)
         self._reset_boredom()
         print(f"resized {self.cols}x{self.rows}")  # R-O14
         return True
@@ -568,7 +567,7 @@ class Session:
         repeating = self._recent_counts[key] > 0
         self._recent_rows.append(key)
         self._recent_counts[key] += 1
-        if len(self._recent_rows) > REPEAT_SCREENS * self.rows:
+        if len(self._recent_rows) > REPEAT_WINDOW:
             old = self._recent_rows.popleft()
             self._recent_counts[old] -= 1
             if self._recent_counts[old] == 0:
