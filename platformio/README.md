@@ -49,11 +49,17 @@ board-specific follow-up rather than a guess.
 
 ## A machine note, not an ODCA one
 
-While building this, `cc` on this Mac stopped linking anything at all
-(`ld: tapi error: malformed file`) after macOS moved to 27.0 mid-session:
-the Command Line Tools' default SDK symlink pointed at a corrupted
-27.0 SDK sitting alongside a working 26.5 one. `host_test/run` now
-passes an explicit `-isysroot $(xcrun --sdk macosx --show-sdk-path)`,
-which is harmless on a healthy machine and worked around it here. It
-never touched the firmware build, which uses PlatformIO's own bundled
-cross-compiler, not the system one.
+`cc` on this Mac wouldn't link anything at all while building this
+(`ld: tapi error: malformed file`, "unknown architecture
+arm64e.x1-macos"). The cause is Xcode/OS version skew, not corruption:
+the OS and its Command Line Tools package are macOS 27.0, but Xcode.app
+itself is still 26.6 (`xcodebuild -version`), and 26.6's linker doesn't
+recognize `arm64e.x1`, a target tag 27.0's SDK declares that didn't
+exist when 26.6 shipped. The default `MacOSX.sdk` symlink under
+`/Library/Developer/CommandLineTools/SDKs/` points at that 27.0 SDK; an
+older 26.5 one sits right next to it and works fine. `host_test/run`
+passes an explicit `-isysroot $(xcrun --sdk macosx --show-sdk-path)`
+to use it, harmless on a healthy machine. The real fix, when wanted, is
+updating Xcode; this just routes around it. It never touched the
+firmware build, which uses PlatformIO's own bundled cross-compiler, not
+the system one.
