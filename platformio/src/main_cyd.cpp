@@ -136,11 +136,26 @@ static const unsigned long BASE_PERIOD_MS = 20;  // ~50 generations/second
 // it, everywhere at once, worst exactly where those alternating bands
 // are (the user's own observation, and their suggested fix).
 //
-// Scrolling two lines per frame maps a period-2 pattern onto itself:
+// Scrolling several lines per frame maps such a pattern onto itself:
 // the content that arrives at a given pixel is the same color that was
 // already there, so it holds still instead of toggling. The region
 // still moves and evolves; only the strobing stops.
+//
+// In general a vertical pattern of period p, scrolled s rows per frame
+// at f frames per second, makes each pixel cycle at f*gcd(p,s)/p — zero
+// only when s is a multiple of p, and no single value satisfies every p
+// the automaton produces.
+//
+// 2 is the value that survived testing. 4 was tried, on the reasoning
+// that it settles period-4 bands as well as period-2, and it was worse
+// (user: "too much strobing"): holding the generation rate fixed, 4
+// rows per frame means 12.5 frames per second, and a frame rate that
+// low is itself well inside the range the eye objects to. The step size
+// is not the only thing that matters — the frame rate it implies
+// matters at least as much, and pushing it down to buy period matching
+// is a losing trade.
 static const int ROWS_PER_FRAME = 2;
+static_assert(HEIGHT % ROWS_PER_FRAME == 0, "the scroll ring must hold a whole number of frames");
 
 enum Speed { SPEED_BASE, SPEED_X2, SPEED_X4, SPEED_DIV4, SPEED_DIV2 };
 static Speed speed = SPEED_BASE;

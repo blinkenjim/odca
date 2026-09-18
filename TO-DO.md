@@ -220,12 +220,19 @@ script design.
       vertical pattern of period p scrolled s rows per frame at f frames
       per second makes each pixel cycle at f*gcd(p,s)/p, which is zero
       only when s is a multiple of p, and no single step size satisfies
-      every p the automaton produces. Two escapes if it is worth
-      chasing: step 4 rows per frame instead of 2 (kills period-4 as
-      well as period-2, at the cost of chunkier motion — 12.5fps at the
-      current generation rate), or raise the frame rate far enough that
-      any residual flicker sits above perception (changes the pace of
-      the art).
+      every p the automaton produces. Stepping 4 rows per frame was
+      tried, on the reasoning that it settles period-4 as well as
+      period-2, and was clearly worse (user: "too much strobing"):
+      holding the generation rate fixed, 4 rows per frame means 12.5
+      frames per second, and a frame rate that low is itself well inside
+      the range the eye objects to. The lesson is that the step size is
+      not the only term — the frame rate it implies matters at least as
+      much, and buying period matching by lowering frame rate is a
+      losing trade. That leaves the opposite direction as the only
+      untried escape: raise the frame rate far enough that residual
+      flicker sits above perception, which with rows-per-frame fixed
+      means running the automaton faster, i.e. changing the pace of the
+      art. That is an aesthetic decision, not a technical one.
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
 - [ ] "Most interesting of the interesting" score, layered on the 'r'
