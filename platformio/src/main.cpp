@@ -24,8 +24,9 @@ static odca_detector detector;
 static unsigned char cur[WIDTH];
 static unsigned char next_row[WIDTH];
 
-static unsigned long generation = 0;
-static unsigned long generation_at_last_report = 0;
+static unsigned long generation = 0;             // this seed's age; reset by every reinit
+static unsigned long long total_generation = 0;   // never reset — the only thing the rate is measured from
+static unsigned long long total_at_last_report = 0;
 static unsigned long last_report_ms = 0;
 static unsigned long reinit_count = 0;
 
@@ -77,6 +78,7 @@ void loop() {
   odca_step_wrap(cur, WIDTH, &rule, next_row);
   memcpy(cur, next_row, sizeof cur);
   generation++;
+  total_generation++;
 
   if (odca_detector_observe(&detector, cur, WIDTH) && detector.boring_streak >= ROWS_FOR_REINIT) {
     char reason[ODCA_END_MAX];
@@ -89,13 +91,20 @@ void loop() {
 
   unsigned long now = millis();
   if (now - last_report_ms >= 2000) {
-    unsigned long done = generation - generation_at_last_report;
+    // total_generation is monotonic (unlike generation, which a reinit
+    // resets), so this never underflows however many reinits happened
+    // since the last report — the bug caught in the first live run,
+    // where the subtraction went negative on unsigned integers and the
+    // wraparound came out as either an absurdly huge or an implausibly
+    // tiny "rate".
+    unsigned long long done = total_generation - total_at_last_report;
+    unsigned long elapsed_ms = now - last_report_ms;
     Serial.print("generation ");
     Serial.print(generation);
     Serial.print("  (");
-    Serial.print(done * 1000UL / (now - last_report_ms));
+    Serial.print((unsigned long)(done * 1000ULL / elapsed_ms));
     Serial.println(" gen/s)");
-    generation_at_last_report = generation;
+    total_at_last_report = total_generation;
     last_report_ms = now;
   }
 }
