@@ -64,7 +64,14 @@ static unsigned char next_row[WIDTH];
 static unsigned char history[HEIGHT][WIDTH];
 static int history_count = 0;   // rows filled so far, caps at HEIGHT
 static int history_next = 0;    // the ring's next write slot
-static uint16_t row_pixels[WIDTH];  // one row's worth of color, reused per redraw
+
+// The whole frame's colors, built once per redraw then sent in a single
+// writePixels() burst (see redraw_history()): 172 separate one-row calls
+// each carried a fixed per-call cost (arduino-pico's writePixels toggles
+// the SPI peripheral's word-size register on every call), which turned
+// out to be roughly half of the total redraw time even at a fast SPI
+// clock — one call instead of 172 removes nearly all of it.
+static uint16_t frame_pixels[HEIGHT][WIDTH];
 
 static unsigned long generation = 0;             // this seed's age; reset by every reinit
 static unsigned long long total_generation = 0;   // never reset — the only thing the rate is measured from
@@ -144,17 +151,17 @@ static void seed_random_row(unsigned char *row, int width) {
 // row until the history first fills, matching R-U3's "filled rows from
 // the top, background below" on the desktop.
 static void redraw_history() {
-  tft.startWrite();
-  tft.setAddrWindow(0, 0, WIDTH, HEIGHT);
   for (int y = 0; y < HEIGHT; y++) {
     if (y < history_count) {
       int slot = (history_next - history_count + y + HEIGHT) % HEIGHT;
-      for (int x = 0; x < WIDTH; x++) row_pixels[x] = PALETTE[history[slot][x]];
+      for (int x = 0; x < WIDTH; x++) frame_pixels[y][x] = PALETTE[history[slot][x]];
     } else {
-      for (int x = 0; x < WIDTH; x++) row_pixels[x] = PALETTE[0];
+      for (int x = 0; x < WIDTH; x++) frame_pixels[y][x] = PALETTE[0];
     }
-    tft.writePixels(row_pixels, WIDTH);
   }
+  tft.startWrite();
+  tft.setAddrWindow(0, 0, WIDTH, HEIGHT);
+  tft.writePixels(&frame_pixels[0][0], (uint32_t)WIDTH * HEIGHT);
   tft.endWrite();
 }
 
@@ -198,7 +205,18 @@ void setup() {
   digitalWrite(PIN_BL, HIGH);
   tft.init(PANEL_NATIVE_WIDTH, PANEL_NATIVE_HEIGHT);
   tft.setRotation(ROTATION);
-  tft.setSPISpeed(40000000);
+  // This panel exposes no TE (tearing-effect) pin, so a write can't be
+  // synced to the controller's own internal refresh; at 40MHz a full
+  // 172-row redraw measured ~28ms (see the serial rate report's "redraw
+  // Xms"), long enough for the panel's own refresh to scan through it
+  // more than once mid-write, each pass catching a different amount
+  // finished — a moving seam rather than one steady tear line, which
+  // fit the user's report of shimmering all up and down the display
+  // better than classic tearing. Measured clean, close to linear
+  // scaling from 20 to 80MHz (53ms, 28ms, ~15ms) with no sign of a
+  // fixed floor in that range, and 80MHz is where the user confirmed
+  // the shimmering gone ("that's perfect").
+  tft.setSPISpeed(80000000);
   tft.fillScreen(PALETTE[0]);
 
   if (!odca_rule_from_id(RULE_ID, &rule)) {
@@ -269,7 +287,9 @@ void loop() {
     Serial.print((unsigned long)(done * 1000ULL / elapsed_ms));
     Serial.print(" gen/s, ");
     Serial.print(speed_name(speed));
-    Serial.println(")");
+    Serial.print(", redraw ");
+    Serial.print(redraw_ms);
+    Serial.println("ms)");
     total_at_last_report = total_generation;
     last_report_ms = now;
   }
