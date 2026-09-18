@@ -72,6 +72,61 @@ static unsigned long long total_at_last_report = 0;
 static unsigned long last_report_ms = 0;
 static unsigned long reinit_count = 0;
 
+// BOOTSEL-driven speed: the display redraw is what actually paces the
+// loop (SPI bandwidth is the ceiling), so "faster" means stepping more
+// generations between redraws, and "slower" means an explicit extra
+// delay after a normal one, sized off of that redraw's own measured
+// cost rather than a guessed constant.
+enum Speed { SPEED_BASE, SPEED_X2, SPEED_X4, SPEED_DIV4, SPEED_DIV2 };
+static Speed speed = SPEED_BASE;
+static bool bootsel_was_pressed = false;
+
+static const char *speed_name(Speed s) {
+  switch (s) {
+    case SPEED_BASE: return "1x";
+    case SPEED_X2:   return "2x";
+    case SPEED_X4:   return "4x";
+    case SPEED_DIV4: return "1/4x";
+    case SPEED_DIV2: return "1/2x";
+  }
+  return "?";
+}
+
+static Speed next_speed(Speed s) {
+  switch (s) {
+    case SPEED_BASE: return SPEED_X2;
+    case SPEED_X2:   return SPEED_X4;
+    case SPEED_X4:   return SPEED_DIV4;
+    case SPEED_DIV4: return SPEED_DIV2;
+    case SPEED_DIV2: return SPEED_BASE;
+  }
+  return SPEED_BASE;
+}
+
+static int steps_per_redraw(Speed s) {
+  switch (s) {
+    case SPEED_X2: return 2;
+    case SPEED_X4: return 4;
+    default:       return 1;
+  }
+}
+
+// BOOTSEL isn't a normal GPIO (it shares a pin with flash CS, read via a
+// special, relatively slow core routine — arduino-pico's Bootsel.h), so
+// this is polled once per loop() iteration, not per generation, and
+// debounced by waiting out the release the same way the core's own
+// example does.
+static void poll_bootsel() {
+  bool pressed = BOOTSEL;
+  if (pressed && !bootsel_was_pressed) {
+    while (BOOTSEL) delay(1);
+    speed = next_speed(speed);
+    Serial.print("speed ");
+    Serial.println(speed_name(speed));
+  }
+  bootsel_was_pressed = pressed;
+}
+
 static void seed_random_row(unsigned char *row, int width) {
   for (int i = 0; i < width; i += 16) {
     uint32_t bits = rp2040.hwrand32();  // hardware RNG (R-N1's "seedable" doesn't apply here: this is a live seed, not a mutation/session stream)
@@ -154,20 +209,46 @@ void setup() {
 }
 
 void loop() {
-  odca_step_wrap(cur, WIDTH, &rule, next_row);
-  memcpy(cur, next_row, sizeof cur);
-  generation++;
-  total_generation++;
-  push_history(cur);
-  redraw_history();
+  poll_bootsel();
 
-  if (odca_detector_observe(&detector, cur, WIDTH) && detector.boring_streak >= HEIGHT) {
-    char reason[ODCA_END_MAX];
-    strncpy(reason, detector.boring_reason, sizeof reason);
-    Serial.print("generation ");
-    Serial.print(generation);
-    Serial.print("  ");
-    reinitialize(reason);
+  // At x2/x4, step several generations before the one redraw that shows
+  // them — the redraw is the SPI-bound cost, so this is the only way to
+  // go faster than the base pace, at the cost of several new rows
+  // appearing at once instead of one at a time (the same "more than one
+  // generation per refresh" the desktop's own fast speeds do, R-U5). A
+  // reinit is a discrete event in its own right, so it cuts the batch
+  // short rather than continuing to step a suddenly-different seed.
+  int n = steps_per_redraw(speed);
+  for (int i = 0; i < n; i++) {
+    odca_step_wrap(cur, WIDTH, &rule, next_row);
+    memcpy(cur, next_row, sizeof cur);
+    generation++;
+    total_generation++;
+    push_history(cur);
+
+    if (odca_detector_observe(&detector, cur, WIDTH) && detector.boring_streak >= HEIGHT) {
+      char reason[ODCA_END_MAX];
+      strncpy(reason, detector.boring_reason, sizeof reason);
+      Serial.print("generation ");
+      Serial.print(generation);
+      Serial.print("  ");
+      reinitialize(reason);
+      break;
+    }
+  }
+
+  unsigned long redraw_start = millis();
+  redraw_history();
+  unsigned long redraw_ms = millis() - redraw_start;
+
+  // /2 and /4: redraw_ms is this run's own measured cost of one base
+  // (single-generation) cycle, so scaling the extra wait off of it stays
+  // correct however that cost drifts, rather than trusting a guessed
+  // constant.
+  if (speed == SPEED_DIV2) {
+    delay(redraw_ms);
+  } else if (speed == SPEED_DIV4) {
+    delay(redraw_ms * 3);
   }
 
   unsigned long now = millis();
@@ -181,7 +262,9 @@ void loop() {
     Serial.print(generation);
     Serial.print("  (");
     Serial.print((unsigned long)(done * 1000ULL / elapsed_ms));
-    Serial.println(" gen/s, now display-paced)");
+    Serial.print(" gen/s, ");
+    Serial.print(speed_name(speed));
+    Serial.println(")");
     total_at_last_report = total_generation;
     last_report_ms = now;
   }
