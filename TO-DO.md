@@ -185,6 +185,35 @@ script design.
       a range the eye perceives as distinct pulses, possibly compounded
       by some power/backlight coupling to the CPU's idle/busy duty
       cycle. Left open at the user's own word, not solved.
+- [ ] platformio: ESP32-C6 board parked unresolved (2026-09-19, user:
+      "I want to punt this board for a while"). Its display permanently
+      freezes after a while — serial keeps running and generations keep
+      counting, but the panel never updates again: an SPI transfer
+      corrupting and desyncing the ST7789's command/data framing, with
+      nothing to resync it. Clock-rate-dependent (40MHz died in a few
+      hundred generations; 20MHz survived 90s once then died inside 172;
+      10MHz ran 920+ clean but is only best-known, not proven), so the
+      cause looks like signal integrity on GPIO-matrix-routed pins.
+      Lead worth trying first if resumed: the CYD board hit the same
+      class of problem and escaped it entirely because its display pins
+      turned out to be the *native IOMUX* pins of a different SPI
+      peripheral than the one in use — check whether the C6 has an
+      equivalent escape before assuming it doesn't. A defensive
+      periodic display re-init was offered as a self-healing safety net
+      and not taken up; still available.
+- [ ] platformio: CYD shimmer. Redraw is down to 22ms (from 101ms) and
+      the user still reports shimmer. On the RP2350 the same artifact
+      cleared once redraw dropped to ~15ms, so the remaining gap is the
+      likely explanation, but 22ms is close to this board's floor for
+      full-frame redraw: 15ms of it is irreducible SPI transfer at
+      80MHz, which is ESP32's IOMUX ceiling. Going meaningfully below
+      needs a different architecture, not more tuning — writing only
+      the one new row per generation via the panel's hardware vertical
+      scroll. Checked and NOT available as things stand, for the same
+      reason as the RP2350: scroll acts on the panel's native long axis,
+      which the rotation maps to the automaton's *width*, not the
+      direction the picture scrolls. It would need R-U2's fixed 320
+      width revisited, which is the user's call.
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
 - [ ] "Most interesting of the interesting" score, layered on the 'r'

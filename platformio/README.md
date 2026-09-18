@@ -1,6 +1,6 @@
 # ODCA — PlatformIO scaffold
 
-Two boards now, sharing this directory. The RP2350 board (Waveshare
+Three boards now, sharing this directory. The RP2350 board (Waveshare
 RP2350-LCD-1.47-A) has the real, running firmware: the engine
 (`../REQTS.md` section 1, R-M), the boring detector (section 3, R-A),
 and the display all running together, the live automaton drawn
@@ -10,30 +10,64 @@ scroll (see `src/main.cpp`'s own comment for why — correctness before
 speed). Confirmed genuinely running on the board via serial and, for
 the display, the user's own eyes.
 
-The ESP32-C6 board (Waveshare ESP32-C6-LCD-1.47) now runs the same
-firmware too (`src/main_esp32c6.cpp`): same 172×320 ST7789 panel and
-driver chip as the RP2350 board, confirmed from the manufacturers' own
-spec pages, and confirmed correct on the real panel — right colors,
-right orientation, on the first try. Engine, detector, display, and the
-BOOT-button speed cycle all running, confirmed live over serial through
-several screenfuls and a couple of auto-reinits. One real, board-
-specific bug found and fixed: this chip runs FreeRTOS under the Arduino
-core (the RP2350 side doesn't), and a `loop()` with no yielding calls
-starved its task watchdog, seen as a garbled serial line and a
-multi-second stall every couple of screenfuls; `src/main_esp32c6.cpp`'s
-own comment has the details. Speed is untuned so far — its SPI clock
-started at the RP2350 side's original conservative value, not its later
-80MHz, since these pins are GPIO-matrix-routed rather than the RP2350's
-dedicated hardware SPI pins and may have a different reliable ceiling.
+The ESP32-C6 board (Waveshare ESP32-C6-LCD-1.47) runs the same firmware
+(`src/main_esp32c6.cpp`) on the same 172×320 ST7789 panel, and got as
+far as engine, detector, display and the BOOT-button speed cycle all
+working — but it is **parked, unresolved**: its display permanently
+freezes after a while, while serial keeps running and generations keep
+counting. That is an SPI transfer corrupting and desyncing the panel's
+command/data framing, and it is clock-rate-dependent, so the cause
+looks like signal integrity on GPIO-matrix-routed pins. 40MHz died
+within a few hundred generations, 20MHz survived 90 seconds once then
+died inside 172, and 10MHz (where it sits) ran 920+ generations clean
+but is not proven safe, just best known. `src/main_esp32c6.cpp`'s own
+comment has the full account and a lead worth trying if it is picked
+back up. One other board-specific bug was found and fixed along the
+way: this chip runs FreeRTOS under the Arduino core (the RP2350 doesn't)
+and a `loop()` that never blocks starves its task watchdog — `yield()`
+is not enough, since it never reaches the idle task; `delay()` is.
+
+The CYD board (ESP32-2432S028, a classic ESP32-WROOM-32 with a 2.8"
+320×240 ILI9341 panel — a different driver chip from the other two)
+runs `src/main_cyd.cpp`, confirmed correct on the real panel on the
+first try. Two things about it are worth knowing:
+
+- Its display pins (14/12/13/15) are exactly classic ESP32's **HSPI
+  native IOMUX pins**, almost certainly by design. The Arduino core's
+  default `SPI` object is VSPI, whose own IOMUX pins are 18/19/23/5, so
+  driving this display through the default object routes it the long
+  way through the GPIO matrix — the same penalised path the ESP32-C6 is
+  permanently stuck on, capped near 40MHz. Using HSPI instead gets the
+  direct path and makes 80MHz available.
+- This chip has far less usable DRAM than the other two (~100KB once
+  the framework's overhead is out, of which the detector's fixed R-A1
+  windows claim ~36KB). The history therefore packs four cells to the
+  byte — states are 0-3, so two bits was always enough — which is what
+  buys the panel's full 240-row height.
+
+Redraw there went 101ms to 22ms (9 to 41 generations/second) across
+four measured changes: HSPI at 80MHz, then skipping the driver's
+per-pixel endian swap by keeping the palette pre-swapped in wire order,
+then a 256-entry table expanding each packed history byte to four
+pixels at once. Batching the per-row writes into bands made no
+measurable difference, the same null result the RP2350 saw — worth
+recording so it isn't retried a third time.
 
 ## Build
 
 ```sh
-pio run                 # RP2350, the real firmware (src/main.cpp)
-pio run -e display      # RP2350, the display link test
-pio run -e esp32c6      # ESP32-C6, the real firmware (src/main_esp32c6.cpp)
-pio run -e esp32c6-hello # ESP32-C6, the toolchain smoke test
+pio run                     # RP2350, the real firmware (src/main.cpp)
+pio run -e display          # RP2350, the display link test
+pio run -e esp32c6          # ESP32-C6, the real firmware
+pio run -e esp32c6-hello    # ESP32-C6, the toolchain smoke test
+pio run -e cyd              # CYD, the real firmware
+pio run -e cyd-hello        # CYD, the toolchain smoke test
+pio run -e cyd-display      # CYD, the display link test
 ```
+
+Each environment names the one `src/main*.cpp` it builds and excludes
+the rest, so adding a fourth board's file never needs the other
+environments edited.
 
 The RP2350 side, via the
 [earlephilhower Arduino-Pico](https://arduino-pico.readthedocs.io/) core:
@@ -81,6 +115,9 @@ each firmware's own serial output once it's running.
 | `src/main_display_test.cpp` | a separate RP2350 firmware, kept apart from `src/main.cpp`: cycles the ST7789 through solid colors, the four ODCA palette colors as vertical stripes, and single corner pixels, over Adafruit_GFX/Adafruit_ST7789. `pio run -e display -t upload` builds and flashes this instead of the real firmware. The six pin numbers and the rotation value at the top of the file started as a guess from two independent sources plus this board's default hardware SPI0 pins, and are confirmed correct: right colors, right orientation, against the real panel |
 | `src/main_esp32c6.cpp` | the real ESP32-C6 firmware, ported from `src/main.cpp`: same engine/detector/display/speed-cycle behavior, board-specific pins, RNG (`esp_random()`), and BOOT-button read (a plain GPIO, unlike the RP2350's special BOOTSEL object), plus a `yield()` each loop() and `delay()` instead of a busy-spin at the slow speeds — this chip's FreeRTOS task watchdog needs the yield, something the RP2350 side never had to consider |
 | `src/main_esp32c6_hello.cpp` | the ESP32-C6 side's own toolchain smoke test, the same first step the RP2350 side took: a serial heartbeat, nothing more. `pio run -e esp32c6-hello -t upload` builds and flashes this |
+| `src/main_cyd.cpp` | the real CYD firmware: same engine/detector/display/speed-cycle behavior as the other two, on an ILI9341 panel over HSPI, with the history packed four cells to the byte and the palette held pre-swapped in wire order (see its own comments — both are memory and speed decisions specific to this board) |
+| `src/main_cyd_display_test.cpp` | the CYD's display link test, the same role `main_display_test.cpp` plays for the RP2350: solid colors, palette stripes, corner pixels. This one had more to prove than the others — the driver chip itself was unconfirmed (most CYD units are ILI9341, some later batches ST7789), as were backlight polarity and whether RST is wired at all |
+| `src/main_cyd_hello.cpp` | the CYD's toolchain smoke test, a serial heartbeat. Note this board has a real CH340 USB-UART bridge rather than the other two boards' native USB, so reading its serial needs the baud rate set explicitly — plain `cat` on the device gets garbage |
 
 The automaton's width is 320, not the panel's native 172: the display
 runs rotated, its long axis as the automaton's width, since a wider

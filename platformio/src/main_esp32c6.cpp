@@ -212,13 +212,29 @@ void setup() {
   SPI.begin(PIN_SCK, /* MISO */ -1, PIN_MOSI, PIN_CS);
   tft.init(PANEL_NATIVE_WIDTH, PANEL_NATIVE_HEIGHT);
   tft.setRotation(ROTATION);
-  // Starting at the same conservative clock the RP2350 side proved
-  // first, before any tuning: correctness before speed. These pins are
-  // routed through the GPIO matrix rather than dedicated IOMUX SPI
-  // pins, which on ESP32 parts usually means a lower reliable ceiling
-  // than IOMUX-routed pins — worth remeasuring here rather than
-  // assuming the RP2350 side's 80MHz carries over.
-  tft.setSPISpeed(40000000);
+  // UNRESOLVED (2026-09-19). This board's display permanently freezes
+  // after a while — serial keeps running and generations keep counting,
+  // but the panel never updates again. That is the signature of a
+  // corrupted SPI transfer desyncing the ST7789's command/data framing:
+  // a partial write leaves it expecting more pixel data, so the next
+  // command bytes get read as pixels, and nothing here ever resyncs it.
+  //
+  // It is clock-rate-dependent, which points at signal integrity: these
+  // pins are GPIO-matrix-routed rather than dedicated hardware SPI
+  // pins, and that path has a real, lower reliable ceiling. 40MHz died
+  // within a few hundred generations, reliably. 20MHz survived 90+
+  // seconds once and then died in under 172 generations. 10MHz ran
+  // 920+ generations clean in the longest test it got, so it is the
+  // best-known value and what this is set to — but "best known" is not
+  // "safe", and it was slow and shimmery besides.
+  //
+  // Parked here at the user's call rather than chased further. If it is
+  // picked back up: the CYD board (main_cyd.cpp) later hit the same
+  // class of problem and found its display pins were the *native IOMUX*
+  // pins of a different SPI peripheral than the one being used, which
+  // removed the GPIO-matrix penalty entirely. Worth checking whether
+  // this board has an equivalent escape before assuming it doesn't.
+  tft.setSPISpeed(10000000);
   tft.fillScreen(PALETTE[0]);
 
   if (!odca_rule_from_id(RULE_ID, &rule)) {
@@ -235,14 +251,16 @@ void setup() {
 
 void loop() {
   // Unlike the RP2350's bare-metal Arduino-Pico core, this chip runs
-  // FreeRTOS underneath, with a task watchdog that expects loop() to
-  // yield periodically. A tight loop() that never calls anything
-  // yielding starves it; observed live as a garbled serial line and a
-  // multi-second stall (a corrupted print mid-transmission) before
-  // recovering on its own — the watchdog's warning path, not a full
-  // reboot (no fresh startup banner appeared). yield() here is cheap
-  // when nothing else is waiting to run.
-  yield();
+  // FreeRTOS underneath, with a task watchdog that only clears when the
+  // IDLE task actually gets to run. yield() (taskYIELD()) only yields
+  // to tasks of equal or higher priority, never to IDLE, so it didn't
+  // fix this — the same stall recurred at nearly the same generation
+  // count with it in place. delay(1) actually blocks this task, which
+  // is what lets IDLE run and feed the watchdog; that's the documented
+  // fix for this exact "Task watchdog got triggered (IDLE)" case on
+  // arduino-esp32. A 1ms cost once per redraw-bound (~34ms) loop is
+  // noise.
+  delay(1);
 
   poll_boot_button();
 
