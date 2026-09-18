@@ -163,16 +163,28 @@ the color set tool, and the vision items, starting with the declarative
 script design.
 
 - [x] (2026-09-17, user: "that's perfect!") platformio: shimmering across
-      the whole display, not localized like tearing, worst once two of
-      the four states had gone extinct. No TE pin on this panel, so a
-      redraw can't sync to its own refresh; a full 172-row redraw at
-      40MHz measured ~28ms, long enough for the panel to scan through it
-      more than once mid-write, each pass catching a different amount
-      finished. Fixed two ways: one writePixels() burst for the whole
-      frame instead of 172 one-row calls (no measured effect on its own,
-      ruling out per-call overhead as the cause), and raising the SPI
-      clock to 80MHz, which scaled close to linearly down to ~15-16ms
-      and made the shimmering go away.
+      the whole display at base/2x/4x speed, not localized like tearing,
+      worst once two of the four states had gone extinct. No TE pin on
+      this panel, so a redraw can't sync to its own refresh; a full
+      172-row redraw at 40MHz measured ~28ms, long enough for the panel
+      to scan through it more than once mid-write, each pass catching a
+      different amount finished. Fixed two ways: one writePixels() burst
+      for the whole frame instead of 172 one-row calls (no measured
+      effect on its own, ruling out per-call overhead as the cause), and
+      raising the SPI clock to 80MHz, which scaled close to linearly
+      down to ~15-16ms and made the shimmering go away at those speeds.
+- [ ] platformio: shimmering still present at the ÷2/÷4 BOOTSEL speeds
+      (2026-09-18, user: "still a bit of shimmer... good enough for now,
+      anyway, though I might want to delve into this in more detail
+      later"), improved but not eliminated by swapping the idle wait for
+      a busy-spin (main.cpp's own comment on the change). Genuinely
+      counterintuitive against the redraw-vs-refresh race theory above,
+      since the redraw path is identical at every speed and this wait
+      only runs after a write has already finished; leading unconfirmed
+      guess is a loop repetition rate (~33Hz, ~16Hz at ÷2/÷4) landing in
+      a range the eye perceives as distinct pulses, possibly compounded
+      by some power/backlight coupling to the CPU's idle/busy duty
+      cycle. Left open at the user's own word, not solved.
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
 - [ ] "Most interesting of the interesting" score, layered on the 'r'

@@ -268,10 +268,24 @@ void loop() {
   // (single-generation) cycle, so scaling the extra wait off of it stays
   // correct however that cost drifts, rather than trusting a guessed
   // constant.
-  if (speed == SPEED_DIV2) {
-    delay(redraw_ms);
-  } else if (speed == SPEED_DIV4) {
-    delay(redraw_ms * 3);
+  //
+  // 2026-09-18: /2 and /4 showed shimmering that base/2x/4x didn't. The
+  // redraw path is identical in every mode, and this wait runs only
+  // after a write has already finished, so the panel-refresh race isn't
+  // an obvious fit. What IS different: only /2 and /4 let the CPU go
+  // idle for a long stretch between SPI bursts, dropping the loop's
+  // repetition rate into a range (roughly 33Hz, 16Hz) a human eye can
+  // perceive as distinct pulses rather than a blur. Busy-spinning
+  // instead of delay() keeps CPU power draw level through the wait
+  // instead of dropping during it — measurably better (user: "a bit of
+  // shimmer, but it seems better... good enough for now"), not fully
+  // gone. Left as a real, open lead for later, not a solved problem.
+  unsigned long wait_ms = (speed == SPEED_DIV2) ? redraw_ms
+                         : (speed == SPEED_DIV4) ? redraw_ms * 3
+                                                  : 0;
+  if (wait_ms) {
+    unsigned long wait_until = millis() + wait_ms;
+    while (millis() < wait_until) {}
   }
 
   unsigned long now = millis();
