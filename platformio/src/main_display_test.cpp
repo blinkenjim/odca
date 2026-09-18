@@ -2,13 +2,11 @@
 // it. `pio run -e display -t upload` builds and flashes this instead of
 // the real firmware in ../src.
 //
-// The pin numbers and rotation below are a best guess, not a confirmed
-// fact: two independent sources agree on the six SPI/control pins (see
-// ../README.md), and they line up with this board's default hardware
-// SPI0 pins, which is reassuring but not proof, since nobody here has
-// seen this board's silkscreen or schematic directly. If nothing
-// appears, or colors/orientation look wrong, these six lines are where
-// to look first — everything else in this file follows from them.
+// The pin numbers and rotation below started as a best guess from two
+// independent sources plus this board's default hardware SPI0 pins, and
+// are now confirmed correct against the real panel: right colors, right
+// orientation, the user's own words "it looks amazing" once this reached
+// the real automaton in src/main.cpp.
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
 #include <Arduino.h>
@@ -28,10 +26,8 @@ static const int PANEL_NATIVE_WIDTH = 172;
 static const int PANEL_NATIVE_HEIGHT = 320;
 
 // ODCA wants 320 as the automaton's width (see ../README.md), so this
-// rotates to landscape. Adafruit's rotation-to-MADCTL mapping is
-// panel-specific; 1 is a first guess for "long axis horizontal" and,
-// like the pins above, may need to become 3 once someone can see the
-// screen. WIDTH/HEIGHT below are in this rotated, logical orientation.
+// rotates to landscape; confirmed correct (see above). WIDTH/HEIGHT
+// below are in this rotated, logical orientation.
 static const uint8_t ROTATION = 1;
 static const int WIDTH = 320;
 static const int HEIGHT = 172;
