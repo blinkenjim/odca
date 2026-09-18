@@ -12,16 +12,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// zooming; at its natural size the double-click zooms as ever.
     private func installTitleBarDoubleClick() {
         clickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
-            guard event.clickCount == 2, let window = event.window,
-                  !window.styleMask.contains(.fullScreen),
-                  event.locationInWindow.y > window.contentLayoutRect.maxY,  // the title bar
-                  let content = window.contentView?.frame.size else { return event }
-            let natural = ViewerModel.naturalSize
-            if abs(content.width - natural.width) < 0.5 && abs(content.height - natural.height) < 0.5 { return event }
-            var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: natural))
-            frame.origin = NSPoint(x: window.frame.minX, y: window.frame.maxY - frame.height)
-            window.setFrame(frame, display: true, animate: true)
-            return nil  // consumed: no zoom
+            // AppKit delivers local event monitors on the main thread, but
+            // the handler is not annotated as main-actor isolated, so
+            // reading ViewerModel's statics from it warns. Asserting what
+            // is already true keeps the isolation that actually guards
+            // those statics (cellSize and fixedCols are mutable) rather
+            // than weakening them to nonisolated.
+            // The resized flag, rather than the event itself, is what
+            // crosses back out: assumeIsolated requires a Sendable result
+            // and NSEvent is explicitly not Sendable.
+            let resized = MainActor.assumeIsolated { () -> Bool in
+                guard event.clickCount == 2, let window = event.window,
+                      !window.styleMask.contains(.fullScreen),
+                      event.locationInWindow.y > window.contentLayoutRect.maxY,  // the title bar
+                      let content = window.contentView?.frame.size else { return false }
+                let natural = ViewerModel.naturalSize
+                if abs(content.width - natural.width) < 0.5 && abs(content.height - natural.height) < 0.5 { return false }
+                var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: natural))
+                frame.origin = NSPoint(x: window.frame.minX, y: window.frame.maxY - frame.height)
+                window.setFrame(frame, display: true, animate: true)
+                return true
+            }
+            return resized ? nil : event  // consumed when it resized: no zoom
         }
     }
 
