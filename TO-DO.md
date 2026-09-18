@@ -185,25 +185,28 @@ script design.
       a range the eye perceives as distinct pulses, possibly compounded
       by some power/backlight coupling to the CPU's idle/busy duty
       cycle. Left open at the user's own word, not solved.
-- [x] (2026-09-19) platformio: ESP32-C6 freezing and slowness, both
-      fixed, and both by the same change. Parked earlier that day
-      ("I want to punt this board for a while") after its display kept
-      permanently freezing — serial still running, generations still
-      counting, panel dead: an SPI transfer corrupting and desyncing the
-      ST7789's command/data framing with nothing to resync it. It looked
-      like a clock/signal-integrity problem (40MHz died in a few hundred
-      generations, 20MHz inside 172, 10MHz lasted longest) and the
-      instinct was to hunt for a faster safe clock. The actual fix was
-      to stop needing one: a full repaint pushed 110,080 bytes per
-      generation, hardware vertical scroll pushes a few hundred, and at
-      the same untouched 10MHz that is 50 generations/second instead of
-      9, with 9,000 generations soaked and no fault. Exposure to
-      whatever corrupts the bus scales with bytes moved. Cost: the
-      automaton is 172 cells wide on this board, since the panel's
-      scroll axis is its 320 side — the width the user first rejected,
-      taken knowingly here because scrolling identically on every
-      platform matters more to them than the cells. A sweeping write
-      line keeping 320 cells was built, looked at, and rejected.
+- [x] (2026-09-19) platformio: ESP32-C6 support DROPPED, board abandoned
+      (user: "it's not worth carrying around support for a board that
+      barely works"). Its display kept corrupting and freezing for good
+      — panel dead while serial ran on and generations kept counting,
+      an SPI transfer desyncing the ST7789's command/data framing with
+      nothing to resync it. Nothing cured it: 40MHz died within a few
+      hundred generations, 20MHz inside 172, 10MHz lasted longer but not
+      forever, and rewriting it to push a few hundred bytes per
+      generation by hardware scroll instead of 110,080 bought a clean
+      9,000-generation soak and then failed anyway. Two intermediate
+      shapes were built and rejected along the way: a sweeping write
+      line (kept 320 cells, no scrolling — the user hated it on sight)
+      and portrait hardware scroll at 172 cells.
+      Three findings outlived the board and are worth keeping:
+      (1) exposure to bus corruption scales with bytes moved, not with
+      clock rate, so writing less beats clocking slower; (2) which SPI
+      peripheral a board's display pins belong to is worth checking
+      before assuming the pins are slow — the CYD's turned out to be a
+      different peripheral's native IOMUX pins, which is what unlocked
+      80MHz there; (3) these chips run FreeRTOS under the Arduino core,
+      and a loop() that never blocks starves the task watchdog, where
+      yield() does not help because it never reaches the idle task.
 - [x] (2026-09-19) platformio: CYD tearing, fixed by hardware scroll.
       Tuning the full redraw (101ms down to 22ms) never fixed it — the
       panel still refreshed mid-write and the tear showed as a drifting

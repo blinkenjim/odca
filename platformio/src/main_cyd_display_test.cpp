@@ -1,7 +1,7 @@
 // ODCA on an MCU: proving the CYD's display link before any automaton
 // touches it — the same role src/main_display_test.cpp plays for the
 // RP2350 board. `pio run -e cyd-display -t upload` builds and flashes
-// this instead of the other boards' firmware.
+// this instead of the real firmware.
 //
 // More unconfirmed here than either other board started with: the
 // driver chip itself (most CYD units are ILI9341, some later batches
@@ -31,7 +31,7 @@ static const int PIN_RST = -1;  // unconfirmed: guessed tied to EN, no separate 
 static const int PANEL_NATIVE_WIDTH = 240;
 static const int PANEL_NATIVE_HEIGHT = 320;
 
-// Same rotation convention as the other boards' displays; unconfirmed
+// Same rotation convention as the RP2350 board's display; unconfirmed
 // against this panel specifically.
 static const uint8_t ROTATION = 1;
 static const int WIDTH = 320;
@@ -73,7 +73,7 @@ void setup() {
   digitalWrite(PIN_BL, HIGH);  // backlight on; if this pin or its polarity is wrong, the panel may just stay dark
 
   SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS);
-  tft.begin(10000000);  // conservative first pass — see the ESP32-C6's own hard-won lesson (../platformio.ini's cyd comment) before ever trusting a higher clock here blind
+  tft.begin(10000000);  // deliberately conservative for a first look at an unproven panel; the real firmware runs 80MHz once the wiring is known good
   tft.setRotation(ROTATION);
 
   Serial.print("reports width ");

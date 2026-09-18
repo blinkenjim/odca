@@ -1,5 +1,5 @@
 // ODCA on an MCU: proving the CYD (ESP32-2432S028) toolchain before any
-// port work begins, the same first step both other boards took.
+// port work begins, the same first step the RP2350 board took.
 // `pio run -e cyd -t upload` builds and flashes this instead of the
 // other boards' firmware (build_src_filter, ../platformio.ini).
 //

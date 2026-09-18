@@ -3,8 +3,8 @@
 // the R-A2 auto-init terms and the general shape; the engine and
 // detector are identical here, and only the display differs.
 //
-// This board's display works differently from the other two boards',
-// and deliberately so. They redraw the whole visible window every
+// This board's display works differently from the RP2350 board's, and
+// deliberately so. That one redraws the whole visible window every
 // generation, which on this panel took 22ms — long enough for the
 // panel's own refresh to scan through a half-written frame, producing
 // a drifting diagonal tear the user could see at every speed. The fix
@@ -18,10 +18,9 @@
 // The cost, and it was the user's call (2026-09-19): hardware scroll
 // moves along the panel's native long axis, and that axis has to be
 // the direction the picture scrolls. So this board runs PORTRAIT, and
-// the automaton is 240 cells wide rather than the 320 the other two
-// boards use (R-U2). 240 is still well above the 172 the user rejected
-// early on, and portrait is the orientation the eventual installation
-// is aimed at anyway.
+// the automaton is 240 cells wide rather than the RP2350's 320 (R-U2).
+// Portrait is the orientation the eventual installation is aimed at
+// anyway.
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include <Arduino.h>
@@ -47,9 +46,7 @@ static const int HEIGHT = 320;  // R-A2's screenful, and the scroll ring's depth
 // direct IOMUX routing, while the Arduino core's default global SPI
 // object is VSPI (SPI3), whose own IOMUX pins are 18/19/23/5 — driving
 // these pins from VSPI instead sends them the long way round, through
-// the GPIO matrix, which caps the usable clock near 40MHz. That is the
-// routing the ESP32-C6 board was stuck with, where the cap was low
-// enough to corrupt transfers outright.
+// the GPIO matrix, which caps the usable clock near 40MHz.
 static const int PIN_MISO = 12;
 static const int PIN_MOSI = 13;
 static const int PIN_SCK = 14;
@@ -59,8 +56,7 @@ static const int PIN_BL = 21;
 static const int PIN_RST = -1;  // no separate GPIO found for this; tied to EN, confirmed fine in the display test
 
 // This board's BOOT button: GPIO0, the classic ESP32's own strapping
-// pin for serial-bootloader entry, same role GPIO9 plays on the
-// ESP32-C6. Active low.
+// pin for serial-bootloader entry. Active low.
 static const int PIN_BOOT = 0;
 
 // HSPI rather than the default global SPI (VSPI) — see the pin comment.
@@ -84,12 +80,35 @@ static uint16_t rgb565_swapped(uint8_t r, uint8_t g, uint8_t b) {
   uint16_t v = rgb565(r, g, b);
   return (uint16_t)((v >> 8) | (v << 8));
 }
+// Shimmer experiments on the 0/3 pair (2026-09-19).
+//
+// This rule reliably ends with states 1 and 2 extinct (every reinit
+// line says so), leaving 0 and 3 alternating row by row — exactly the
+// region the user sees strobing worst. Flicker visibility tracks
+// luminance contrast, and the desktop palette puts these two far
+// apart: #121218 sits around relative luminance 19, #409CFF around 140.
+// Closing that gap all but stops the strobing, confirmed on the screen.
+//
+// First attempt lifted state 0 to #275080, about 45% of the way toward
+// state 3. Strobing nearly vanished, but pulling the dark state that
+// far up cost contrast against states 1 and 2 as well (the user's read).
+//
+// This is the opposite approach: state 0 goes back to the desktop's own
+// value and state 3 comes down to pure black instead. The 0/3 pair
+// still ends up close enough to stop strobing, but both are now dark,
+// so states 1 and 2 keep their full contrast against the field rather
+// than everything washing toward mid-blue. The cost moves rather than
+// disappearing: where 0 and 3 alternate, that structure is now nearly
+// invisible instead of merely low-contrast.
+static const uint8_t S0_R = 0x12, S0_G = 0x12, S0_B = 0x18;  // desktop's own
+static const uint8_t S3_R = 0x00, S3_G = 0x00, S3_B = 0x00;  // desktop's own: 0x40, 0x9C, 0xFF
+
 static const uint16_t PALETTE_WIRE[4] = {
-    rgb565_swapped(0x12, 0x12, 0x18), rgb565_swapped(0xEB, 0xEB, 0xE1),
-    rgb565_swapped(0xFF, 0xA1, 0x36), rgb565_swapped(0x40, 0x9C, 0xFF),
+    rgb565_swapped(S0_R, S0_G, S0_B), rgb565_swapped(0xEB, 0xEB, 0xE1),
+    rgb565_swapped(0xFF, 0xA1, 0x36), rgb565_swapped(S3_R, S3_G, S3_B),
 };
 // State 0's color in normal byte order, for the one-off fillScreen().
-static const uint16_t BACKGROUND = rgb565(0x12, 0x12, 0x18);
+static const uint16_t BACKGROUND = rgb565(S0_R, S0_G, S0_B);
 
 // A rule already known to live a long time, from the desktop's own
 // odca-evolve search (see ../../interesting.odca).
@@ -119,8 +138,8 @@ static unsigned long last_report_ms = 0;
 static unsigned long reinit_count = 0;
 static unsigned long next_due_ms = 0;
 
-// Speed. On the other two boards the redraw itself paced the loop, so
-// "faster" meant stepping several generations between redraws. Here a
+// Speed. On the RP2350 the redraw itself paces the loop, so "faster"
+// there means stepping several generations between redraws. Here a
 // row costs microseconds and paces nothing, so the pacing is explicit:
 // a target period per generation, multiplied or divided from a base.
 static const unsigned long BASE_PERIOD_MS = 20;  // ~50 generations/second
@@ -195,7 +214,7 @@ static unsigned long speed_period_ms(Speed s) {
 
 // A plain GPIO once past reset — digitalRead() with the internal
 // pull-up, active low. Same press-then-wait-for-release debounce as
-// the other two boards.
+// the RP2350 board.
 static void poll_boot_button() {
   bool pressed = digitalRead(PIN_BOOT) == LOW;
   if (pressed && !boot_was_pressed) {
@@ -279,11 +298,10 @@ void setup() {
 
   hspi.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS);
   // 80MHz, available because the display sits on HSPI's native IOMUX
-  // pins (see the pin comment). The ESP32-C6's hard lesson was that a
-  // clock beyond what the routing supports doesn't merely glitch, it
-  // permanently desyncs the panel's command/data framing with no
-  // self-recovery — so the number is only trusted after a long soak,
-  // which this one has had.
+  // pins (see the pin comment). A clock beyond what the routing
+  // supports does not merely glitch: it permanently desyncs the panel's
+  // command/data framing, with nothing to resync it. So the number is
+  // only trusted after a long soak, which this one has had.
   tft.begin(80000000);
   tft.setRotation(0);  // portrait: the scroll axis must be the direction the picture moves
   tft.fillScreen(BACKGROUND);
@@ -342,8 +360,9 @@ void loop() {
   // with how many rows a frame carries — the speed setting keeps
   // meaning generations per second either way. The delay also covers
   // this chip's FreeRTOS task watchdog, which only clears when the idle
-  // task runs — yield() does not reach it, delay() does (see
-  // main_esp32c6.cpp's own comment).
+  // task runs: yield() only yields to tasks of equal or higher priority
+  // and never reaches idle, so it does not clear the watchdog; delay()
+  // actually blocks this task, which does.
   long slack = (long)(next_due_ms - millis());
   delay(slack > 1 ? (unsigned long)slack : 1);
   next_due_ms = millis() + speed_period_ms(speed) * ROWS_PER_FRAME;
