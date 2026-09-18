@@ -1,9 +1,13 @@
 # ODCA — PlatformIO scaffold (early)
 
-The engine (`../REQTS.md` section 1, R-M) and the boring detector
-(section 3, R-A) are ported and running continuously on the board,
-headless; a separate test proves the display link itself, not yet
-wired to the automaton.
+The engine (`../REQTS.md` section 1, R-M), the boring detector
+(section 3, R-A), and now the display are running together: the live
+automaton is drawn continuously, redrawing the whole visible window
+from a small history buffer every generation rather than the panel's
+hardware scroll (see `src/main.cpp`'s own comment for why — correctness
+before speed). Confirmed genuinely running on the board via serial; the
+picture itself is the user's to confirm, not something this session can
+see.
 
 Target: an RP2350-based board (the user's is a Waveshare
 RP2350-LCD-1.47-A, chip package RP2350A, 172×320 ST7789V3 display),

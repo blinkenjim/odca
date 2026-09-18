@@ -1,18 +1,51 @@
-// ODCA on an MCU: the engine (R-M) and the boring detector (R-A) running
-// continuously, headless — no display yet. Auto-initializes on the same
-// terms the desktop programs do (R-A2): once a screenful of generations
-// in a row has been boring, start over; "a screenful" here is 172 rows,
-// the height the display will show once it's wired up (R-U2, rotated so
-// the panel's 320-pixel axis is the automaton's width — the user's own
-// call: more cells make for richer, longer-lived rules than the panel's
-// native 172).
+// ODCA on an MCU: the engine (R-M), the boring detector (R-A), and now
+// the display — the first version, correctness before speed: the whole
+// visible window is redrawn from a small history buffer every
+// generation, rather than the panel's hardware vertical scroll. Scroll
+// interacts with rotation (MADCTL) in ways that can't be verified
+// without seeing the screen, and a full redraw is still a perfectly
+// watchable pace (SPI bandwidth alone caps it somewhere in the tens of
+// generations per second, plenty for the eye); scrolling is a layer to
+// add once this is confirmed correct, the same order used throughout —
+// proven simple first, then optimized.
+//
+// Auto-initializes on the same terms the desktop programs do (R-A2):
+// once a screenful of generations in a row has been boring, start over.
+// "A screenful" is 172 rows, this board's native short axis; the
+// automaton's width is the panel's long axis, 320, rotated (R-U2 — the
+// user's own call: more cells make for richer, longer-lived rules than
+// the panel's native 172).
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7789.h>
 #include <Arduino.h>
+#include <SPI.h>
 #include <cstring>
 #include "odca_boring.h"
 #include "odca_engine.h"
 
 static const int WIDTH = 320;
-static const int ROWS_FOR_REINIT = 172;  // R-A2's screenful, this board's planned geometry
+static const int HEIGHT = 172;  // R-A2's screenful, and the display's visible window
+
+// Display wiring: see src/main_display_test.cpp for how these six pins
+// and the rotation were arrived at and confirmed against the real panel.
+static const int PIN_DC = 16;
+static const int PIN_CS = 17;
+static const int PIN_RST = 20;
+static const int PIN_BL = 21;
+static const int PANEL_NATIVE_WIDTH = 172;
+static const int PANEL_NATIVE_HEIGHT = 320;
+static const uint8_t ROTATION = 1;
+
+Adafruit_ST7789 tft(&SPI, PIN_CS, PIN_DC, PIN_RST);
+
+// The desktop's own default palette (library.json, "ODCA default").
+static uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {
+  return (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+}
+static const uint16_t PALETTE[4] = {
+    rgb565(0x12, 0x12, 0x18), rgb565(0xEB, 0xEB, 0xE1),
+    rgb565(0xFF, 0xA1, 0x36), rgb565(0x40, 0x9C, 0xFF),
+};
 
 // A rule already known to live a long time at this width, from the
 // desktop's own odca-evolve search (see ../../interesting.odca).
@@ -23,6 +56,15 @@ static odca_rule rule;
 static odca_detector detector;
 static unsigned char cur[WIDTH];
 static unsigned char next_row[WIDTH];
+
+// History for the display (R-U3-ish, but MCU-local: only ever the
+// visible HEIGHT rows are kept, no deep scrollback like the desktop's
+// 2048). A ring buffer of raw states; colors are computed per redraw,
+// not stored, so this costs HEIGHT*WIDTH bytes, not double that.
+static unsigned char history[HEIGHT][WIDTH];
+static int history_count = 0;   // rows filled so far, caps at HEIGHT
+static int history_next = 0;    // the ring's next write slot
+static uint16_t row_pixels[WIDTH];  // one row's worth of color, reused per redraw
 
 static unsigned long generation = 0;             // this seed's age; reset by every reinit
 static unsigned long long total_generation = 0;   // never reset — the only thing the rate is measured from
@@ -41,10 +83,40 @@ static void seed_random_row(unsigned char *row, int width) {
   }
 }
 
+// Redraw the whole visible window, oldest row at the top, newest at the
+// bottom — the same sense the desktop scrolls in — from whatever the
+// ring buffer currently holds; blank (state 0's color) below the newest
+// row until the history first fills, matching R-U3's "filled rows from
+// the top, background below" on the desktop.
+static void redraw_history() {
+  tft.startWrite();
+  tft.setAddrWindow(0, 0, WIDTH, HEIGHT);
+  for (int y = 0; y < HEIGHT; y++) {
+    if (y < history_count) {
+      int slot = (history_next - history_count + y + HEIGHT) % HEIGHT;
+      for (int x = 0; x < WIDTH; x++) row_pixels[x] = PALETTE[history[slot][x]];
+    } else {
+      for (int x = 0; x < WIDTH; x++) row_pixels[x] = PALETTE[0];
+    }
+    tft.writePixels(row_pixels, WIDTH);
+  }
+  tft.endWrite();
+}
+
+static void push_history(const unsigned char *row) {
+  memcpy(history[history_next], row, WIDTH);
+  history_next = (history_next + 1) % HEIGHT;
+  if (history_count < HEIGHT) history_count++;
+}
+
 static void reinitialize(const char *reason) {
   seed_random_row(cur, WIDTH);
   odca_detector_reset(&detector);  // R-A3: same rule, fresh field
   generation = 0;
+  history_count = 0;
+  history_next = 0;
+  push_history(cur);
+  redraw_history();
   reinit_count++;
   if (reason) {
     Serial.print("reinit #");
@@ -61,7 +133,14 @@ void setup() {
   while (!Serial && millis() - start < 3000) {
     delay(10);
   }
-  Serial.println("odca platformio: engine + boring detector running, no display yet");
+  Serial.println("odca platformio: engine + boring detector + display running");
+
+  pinMode(PIN_BL, OUTPUT);
+  digitalWrite(PIN_BL, HIGH);
+  tft.init(PANEL_NATIVE_WIDTH, PANEL_NATIVE_HEIGHT);
+  tft.setRotation(ROTATION);
+  tft.setSPISpeed(40000000);
+  tft.fillScreen(PALETTE[0]);
 
   if (!odca_rule_from_id(RULE_ID, &rule)) {
     Serial.println("engine: rule ID failed to parse (should not happen)");
@@ -79,8 +158,10 @@ void loop() {
   memcpy(cur, next_row, sizeof cur);
   generation++;
   total_generation++;
+  push_history(cur);
+  redraw_history();
 
-  if (odca_detector_observe(&detector, cur, WIDTH) && detector.boring_streak >= ROWS_FOR_REINIT) {
+  if (odca_detector_observe(&detector, cur, WIDTH) && detector.boring_streak >= HEIGHT) {
     char reason[ODCA_END_MAX];
     strncpy(reason, detector.boring_reason, sizeof reason);
     Serial.print("generation ");
@@ -93,17 +174,14 @@ void loop() {
   if (now - last_report_ms >= 2000) {
     // total_generation is monotonic (unlike generation, which a reinit
     // resets), so this never underflows however many reinits happened
-    // since the last report — the bug caught in the first live run,
-    // where the subtraction went negative on unsigned integers and the
-    // wraparound came out as either an absurdly huge or an implausibly
-    // tiny "rate".
+    // since the last report.
     unsigned long long done = total_generation - total_at_last_report;
     unsigned long elapsed_ms = now - last_report_ms;
     Serial.print("generation ");
     Serial.print(generation);
     Serial.print("  (");
     Serial.print((unsigned long)(done * 1000ULL / elapsed_ms));
-    Serial.println(" gen/s)");
+    Serial.println(" gen/s, now display-paced)");
     total_at_last_report = total_generation;
     last_report_ms = now;
   }
