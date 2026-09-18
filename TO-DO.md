@@ -185,22 +185,25 @@ script design.
       a range the eye perceives as distinct pulses, possibly compounded
       by some power/backlight coupling to the CPU's idle/busy duty
       cycle. Left open at the user's own word, not solved.
-- [ ] platformio: ESP32-C6 board parked unresolved (2026-09-19, user:
-      "I want to punt this board for a while"). Its display permanently
-      freezes after a while — serial keeps running and generations keep
-      counting, but the panel never updates again: an SPI transfer
-      corrupting and desyncing the ST7789's command/data framing, with
-      nothing to resync it. Clock-rate-dependent (40MHz died in a few
-      hundred generations; 20MHz survived 90s once then died inside 172;
-      10MHz ran 920+ clean but is only best-known, not proven), so the
-      cause looks like signal integrity on GPIO-matrix-routed pins.
-      Lead worth trying first if resumed: the CYD board hit the same
-      class of problem and escaped it entirely because its display pins
-      turned out to be the *native IOMUX* pins of a different SPI
-      peripheral than the one in use — check whether the C6 has an
-      equivalent escape before assuming it doesn't. A defensive
-      periodic display re-init was offered as a self-healing safety net
-      and not taken up; still available.
+- [x] (2026-09-19) platformio: ESP32-C6 freezing and slowness, both
+      fixed, and both by the same change. Parked earlier that day
+      ("I want to punt this board for a while") after its display kept
+      permanently freezing — serial still running, generations still
+      counting, panel dead: an SPI transfer corrupting and desyncing the
+      ST7789's command/data framing with nothing to resync it. It looked
+      like a clock/signal-integrity problem (40MHz died in a few hundred
+      generations, 20MHz inside 172, 10MHz lasted longest) and the
+      instinct was to hunt for a faster safe clock. The actual fix was
+      to stop needing one: a full repaint pushed 110,080 bytes per
+      generation, hardware vertical scroll pushes a few hundred, and at
+      the same untouched 10MHz that is 50 generations/second instead of
+      9, with 9,000 generations soaked and no fault. Exposure to
+      whatever corrupts the bus scales with bytes moved. Cost: the
+      automaton is 172 cells wide on this board, since the panel's
+      scroll axis is its 320 side — the width the user first rejected,
+      taken knowingly here because scrolling identically on every
+      platform matters more to them than the cells. A sweeping write
+      line keeping 320 cells was built, looked at, and rejected.
 - [x] (2026-09-19) platformio: CYD tearing, fixed by hardware scroll.
       Tuning the full redraw (101ms down to 22ms) never fixed it — the
       panel still refreshed mid-write and the tear showed as a drifting

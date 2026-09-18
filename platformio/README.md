@@ -10,22 +10,41 @@ scroll (see `src/main.cpp`'s own comment for why — correctness before
 speed). Confirmed genuinely running on the board via serial and, for
 the display, the user's own eyes.
 
-The ESP32-C6 board (Waveshare ESP32-C6-LCD-1.47) runs the same firmware
-(`src/main_esp32c6.cpp`) on the same 172×320 ST7789 panel, and got as
-far as engine, detector, display and the BOOT-button speed cycle all
-working — but it is **parked, unresolved**: its display permanently
-freezes after a while, while serial keeps running and generations keep
-counting. That is an SPI transfer corrupting and desyncing the panel's
-command/data framing, and it is clock-rate-dependent, so the cause
-looks like signal integrity on GPIO-matrix-routed pins. 40MHz died
-within a few hundred generations, 20MHz survived 90 seconds once then
-died inside 172, and 10MHz (where it sits) ran 920+ generations clean
-but is not proven safe, just best known. `src/main_esp32c6.cpp`'s own
-comment has the full account and a lead worth trying if it is picked
-back up. One other board-specific bug was found and fixed along the
-way: this chip runs FreeRTOS under the Arduino core (the RP2350 doesn't)
-and a `loop()` that never blocks starves its task watchdog — `yield()`
-is not enough, since it never reaches the idle task; `delay()` is.
+The ESP32-C6 board (Waveshare ESP32-C6-LCD-1.47, a 172×320 ST7789 panel)
+runs `src/main_esp32c6.cpp`, and now draws the same way the CYD does —
+portrait, hardware vertical scroll, only the new rows written.
+
+It spent a while being the problem child. While it repainted the whole
+window every generation it was both slow (9 generations/second at the
+only clock that never corrupted a transfer) and prone to freezing for
+good: the panel would stop updating while serial kept running and
+generations kept counting, which is an SPI transfer corrupting and
+desyncing the panel's command/data framing with nothing to resync it.
+It was clock-rate-dependent — 40MHz died within a few hundred
+generations, 20MHz survived 90 seconds once then died inside 172, 10MHz
+lasted longest — so the cause looked like signal integrity on
+GPIO-matrix-routed pins, and it was parked at the user's call for a
+while.
+
+Both problems turned out to have one cause: volume. A full repaint
+pushed 110,080 bytes per generation; writing one row pushes a few
+hundred. At the same untouched 10MHz clock that is 50 generations/second
+instead of 9, and it has run 9,000 generations without a fault where it
+used to die inside a couple of hundred. The clock was never raised back
+up, because there is nothing left to buy by raising it.
+
+The cost was the automaton's width. Hardware scroll only moves along the
+panel's native long axis, which on this panel is the 320 side, so the
+history has to be the 320 and the automaton the 172 — the very width the
+user had rejected at the outset when choosing 320. They took it
+knowingly, on the grounds that scrolling the same way on every platform
+matters more than the extra cells. A sweeping write line that keeps 320
+cells was built first as the alternative, looked at, and rejected.
+
+One other board-specific bug was found and fixed along the way: this
+chip runs FreeRTOS under the Arduino core (the RP2350 doesn't), and a
+`loop()` that never blocks starves its task watchdog — `yield()` is not
+enough, since it never reaches the idle task; `delay()` is.
 
 The CYD board (ESP32-2432S028, a classic ESP32-WROOM-32 with a 2.8"
 ILI9341 panel — a different driver chip from the other two) runs
