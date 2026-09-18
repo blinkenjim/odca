@@ -2,7 +2,8 @@
 
 The engine (`../REQTS.md` section 1, R-M) and the boring detector
 (section 3, R-A) are ported and running continuously on the board,
-headless; the display is not yet.
+headless; a separate test proves the display link itself, not yet
+wired to the automaton.
 
 Target: an RP2350-based board (the user's is a Waveshare
 RP2350-LCD-1.47-A, chip package RP2350A, 172×320 ST7789V3 display),
@@ -43,6 +44,7 @@ prints once it's running.
 | `lib/odca_engine/` | the engine (R-M): rule parsing/emission, wrap and fixed stepping, and which states a rule can produce. Portable C, no dynamic allocation, no dependencies |
 | `lib/odca_boring/` | the boring detector (R-A): extinction, Brent's cycle detection, and the two now-fixed windows (R-A1, 3.72.0/3.73.0) — this module has no notion of a display at all; `odca_lifetime` is the R-E2 "how long did this seed live" measurement odca-evolve uses, and `odca_detector` is the continuously-running version the firmware plays through. Same portability rules as the engine. PlatformIO auto-links both into the firmware; nothing else needs to know they're there |
 | `host_test/` | proves both libraries on this machine, no board, no PlatformIO: `./host_test/run` regenerates `conformance/vectors.json` as C data, compiles each library with plain `cc`, and runs two binaries — `count_vectors`, `valid_rule_ids`, `invalid_rule_ids`, `evolution`, and `lifetimes` all pass against the golden data; the detector's window and precedence behavior, which has no golden vectors of its own on the desktop either, is checked the same way `python/tests` and `swift/Tests` do it, by hand-built cases |
+| `src/main_display_test.cpp` | a separate firmware, kept apart from `src/main.cpp` until proven: cycles the ST7789 through solid colors, the four ODCA palette colors as vertical stripes, and single corner pixels, over Adafruit_GFX/Adafruit_ST7789. `pio run -e display -t upload` builds and flashes this instead of the real firmware; a bare `pio run`/`pio run -t upload` (no `-e`) still targets the real one. The six pin numbers and the rotation value at the top of the file are a well-supported guess (two independent sources agree, and the SPI pins match this board's default hardware SPI0), not a confirmed fact — nobody involved has seen this board's schematic directly, so if nothing appears or looks wrong, those lines are where to look first |
 
 The automaton's width is 320, not the panel's native 172: the display
 will run rotated, its long axis as the automaton's width, since a wider
