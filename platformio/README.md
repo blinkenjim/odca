@@ -10,21 +10,24 @@ scroll (see `src/main.cpp`'s own comment for why — correctness before
 speed). Confirmed genuinely running on the board via serial and, for
 the display, the user's own eyes.
 
-A Waveshare ESP32-C6-LCD-1.47 was supported here for a while and was
+A Waveshare ESP32-C6-LCD-1.47 was supported here for a day and was
 dropped (2026-09-19, the user: "it's not worth carrying around support
 for a board that barely works"). Its display kept corrupting and
 freezing for good — the panel going dead while serial ran on and
 generations kept counting — at every SPI clock tried, and whether it
 repainted the whole window or wrote single rows by hardware scroll.
 
-Two things learned on it outlived it, and both are in `src/main_cyd.cpp`:
-that exposure to bus corruption scales with the number of bytes moved
-rather than with clock rate, and that which SPI peripheral a board's
-display pins actually belong to is worth checking before assuming those
-pins are slow. A third is general: this family of chips runs FreeRTOS
-under the Arduino core, and a `loop()` that never blocks starves the
-task watchdog — `yield()` is not enough, since it never reaches the idle
-task; `delay()` is.
+**[ESP32-C6-DROPPED.md](ESP32-C6-DROPPED.md) is the full account**: the
+two toolchain obstacles and how they were solved, both bugs with the
+measurements behind them, the two rewrites and why each was rejected,
+and — most useful if the board is ever picked up again — what was never
+tried. Three findings from it outlived the board, two of them
+load-bearing in `src/main_cyd.cpp`: that exposure to bus corruption
+scales with the number of bytes moved rather than with clock rate; that
+which SPI peripheral a board's display pins belong to is worth checking
+before assuming those pins are slow; and that these chips run FreeRTOS
+under the Arduino core, where a `loop()` that never blocks starves the
+task watchdog and `yield()` is no substitute for `delay()`.
 
 The CYD board (ESP32-2432S028, a classic ESP32-WROOM-32 with a 2.8"
 ILI9341 panel — a different driver chip from the RP2350's ST7789) runs

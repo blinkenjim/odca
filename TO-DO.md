@@ -198,7 +198,9 @@ script design.
       shapes were built and rejected along the way: a sweeping write
       line (kept 320 cells, no scrolling — the user hated it on sight)
       and portrait hardware scroll at 172 cells.
-      Three findings outlived the board and are worth keeping:
+      The full account, with the measurements, both rewrites, and a
+      list of what was never tried, is in
+      platformio/ESP32-C6-DROPPED.md. Three findings outlived the board:
       (1) exposure to bus corruption scales with bytes moved, not with
       clock rate, so writing less beats clocking slower; (2) which SPI
       peripheral a board's display pins belong to is worth checking
