@@ -66,6 +66,14 @@ void odca_step_wrap(const unsigned char *cells, int width,
     }
 }
 
+unsigned char odca_rule_producible_mask(const odca_rule *rule) {
+    unsigned char mask = 0;
+    for (int i = 0; i < ODCA_RULE_SIZE; i++) {
+        mask |= (unsigned char)(1u << rule->states[i]);
+    }
+    return mask;
+}
+
 void odca_step_fixed(const unsigned char *cells, int width,
                      const odca_rule *rule, unsigned char *out) {
     for (int i = 0; i < width; i++) {

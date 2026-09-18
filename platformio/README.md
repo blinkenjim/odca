@@ -1,7 +1,8 @@
 # ODCA — PlatformIO scaffold (early)
 
-The engine (`../REQTS.md` section 1, R-M) is ported; the boring
-detector and the display are not yet.
+The engine (`../REQTS.md` section 1, R-M) and the boring detector
+(section 3, R-A) are ported and running continuously on the board,
+headless; the display is not yet.
 
 Target: an RP2350-based board (the user's is a Waveshare
 RP2350-LCD-1.47-A, chip package RP2350A, 172×320 ST7789V3 display),
@@ -38,14 +39,18 @@ prints once it's running.
 
 | path | role |
 |---|---|
-| `src/main.cpp` | firmware: a serial heartbeat, then steps one of `conformance/vectors.json`'s own golden cases and prints each row, so the numbers on the wire can be checked by eye against the file |
-| `lib/odca_engine/` | the engine (R-M): rule parsing/emission, wrap and fixed stepping. Portable C, no dynamic allocation, no dependencies. PlatformIO auto-links it into the firmware; nothing else needs to know it's there |
-| `host_test/` | proves `lib/odca_engine` against the golden vectors on this machine, no board, no PlatformIO: `./host_test/run` regenerates `conformance/vectors.json` as C data, compiles the engine with plain `cc`, and runs it — `count_vectors`, `valid_rule_ids`, `invalid_rule_ids`, and `evolution` all pass. `lifetimes` (R-E2) waits for the boring detector. |
+| `src/main.cpp` | firmware: steps a known long-lived rule (from `../interesting.odca`) at 320 cells continuously, auto-initializing per R-A2 once 172 generations in a row have been boring (172 being the display's planned row count, rotated — see below), and prints a rate and every re-init over serial. No display yet. |
+| `lib/odca_engine/` | the engine (R-M): rule parsing/emission, wrap and fixed stepping, and which states a rule can produce. Portable C, no dynamic allocation, no dependencies |
+| `lib/odca_boring/` | the boring detector (R-A): extinction, Brent's cycle detection, and the two now-fixed windows (R-A1, 3.72.0/3.73.0) — this module has no notion of a display at all; `odca_lifetime` is the R-E2 "how long did this seed live" measurement odca-evolve uses, and `odca_detector` is the continuously-running version the firmware plays through. Same portability rules as the engine. PlatformIO auto-links both into the firmware; nothing else needs to know they're there |
+| `host_test/` | proves both libraries on this machine, no board, no PlatformIO: `./host_test/run` regenerates `conformance/vectors.json` as C data, compiles each library with plain `cc`, and runs two binaries — `count_vectors`, `valid_rule_ids`, `invalid_rule_ids`, `evolution`, and `lifetimes` all pass against the golden data; the detector's window and precedence behavior, which has no golden vectors of its own on the desktop either, is checked the same way `python/tests` and `swift/Tests` do it, by hand-built cases |
 
-It deliberately does not blink an LED for the toolchain check: the two
-RP2350 boards in play don't share LED wiring (a plain GPIO pin on one,
-likely a WS2812 on the other), so a visual smoke test needs a
-board-specific follow-up rather than a guess.
+The automaton's width is 320, not the panel's native 172: the display
+will run rotated, its long axis as the automaton's width, since a wider
+row makes for richer, longer-lived rules than 172 does (the user's own
+call, having watched both). `src/main.cpp` does not blink an LED for the
+toolchain check either: the two RP2350 boards in play don't share LED
+wiring (a plain GPIO pin on one, likely a WS2812 on the other), so a
+visual smoke test needs a board-specific follow-up rather than a guess.
 
 ## A machine note, not an ODCA one
 

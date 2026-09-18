@@ -9,11 +9,17 @@ mkdir -p "$dir/build"
 python3 "$dir/gen_vectors.py" "$dir/build/vectors_data.h"
 # An explicit sysroot from Xcode itself, rather than relying on cc's bare
 # default: on macOS this is the standard way to ask, and it has saved a
-# broken default SDK (mid-OS-update, `cc` refusing to link anything at
-# all) at least once already.
-cc -isysroot "$(xcrun --sdk macosx --show-sdk-path)" \
-   -std=c11 -Wall -Wextra -Werror \
-   -I "$dir/../lib/odca_engine" -I "$dir/build" \
-   -o "$dir/build/test_engine" \
+# broken default SDK (a version mismatch between Xcode and the OS's own
+# Command Line Tools, `cc` refusing to link anything at all) at least
+# once already.
+sysroot=$(xcrun --sdk macosx --show-sdk-path)
+cc_flags="-isysroot $sysroot -std=c11 -Wall -Wextra -Werror \
+   -I $dir/../lib/odca_engine -I $dir/../lib/odca_boring -I $dir/build"
+
+cc $cc_flags -o "$dir/build/test_engine" \
    "$dir/../lib/odca_engine/odca_engine.c" "$dir/test_engine.c"
-exec "$dir/build/test_engine"
+cc $cc_flags -o "$dir/build/test_boring" \
+   "$dir/../lib/odca_engine/odca_engine.c" "$dir/../lib/odca_boring/odca_boring.c" "$dir/test_boring.c"
+
+"$dir/build/test_engine"
+"$dir/build/test_boring"

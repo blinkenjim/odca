@@ -1,24 +1,57 @@
-// ODCA on an MCU: engine smoke test on the actual target, not yet the
-// boring detector or the display.
-//
-// This steps one of conformance/vectors.json's own golden cases
-// ("mixed neighborhood (0,1,1,1)->2 on width-3 wrap", R-M5) and prints
-// each row over serial, so the firmware's cross-compiled engine can be
-// checked by eye against the same numbers platformio/host_test/run
-// already proved on the host: rule 00000200000000000000, wrap, row "123"
-// should read "222" then "000".
+// ODCA on an MCU: the engine (R-M) and the boring detector (R-A) running
+// continuously, headless — no display yet. Auto-initializes on the same
+// terms the desktop programs do (R-A2): once a screenful of generations
+// in a row has been boring, start over; "a screenful" here is 172 rows,
+// the height the display will show once it's wired up (R-U2, rotated so
+// the panel's 320-pixel axis is the automaton's width — the user's own
+// call: more cells make for richer, longer-lived rules than the panel's
+// native 172).
 #include <Arduino.h>
 #include <cstring>
+#include "odca_boring.h"
 #include "odca_engine.h"
 
-static odca_rule rule;
-static unsigned char cur[3] = {1, 2, 3};   // "123"
-static unsigned char next_row[3];
-static int generation = 0;
+static const int WIDTH = 320;
+static const int ROWS_FOR_REINIT = 172;  // R-A2's screenful, this board's planned geometry
 
-static void print_row(const unsigned char *cells, int width) {
-  for (int i = 0; i < width; i++) Serial.print((char)('0' + cells[i]));
-  Serial.println();
+// A rule already known to live a long time at this width, from the
+// desktop's own odca-evolve search (see ../../interesting.odca).
+static const char *RULE_ID = "33233022210132010013";
+
+// Large fixed structures: static, never on the stack (see odca_boring.h).
+static odca_rule rule;
+static odca_detector detector;
+static unsigned char cur[WIDTH];
+static unsigned char next_row[WIDTH];
+
+static unsigned long generation = 0;
+static unsigned long generation_at_last_report = 0;
+static unsigned long last_report_ms = 0;
+static unsigned long reinit_count = 0;
+
+static void seed_random_row(unsigned char *row, int width) {
+  for (int i = 0; i < width; i += 16) {
+    uint32_t bits = rp2040.hwrand32();  // hardware RNG (R-N1's "seedable" doesn't apply here: this is a live seed, not a mutation/session stream)
+    int n = (width - i < 16) ? (width - i) : 16;
+    for (int k = 0; k < n; k++) {
+      row[i + k] = (unsigned char)(bits & 3);
+      bits >>= 2;
+    }
+  }
+}
+
+static void reinitialize(const char *reason) {
+  seed_random_row(cur, WIDTH);
+  odca_detector_reset(&detector);  // R-A3: same rule, fresh field
+  generation = 0;
+  reinit_count++;
+  if (reason) {
+    Serial.print("reinit #");
+    Serial.print(reinit_count);
+    Serial.print(" (");
+    Serial.print(reason);
+    Serial.println(")");
+  }
 }
 
 void setup() {
@@ -27,31 +60,42 @@ void setup() {
   while (!Serial && millis() - start < 3000) {
     delay(10);
   }
-  Serial.println("odca platformio hello: toolchain is alive");
+  Serial.println("odca platformio: engine + boring detector running, no display yet");
 
-  if (!odca_rule_from_id("00000200000000000000", &rule)) {
+  if (!odca_rule_from_id(RULE_ID, &rule)) {
     Serial.println("engine: rule ID failed to parse (should not happen)");
+    return;
   }
-  char id[ODCA_RULE_SIZE + 1];
-  odca_rule_to_id(&rule, id);
-  Serial.print("engine: rule round-trips as ");
-  Serial.println(id);
-  Serial.print("engine: generation 0 (seed)  ");
-  print_row(cur, 3);
+  odca_detector_set_rule(&detector, &rule);
+  Serial.print("rule ");
+  Serial.println(RULE_ID);
+  reinitialize(NULL);  // the first field, no reinit line for it
+  last_report_ms = millis();
 }
 
 void loop() {
-  if (generation < 2) {
-    odca_step_wrap(cur, 3, &rule, next_row);
-    memcpy(cur, next_row, sizeof cur);
-    generation++;
-    Serial.print("engine: generation ");
+  odca_step_wrap(cur, WIDTH, &rule, next_row);
+  memcpy(cur, next_row, sizeof cur);
+  generation++;
+
+  if (odca_detector_observe(&detector, cur, WIDTH) && detector.boring_streak >= ROWS_FOR_REINIT) {
+    char reason[ODCA_END_MAX];
+    strncpy(reason, detector.boring_reason, sizeof reason);
+    Serial.print("generation ");
     Serial.print(generation);
-    Serial.print("           ");
-    print_row(cur, 3);
-    if (generation == 2) {
-      Serial.println("engine: expect 222 then 000 above, per conformance/vectors.json");
-    }
+    Serial.print("  ");
+    reinitialize(reason);
   }
-  delay(1000);
+
+  unsigned long now = millis();
+  if (now - last_report_ms >= 2000) {
+    unsigned long done = generation - generation_at_last_report;
+    Serial.print("generation ");
+    Serial.print(generation);
+    Serial.print("  (");
+    Serial.print(done * 1000UL / (now - last_report_ms));
+    Serial.println(" gen/s)");
+    generation_at_last_report = generation;
+    last_report_ms = now;
+  }
 }

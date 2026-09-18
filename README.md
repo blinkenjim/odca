@@ -44,7 +44,7 @@ its own directory.
 | `python/` | the reference implementation (Python + pygame-ce); see `python/README.md` |
 | `REQ-python.md` | implementation notes for the Python version |
 | `swift/` | Swift implementation (macOS, `swift/run odca <file>`); see `swift/README.md` |
-| `platformio/` | early MCU port (RP2350): the engine (R-M) is ported and proven, the boring detector and display are not yet; see `platformio/README.md` |
+| `platformio/` | early MCU port (RP2350): the engine (R-M) and boring detector (R-A) are ported and running, no display yet; see `platformio/README.md` |
 | `REQ-swift.md` | implementation notes for the Swift version |
 
 Planned: `cpp/`.

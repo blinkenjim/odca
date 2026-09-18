@@ -63,6 +63,11 @@ void odca_step_wrap(const unsigned char *cells, int width,
 void odca_step_fixed(const unsigned char *cells, int width,
                      const odca_rule *rule, unsigned char *out);
 
+// Which of the 4 states `rule` can ever produce, as a bitmask (bit k set
+// iff state k appears anywhere among its 20 table entries) — R-A1's
+// "some state that the current rule can produce", computed once per rule.
+unsigned char odca_rule_producible_mask(const odca_rule *rule);
+
 #ifdef __cplusplus
 }
 #endif

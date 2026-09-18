@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Emit conformance/vectors.json as literal C data (generated, not checked
-in — see run). Only the fields the engine's host test needs: count_vectors,
-valid_rule_ids, invalid_rule_ids, evolution. lifetimes (R-E2) waits for the
-boring detector; anything about pairs, scripts, or help text is out of
-scope for an engine with no file I/O or CLI.
+in — see run). Only the fields the engine and boring detector's host
+tests need: count_vectors, valid_rule_ids, invalid_rule_ids, evolution,
+lifetimes. Anything about pairs, scripts, or help text is out of scope
+for an engine with no file I/O or CLI.
 """
 
 import json
@@ -79,6 +79,26 @@ def main():
     out.append("};")
     out.append(f"static const int gen_evolution_count = {len(evolution)};")
     out.append("")
+
+    lifetimes = vectors["lifetimes"]
+    out.append("typedef struct {")
+    out.append("    const char *name;")
+    out.append("    const char *rule;")
+    out.append("    const char *initial;")
+    out.append("    int cap;")
+    out.append("    int generations;")
+    out.append("    const char *end;")
+    out.append("} gen_lifetime_case;")
+    out.append("")
+    out.append(f"static const gen_lifetime_case gen_lifetimes[{len(lifetimes)}] = {{")
+    for case in lifetimes:
+        out.append("    {%s, %s, %s, %d, %d, %s}," % (
+            c_string(case["name"]), c_string(case["rule"]), c_string(case["initial"]),
+            case["cap"], case["generations"], c_string(case["end"]),
+        ))
+    out.append("};")
+    out.append(f"static const int gen_lifetimes_count = {len(lifetimes)};")
+    out.append("")
     out.append("#endif")
     out.append("")
 
@@ -87,7 +107,7 @@ def main():
     dest.write_text("\n".join(out))
     print(f"gen_vectors: wrote {dest} ({len(cv)} count vectors, "
           f"{len(vectors['valid_rule_ids'])} valid + {len(vectors['invalid_rule_ids'])} invalid IDs, "
-          f"{len(evolution)} evolution cases)")
+          f"{len(evolution)} evolution cases, {len(lifetimes)} lifetime cases)")
 
 
 if __name__ == "__main__":
