@@ -162,6 +162,14 @@ use odca-select to build a show and watch it, the shuffle constraints,
 the color set tool, and the vision items, starting with the declarative
 script design.
 
+- [ ] platformio: shimmering across the whole display, not localized like
+      tearing (user, 2026-09-17), worst once two of the four states have
+      gone extinct. Seen at base speed and at every BOOTSEL-cycled speed
+      (2x, 1/4x, 1/2x). Unconfirmed leading suspect: the full 172-row
+      redraw every generation is not synced to the panel's own refresh,
+      and large near-solid blocks of color (as extinction leaves) may
+      make a partial-redraw moment more visible than on a busier field.
+      Needs its own investigation, not guessed at blind.
 - [x] (2.9.0/2.11.0: slots 0 and 2–9 from colorsets/candidates.json, CoCo
       sets retired; revisit after auditioning all 45) Choose the remaining seven color sets (keys 3–9)
 - [ ] "Most interesting of the interesting" score, layered on the 'r'

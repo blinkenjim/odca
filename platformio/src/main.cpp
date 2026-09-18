@@ -168,10 +168,14 @@ static void reinitialize(const char *reason) {
   seed_random_row(cur, WIDTH);
   odca_detector_reset(&detector);  // R-A3: same rule, fresh field
   generation = 0;
-  history_count = 0;
-  history_next = 0;
+  // No clear here: the fresh field grows in from below like any other
+  // generation, and the old rows keep their colors and scroll off the
+  // top as usual — the desktop's own re-seed-in-place (help.py: "grows
+  // in from a fresh field below the old rows, which keep their
+  // colors"). The caller's own redraw (loop()'s, after the batch; or
+  // setup()'s, once, for the very first field) is what actually paints
+  // this row; a blank-then-refill is only right once, at startup.
   push_history(cur);
-  redraw_history();
   reinit_count++;
   if (reason) {
     Serial.print("reinit #");
@@ -205,6 +209,7 @@ void setup() {
   Serial.print("rule ");
   Serial.println(RULE_ID);
   reinitialize(NULL);  // the first field, no reinit line for it
+  redraw_history();    // the one place a clear-then-fill is right: startup
   last_report_ms = millis();
 }
 
