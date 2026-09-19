@@ -218,6 +218,49 @@ script design.
       scroll step per frame and only the new rows written. Write window
       22ms to ~210us. The user took the tradeoff it required, a 240-cell
       automaton on this board instead of 320 (R-U2).
+- [ ] platformio: six-gesture button vocabulary, BUILT BUT UNVERIFIED
+      (2026-09-19, paused mid-investigation to look at something else).
+      One button, six gestures: one, two or three presses, each ending
+      either in a normal tap or in a final press held past two seconds.
+      What each gesture should DO is undecided and was explicitly not
+      the point yet; the question being answered was whether one button
+      can carry six gestures at all.
+      STATE. The state machine is written, compiles, and is flashed to
+      the RP2350 (`gesture_tick` in platformio/src/main.cpp), and it has
+      NEVER BEEN SEEN TO WORK — a 120s watch caught zero gestures, but
+      only because nobody was pressing during it, not because it failed.
+      Do not assume it works. A per-gesture tally was added to the
+      periodic serial report precisely so the next test needs no
+      synchronisation: do the gestures whenever, then read any serial
+      output and the totals are there.
+      PROVEN, by measurement on the board:
+      (1) a real tap on this button runs 88-158ms, far longer than the
+      30-40ms this was first designed around, which is why once-per-loop
+      sampling at ~16ms is enough — it catches a press five to ten times
+      over; (2) a 5,644ms hold does NOT drop the board into the
+      bootloader (still enumerated as serial, no RPI-RP2 drive), which
+      was the one risk that could have sunk the whole idea, and it
+      contradicts the community claim that a held boot pin halts these
+      chips; (3) the non-blocking debounced sampler is sound — 68 press
+      events detected cleanly with no double-counting.
+      DESIGN DECISIONS, all deliberate: the 250ms window is the maximum
+      gap BETWEEN presses, not a budget for the whole gesture, because
+      three presses inside one 250ms total is brutal to perform and
+      worse to sample; the long form fires while the button is still
+      down rather than on release, which leaves a natural moment for
+      feedback (six gestures on one button will need some, since nothing
+      on screen says which one was understood); only the single short
+      press is bound to anything (speed cycling, as before), the other
+      five report themselves and idle.
+      COST ALREADY ACCEPTED: a single press no longer acts immediately,
+      since until the window lapses it might be the first of two, so
+      speed cycling is ~250ms slower to respond.
+      OPEN: verify it actually works; decide what the six gestures do;
+      port to the CYD, which has none of this yet and where fast
+      sampling would be free (its write window is 210us, so there is no
+      long transfer to interrupt); and consider moving the logic to
+      lib/ beside the engine and detector, since it is board-agnostic
+      apart from the pin read.
 - [ ] platformio: CYD residual shimmer. Mostly gone after the above plus
       drawing two generations per frame (the user's own diagnosis: with
       a one-row step, single-pixel alternating rows make every pixel

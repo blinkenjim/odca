@@ -154,17 +154,14 @@ static const unsigned long DEBOUNCE_MS = 20;
 static bool button_raw = false;         // last raw sample
 static unsigned long button_raw_ms = 0; // when the raw state last changed
 static bool button_down = false;        // debounced state
-static unsigned long button_presses = 0;  // debounced press edges seen
-static unsigned long presses_acted = 0;   // how many loop() has consumed
+static unsigned long press_began_ms = 0;  // when the press in flight began
 
-// How long the last completed press lasted. The gesture vocabulary will
-// need this to tell a tap from a two-second hold, and reporting it now
-// is also how the hold is being tested at all: the board can be held
-// whenever, and the number read back afterwards, rather than anyone
-// trying to press in time with a watching terminal.
-static unsigned long press_began_ms = 0;
-static unsigned long press_held_ms = 0;
-static bool press_to_report = false;
+// Edges, set here and consumed by gesture_tick(). Kept as flags rather
+// than acted on directly because this runs inside the display's SPI
+// transaction when fast sampling is on, and talking to serial or
+// changing state belongs in loop().
+static bool edge_pressed = false;
+static bool edge_released = false;
 
 // Sampling interval actually achieved, so the 2ms claim can be checked
 // rather than assumed. Reset at every report.
@@ -200,14 +197,99 @@ static void button_tick() {
   if (raw != button_down && (now - button_raw_ms) >= DEBOUNCE_MS) {
     button_down = raw;
     if (button_down) {
-      button_presses++;
       press_began_ms = now;
+      edge_pressed = true;
     } else {
-      // Recorded rather than printed: this runs inside the display's SPI
-      // transaction, and loop() is the right place to talk to serial.
-      press_held_ms = now - press_began_ms;
-      press_to_report = true;
+      edge_released = true;
     }
+  }
+}
+
+// Gestures: one, two or three presses, each either ending in a normal
+// tap or in a press held two seconds. Six in all, from one button.
+//
+// The window is the gap BETWEEN presses, not a budget for the whole
+// gesture. Three presses inside one 250ms total would be brutal to
+// perform and worse to sample; three presses each within 250ms of the
+// last is comfortable, and it is how double-click detection is normally
+// done. Measured on this board, a tap runs 88-158ms, so the 250ms gap
+// has real headroom either side.
+//
+// The cost, accepted deliberately: a single press can no longer act
+// immediately, because until the window lapses it might yet be the first
+// of two. Speed cycling is therefore ~250ms slower to respond than it
+// was.
+static const unsigned long MULTI_GAP_MS = 250;
+static const unsigned long LONG_HOLD_MS = 2000;
+
+static int burst_presses = 0;               // presses counted so far in the gesture under way
+static unsigned long burst_released_ms = 0; // when the last of them ended
+static bool burst_open = false;             // a gesture is being collected
+static bool burst_spent = false;            // its long form already fired; ignore the release
+
+// A running count of each gesture since boot, [presses][long], reported
+// periodically. Gestures are done by hand at human pace and serial is
+// only read in bursts, so a tally that survives between reads is the
+// difference between a testable feature and one nobody can catch in the
+// act. Index 0 is unused; a burst of more than three presses lands in
+// the last slot and is reported as-is rather than silently dropped.
+static unsigned long gesture_tally[5][2];
+
+static void on_gesture(int presses, bool held) {
+  Serial.print("gesture: ");
+  Serial.print(presses);
+  Serial.print(presses == 1 ? " press, " : " presses, ");
+  Serial.println(held ? "long" : "short");
+
+  // Only the plainest of the six is bound to anything so far: one short
+  // press still cycles the speed, as it always has. The other five
+  // report themselves and do nothing, until they are given jobs.
+  if (presses == 1 && !held) {
+    speed = next_speed(speed);
+    Serial.print("speed ");
+    Serial.println(speed_name(speed));
+  }
+
+  int slot = presses < 4 ? presses : 4;
+  gesture_tally[slot][held ? 1 : 0]++;
+}
+
+static void gesture_tick() {
+  unsigned long now = millis();
+
+  if (edge_pressed) {
+    edge_pressed = false;
+    burst_presses++;
+    burst_open = true;
+    burst_spent = false;
+  }
+
+  // The long form is recognised while the button is still down, rather
+  // than on release. That is deliberate: it makes the moment of
+  // recognition available for feedback, which six gestures on one button
+  // will want, and it means a long gesture never has to be told apart
+  // from a short one after the fact.
+  if (burst_open && button_down && !burst_spent &&
+      (now - press_began_ms) >= LONG_HOLD_MS) {
+    on_gesture(burst_presses, true);
+    burst_spent = true;
+  }
+
+  if (edge_released) {
+    edge_released = false;
+    burst_released_ms = now;
+    if (burst_spent) {  // its long form already fired; the release ends it
+      burst_open = false;
+      burst_presses = 0;
+    }
+  }
+
+  // Nothing in flight and the window has lapsed: it was the short form.
+  if (burst_open && !button_down && !burst_spent &&
+      (now - burst_released_ms) >= MULTI_GAP_MS) {
+    on_gesture(burst_presses, false);
+    burst_open = false;
+    burst_presses = 0;
   }
 }
 
@@ -340,25 +422,7 @@ void setup() {
 void loop() {
   button_tick();
 
-  // One press still just advances the speed, as before. Acting on the
-  // counted press edge rather than waiting out the release makes it
-  // slightly more responsive and, more to the point, stops the loop
-  // blocking for as long as a button is held — which a gesture that
-  // ends in a two-second hold would otherwise do.
-  if (button_presses != presses_acted) {
-    presses_acted = button_presses;
-    speed = next_speed(speed);
-    Serial.print("speed ");
-    Serial.println(speed_name(speed));
-  }
-
-  if (press_to_report) {
-    press_to_report = false;
-    Serial.print("press held ");
-    Serial.print(press_held_ms);
-    Serial.print("ms");
-    Serial.println(press_held_ms >= 2000 ? "  (a long press, >=2s)" : "");
-  }
+  gesture_tick();  // turns the sampled edges into one of six gestures
 
   // At x2/x4, step several generations before the one redraw that shows
   // them — the redraw is the SPI-bound cost, so this is the only way to
@@ -441,6 +505,28 @@ void loop() {
 #else
     Serial.println("ms)");
 #endif
+    unsigned long any = 0;
+    for (int i = 1; i < 5; i++) any += gesture_tally[i][0] + gesture_tally[i][1];
+    if (any) {
+      Serial.print("gestures so far:");
+      for (int i = 1; i <= 3; i++) {
+        Serial.print(' ');
+        Serial.print(i);
+        Serial.print("s=");
+        Serial.print(gesture_tally[i][0]);
+        Serial.print(' ');
+        Serial.print(i);
+        Serial.print("L=");
+        Serial.print(gesture_tally[i][1]);
+      }
+      if (gesture_tally[4][0] || gesture_tally[4][1]) {
+        Serial.print("  (4+ presses: ");
+        Serial.print(gesture_tally[4][0] + gesture_tally[4][1]);
+        Serial.print(')');
+      }
+      Serial.println();
+    }
+
     total_at_last_report = total_generation;
     last_report_ms = now;
   }
