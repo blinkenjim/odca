@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.74.0 — 2026-09-19
+Version 3.74.1 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -100,7 +100,9 @@ R-K6, R-B1, R-K19, R-W9 (wording and place), R-O16, R-N2, R-U4, section
 repetition and stagnation windows are fixed generation counts, not
 screenfuls — R-A1, R-U8. 3.74.0: `odca-evolve` takes several files and
 works on their union, with `-o` to say where the results go — R-E1,
-R-E2, R-E3, R-U9, section 4e, section 10.)
+R-E2, R-E3, R-U9, section 4e, section 10. 3.74.1: that union loses
+nothing — pairs unite by content and a shared name is a clash of labels
+only, the later pair renamed rather than dropped — R-E1.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1002,14 +1004,21 @@ they must hold at least one pair (else `error: <file> does not exist` /
 Given several files the program works on their *union*, formed wholly in
 memory before anything is written and then treated exactly as though it
 had been read from a single file (R-E2 onward are unchanged by this).
-Pairs and seeds unite by different rules, deliberately:
+**Nothing in any input file is lost.** The command-line order arbitrates
+only where two things genuinely cannot both hold — which is names, and
+nothing else:
 
-- *Pairs* go by name: a name is a pair's identity, and where the same
-  name appears in more than one file the file named earlier on the
-  command line wins, later ones being dropped. A pair with no name is
-  identified by its content instead, so the same unnamed pair in two
-  files appears once. The order is that of first appearance, which
-  decides the order rules are taken up in (R-E2).
+- *Pairs* are their content: rule, colour set and colours. The same pair
+  in two files unites into one, keeping the name from the file given
+  earlier; two pairs that differ are two pairs and both appear, in the
+  order first seen, which decides the order rules are taken up in
+  (R-E2). Sharing a name is a clash of labels, not of data, and is the
+  common case rather than the exception, since names are generated per
+  file from `pair-0000` upward and files grown apart collide by
+  construction. The earlier file keeps the contested name; the later
+  pair is renamed to the next free `pair-NNNN`, numbered past every
+  generated name in every input file so that a rename can never take a
+  name another file is using. Names in the union are unique.
 - *Seeds* are pooled, not chosen between. They are findings rather than
   competing values, so all files' seeds for a rule and width are merged
   and the ten longest-lived kept (R-E3), whichever file each came from;

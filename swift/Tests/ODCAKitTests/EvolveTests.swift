@@ -95,32 +95,45 @@ final class EvolveTests: XCTestCase {
         XCTAssertEqual(ended, [])  // nothing finished, nothing kept
     }
 
-    /// R-E1: several input files become one body of data. Pairs go by name,
-    /// and the file named earlier wins a clash; the order is that of first
-    /// appearance.
-    func testSeveralFilesUnionTheirPairsEarlierFileWinningAClash() throws {  // PT-47, R-E1
+    /// R-E1: several input files become one body of data, losing nothing. A
+    /// pair is its content, so the same pair in two files unites into one
+    /// under the earlier file's name; two pairs that merely share a name are
+    /// two pairs, and both survive, the later one renamed.
+    func testSeveralFilesUniteIdenticalPairsAndRenameClashingNames() throws {  // PT-47, R-E1
         let dir = try scratch()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let colors = ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]
+        let plain = ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]
+        let fiery = ["#E78531", "#F3C15F", "#102F47", "#C53A32"]
         let first = dir.appendingPathComponent("first.odca")
         let second = dir.appendingPathComponent("second.odca")
-        Store.saveOdcaFile([Pair(name: "shared", rule: kills3.id, colorset: "A", colors: colors),
-                            Pair(name: "only-in-first", rule: kills3.id, colorset: "B", colors: colors)],
+        // The same pair under two different names, and a name each file uses
+        // for a different pair — both of which files grown apart produce,
+        // since each numbers its own pairs from pair-0000 up.
+        Store.saveOdcaFile([Pair(name: "pair-0000", rule: kills3.id, colorset: "ODCA default", colors: plain),
+                            Pair(name: "pair-0001", rule: kills3.id, colorset: "Shared", colors: plain)],
                            seeds: [:], to: first)
-        // Same name, different rule: the clash. Plus one the first file lacks.
-        Store.saveOdcaFile([Pair(name: "shared", rule: allZero.id, colorset: "Z", colors: colors),
-                            Pair(name: "only-in-second", rule: allZero.id, colorset: "C", colors: colors)],
+        Store.saveOdcaFile([Pair(name: "pair-0000", rule: kills3.id, colorset: "Fiery", colors: fiery),
+                            Pair(name: "pair-0009", rule: kills3.id, colorset: "Shared", colors: plain)],
                            seeds: [:], to: second)
 
         let union = Store.loadOdcaFiles([first, second])
-        XCTAssertEqual(union.map(\.name), ["shared", "only-in-first", "only-in-second"])
-        XCTAssertEqual(union[0].rule, kills3.id)      // the earlier file's "shared", not the later one's
-        XCTAssertEqual(union[0].colorset, "A")
+        // Three pairs, not two: the clashing "Fiery" one is kept, renamed
+        // past every generated name in either file rather than taking 0002,
+        // which a later file might legitimately be using.
+        XCTAssertEqual(union.count, 3)
+        XCTAssertEqual(union.map(\.colorset), ["ODCA default", "Shared", "Fiery"])
+        XCTAssertEqual(union.map(\.name), ["pair-0000", "pair-0001", "pair-0010"])
+        // "Shared" appeared in both files under different names and united
+        // into one, keeping the earlier file's name.
+        XCTAssertEqual(union.filter { $0.colorset == "Shared" }.count, 1)
+        XCTAssertEqual(Set(union.map(\.name!)).count, union.count)  // no name used twice
 
-        // Naming them the other way round hands the clash to the other file.
+        // Order decides only who keeps a contested name, never what survives.
         let swapped = Store.loadOdcaFiles([second, first])
-        XCTAssertEqual(swapped.map(\.name), ["shared", "only-in-second", "only-in-first"])
-        XCTAssertEqual(swapped[0].rule, allZero.id)
+        XCTAssertEqual(swapped.count, 3)
+        XCTAssertEqual(Set(swapped.map(\.colorset)), Set(union.map(\.colorset)))
+        XCTAssertEqual(swapped.first { $0.name == "pair-0000" }?.colorset, "Fiery")  // now the later file's
+        XCTAssertEqual(swapped.filter { $0.colorset == "Shared" }.first?.name, "pair-0009")  // second's name now
     }
 
     /// R-E1, R-E3: seeds are findings rather than competing values, so the

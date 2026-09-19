@@ -139,12 +139,15 @@ usage: odca-evolve <file.odca> [<file.odca> ...] --cells N --time SECONDS
        odca-evolve --help
 
 Given more than one file, works on the union of them all as though it
-had been read from one: a pair's name is its identity, and where the
-same name appears in more than one file the file named earlier wins.
-Seeds are pooled rather than chosen between, the ten longest-lived kept
-for each rule and width whichever file they came from, so nothing an
-earlier search found is lost. With more than one file, -o must say
-where the results go; it may name one of the input files.
+had been read from one, losing nothing. A pair is its content, so the
+same pair in two files becomes one, under the name from the file given
+earlier; two pairs that merely share a name are two pairs and both are
+kept, the later renamed, since files number their own pairs from
+pair-0000 up and so collide by construction. Seeds are pooled rather
+than chosen between, the ten longest-lived kept for each rule and width
+whichever file they came from. The order of the files decides only who
+keeps a contested name, never what survives. With more than one file,
+-o must say where the results go; it may name one of the input files.
 
 For every distinct rule in the union, in order, spends the time budget
 drawing random rows of N cells and evolving each, in wrap mode, until a

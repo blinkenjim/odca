@@ -1,14 +1,19 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-19):** Spec 3.74.0, Swift 3.74.0, Python
+**YOU ARE HERE (2026-09-19):** Spec 3.74.1, Swift 3.74.1, Python
 3.73.0: `odca-evolve` takes several odca files and searches their union,
-with `-o` saying where the results go (R-E1). Pairs unite by name with
-the earlier file on the command line winning a clash; seeds are pooled
-instead of chosen between, the ten longest-lived kept for each rule and
-width whichever file they came from, so no earlier search is thrown away
-for having been named later (the user's own call between those two
-readings). `-o` is required with more than one input file, optional with
-one, and may name an input file either way. Swift only, odca-evolve
+with `-o` saying where the results go (R-E1). The governing principle,
+the user's own (3.74.1, correcting 3.74.0): the command-line order
+arbitrates only where two things genuinely cannot both hold, and that is
+names and nothing else — anything that can be united, is. So pairs unite
+by *content*, the same pair in two files becoming one under the earlier
+file's name, while two pairs merely sharing a name both survive with the
+later renamed; and seeds are pooled, the ten longest-lived kept for each
+rule and width whichever file they came from. 3.74.0 had pairs going by
+name and dropping the loser, which lost two hand-composed pairs on the
+user's own files, since every file numbers from pair-0000 and files
+grown apart collide by construction. `-o` is required with more than one
+input file, optional with one, and may name an input file either way. Swift only, odca-evolve
 being Swift only. Before that, a long MCU arc: three boards tried, the
 ESP32-C6 dropped as unreliable (platformio/ESP32-C6-DROPPED.md), the
 RP2350 and the CYD both running; and a six-gesture button vocabulary

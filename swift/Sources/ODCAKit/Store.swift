@@ -188,26 +188,48 @@ public struct Store {
     }
 
     /// The union of several odca files' pairs (R-E1), in the order first
-    /// seen. A pair's name is its identity: where one name appears in more
-    /// than one file the earlier file's pair wins and the later is dropped,
-    /// so the files' order on the command line decides. A pair with no name
-    /// is identified by its content instead, so the same unnamed pair in two
-    /// files appears once rather than twice.
+    /// seen. Nothing is lost: every distinct pair in any file appears.
+    ///
+    /// A pair *is* its content — rule, colour set and colours — so the same
+    /// pair in two files unites into one, keeping the name from the file
+    /// given earlier. The files' order arbitrates nothing else, because
+    /// nothing else needs it: two pairs that differ are two pairs, and both
+    /// belong in the union even when they wear the same name.
+    ///
+    /// Sharing a name is not a conflict in the data, only in the label, and
+    /// it is the common case rather than the exception: names are generated
+    /// per file from `pair-0000` up, so files grown apart collide by
+    /// construction. The earlier file keeps the contested name and the later
+    /// pair takes the next free one, numbered past every generated name in
+    /// every file so that renaming one pair can never take a name another
+    /// file is already using.
     public static func loadOdcaFiles(_ urls: [URL]) -> [Pair] {
+        let perFile = urls.map { loadOdcaFile($0) ?? [] }
+        var nextNumber = (perFile.flatMap { $0 }.compactMap(generatedPairNumber).max() ?? -1) + 1
+
         var pairs: [Pair] = []
+        var seen = Set<[String]>()   // the contents already in the union
         var names = Set<String>()
-        var unnamed = Set<[String]>()
-        for url in urls {
-            for pair in loadOdcaFile(url) ?? [] {
-                if let name = pair.name {
-                    guard names.insert(name).inserted else { continue }
-                } else {
-                    guard unnamed.insert([pair.rule, pair.colorset] + pair.colors).inserted else { continue }
+        for file in perFile {
+            for pair in file {
+                guard seen.insert([pair.rule, pair.colorset] + pair.colors).inserted else { continue }
+                var name = pair.name
+                if let taken = name, names.contains(taken) {
+                    name = String(format: "pair-%04d", nextNumber)
+                    nextNumber += 1
                 }
-                pairs.append(pair)
+                if let name = name { names.insert(name) }
+                pairs.append(Pair(name: name, rule: pair.rule, colorset: pair.colorset, colors: pair.colors))
             }
         }
         return pairs
+    }
+
+    /// The number in a generated `pair-NNNN` name, or nil for any other name.
+    static func generatedPairNumber(_ pair: Pair) -> Int? {
+        guard let name = pair.name, name.hasPrefix("pair-") else { return nil }
+        let digits = name.dropFirst(5)
+        return digits.allSatisfy(\.isNumber) && !digits.isEmpty ? Int(digits) : nil
     }
 
     /// The union of several odca files' seeds (R-E1), merged rule by rule and
@@ -281,12 +303,7 @@ public struct Store {
     /// The next generated name, `pair-NNNN` (R-P3): one past the highest number
     /// in use in the file, four digits, more once they are needed.
     public static func nextPairName(_ pairs: [Pair]) -> String {
-        let used = pairs.compactMap { p -> Int? in
-            guard let name = p.name, name.hasPrefix("pair-") else { return nil }
-            let digits = name.dropFirst(5)
-            return digits.allSatisfy(\.isNumber) && !digits.isEmpty ? Int(digits) : nil
-        }
-        return String(format: "pair-%04d", (used.max() ?? -1) + 1)
+        String(format: "pair-%04d", (pairs.compactMap(generatedPairNumber).max() ?? -1) + 1)
     }
 
     /// {slot: ColorSet} for the digit-bound sets; slot 1 always present (R-U4).

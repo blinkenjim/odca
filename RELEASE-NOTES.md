@@ -5,6 +5,31 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.74.1 (Swift, spec) — 2026-09-19
+
+A fix to 3.74.0, which could silently drop pairs when uniting files.
+
+3.74.0 treated a pair's *name* as its identity, so where two files used
+one name the later file's pair was discarded. That is wrong, and on real
+files it bit immediately: every file numbers its own pairs from
+`pair-0000` upward, so two files grown apart collide by construction
+rather than by accident. Uniting `interesting.odca` with a working copy
+of it dropped two hand-composed pairs — the same rules under "Fiery Ice
+Cream Delight" and "Mystic Moonlight Shades" instead of the default
+colours — because their names happened to be taken.
+
+A pair is now its *content*: rule, colour set and colours. The same pair
+in two files unites into one under the earlier file's name, and two
+pairs that merely share a name are two pairs, both kept, the later one
+renamed to the next free `pair-NNNN` — numbered past every generated
+name in every input file, so a rename can never take a name another file
+is using. Names in the union stay unique.
+
+The principle, which is worth stating because it is the whole of the
+rule: the order you give the files in arbitrates only where two things
+genuinely cannot both hold, and that is names and nothing else. Anything
+that can be united, is.
+
 ## 3.74.0 (Swift, spec) — 2026-09-19
 
 `odca-evolve` now takes as many odca files as you like and searches the
