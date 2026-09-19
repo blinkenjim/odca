@@ -117,20 +117,38 @@ static int steps_per_redraw(Speed s) {
   }
 }
 
-// Button sampling, in service of a multi-press gesture vocabulary that
-// does not exist yet: telling a double press from a triple one means
-// sampling often enough to catch a brisk tap, which is roughly 30-40ms
-// down and a similar gap, so four or five samples across one wants
-// 8ms or better. Sampling once per loop() gave 15ms, which would drop
-// fast taps — hence the banded redraw below, which samples between
-// bands instead.
+// Fast button sampling, for a multi-press gesture vocabulary that does
+// not exist yet. OFF, and worth understanding before switching on.
 //
-// BOOTSEL is not a normal GPIO. It sits on the flash chip-select line,
-// so arduino-pico's read floats flash CS, stalls the other core,
-// disables interrupts and busy-waits ~33us for the line to settle:
-// about 35-40us a read, some 2000x a normal pin read. That is the floor
-// on how often this can be sampled — at 2ms it costs about 2% of the
-// time, which is fine, but there is no point going much below 1ms.
+// Turning it on bands the redraw and samples the button between bands
+// and part way through the frame fill, bringing the sampling interval
+// from ~16ms down to ~5ms. It also brings back the diagonal tearing
+// this board took a long time to be rid of, and the reason is instructive:
+// the shimmer fix here was never structural. It worked because the
+// ~16ms write happened to land near the panel's own refresh period, so
+// the two ran roughly rate-matched. Sampling mid-write breaks that two
+// ways — it lengthens the write, and worse, each ~40us pause gives the
+// panel's scan a fixed point to catch a step at. Four pauses, four
+// seams. Lowering the sample rate to 4ms helped and did not cure it.
+//
+// The measured numbers say the fast path was never needed. A real tap on
+// this button runs 88-158ms, so sampling once per loop at ~16ms still
+// catches a press five to ten times over — ample for press and release
+// edges, and so for counting clicks. The 8ms figure this was built
+// around came from assuming 30-40ms taps, which this button does not
+// see. So with this off, the gesture work is not blocked; it simply gets
+// 16ms sampling instead of 5ms, which is enough.
+//
+// The one board where fast sampling would be free is the CYD: its write
+// window is 210us because the panel does the scrolling, so there is no
+// long transfer to interrupt in the first place.
+// Why a sample is expensive enough to ration at all: BOOTSEL is not a
+// normal GPIO. It sits on the flash chip-select line, so arduino-pico's
+// read floats flash CS, stalls the other core, disables interrupts and
+// busy-waits ~33us for the line to settle — about 35-40us a read, some
+// 2000x a normal pin read.
+#define ODCA_FAST_BUTTON_SAMPLING 0
+
 static const unsigned long DEBOUNCE_MS = 20;
 
 static bool button_raw = false;         // last raw sample
@@ -153,12 +171,16 @@ static bool press_to_report = false;
 static unsigned long last_sample_us = 0;
 static unsigned long worst_gap_us = 0;
 
-// Cheap enough to call from anywhere with a spare moment, and called
-// from several: the top of loop(), between redraw bands, and inside the
-// slow-speed wait. Records edges; it never acts on them, so it is safe
-// to call in the middle of a display transaction.
+// The read is gated by time so its cost stays bounded however many
+// places call it. Only relevant when fast sampling is on; with it off,
+// the once-per-loop call is already slower than this floor.
+static const unsigned long SAMPLE_INTERVAL_US = 4000;
+
 static void button_tick() {
   unsigned long now_us = micros();
+  if (last_sample_us != 0 && (now_us - last_sample_us) < SAMPLE_INTERVAL_US) {
+    return;  // too soon to be worth 40us
+  }
   if (last_sample_us != 0) {
     unsigned long gap = now_us - last_sample_us;
     if (gap > worst_gap_us) worst_gap_us = gap;
@@ -210,7 +232,6 @@ static void redraw_history() {
   // band of SPI does — measured, it was the single longest unsampled
   // stretch in the loop once the writes were banded, so it gets sampled
   // through on the same rhythm.
-  static const int FILL_SAMPLE_ROWS = 22;
   for (int y = 0; y < HEIGHT; y++) {
     if (y < history_count) {
       int slot = (history_next - history_count + y + HEIGHT) % HEIGHT;
@@ -218,7 +239,9 @@ static void redraw_history() {
     } else {
       for (int x = 0; x < WIDTH; x++) frame_pixels[y][x] = PALETTE[0];
     }
-    if (y % FILL_SAMPLE_ROWS == 0) button_tick();
+#if ODCA_FAST_BUTTON_SAMPLING
+    if (y % 22 == 0) button_tick();
+#endif
   }
   // Sent in bands rather than one burst, purely to create moments to
   // sample the button in. The redraw is ~15ms of blocking SPI and used
@@ -231,14 +254,20 @@ static void redraw_history() {
   // Sampling between bands, inside the transaction, is safe — no
   // transfer is in flight at a band boundary, and the button read
   // touches the flash chip-select line, not this display's.
-  static const int BAND_ROWS = 22;
   tft.startWrite();
   tft.setAddrWindow(0, 0, WIDTH, HEIGHT);
+#if ODCA_FAST_BUTTON_SAMPLING
+  static const int BAND_ROWS = 22;  // ~2ms of transfer, so ~2ms sampling
   for (int top = 0; top < HEIGHT; top += BAND_ROWS) {
     int rows = (HEIGHT - top < BAND_ROWS) ? (HEIGHT - top) : BAND_ROWS;
     tft.writePixels(&frame_pixels[top][0], (uint32_t)WIDTH * rows);
     button_tick();
   }
+#else
+  // One uninterrupted burst. The pauses a banded write leaves are what
+  // the panel's refresh catches as seams, so there are none.
+  tft.writePixels(&frame_pixels[0][0], (uint32_t)WIDTH * HEIGHT);
+#endif
   tft.endWrite();
 }
 
@@ -383,7 +412,9 @@ void loop() {
   if (wait_ms) {
     unsigned long wait_until = millis() + wait_ms;
     while (millis() < wait_until) {
+#if ODCA_FAST_BUTTON_SAMPLING
       button_tick();  // the other long stretch worth sampling through
+#endif
     }
   }
 
@@ -402,10 +433,14 @@ void loop() {
     Serial.print(speed_name(speed));
     Serial.print(", redraw ");
     Serial.print(redraw_ms);
+#if ODCA_FAST_BUTTON_SAMPLING
     Serial.print("ms, button gap <=");
     Serial.print(worst_gap_us);
     Serial.println("us)");
     worst_gap_us = 0;
+#else
+    Serial.println("ms)");
+#endif
     total_at_last_report = total_generation;
     last_report_ms = now;
   }
