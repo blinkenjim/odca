@@ -86,7 +86,6 @@ static unsigned long reinit_count = 0;
 // cost rather than a guessed constant.
 enum Speed { SPEED_BASE, SPEED_X2, SPEED_X4, SPEED_DIV4, SPEED_DIV2 };
 static Speed speed = SPEED_BASE;
-static bool bootsel_was_pressed = false;
 
 static const char *speed_name(Speed s) {
   switch (s) {
@@ -118,20 +117,76 @@ static int steps_per_redraw(Speed s) {
   }
 }
 
-// BOOTSEL isn't a normal GPIO (it shares a pin with flash CS, read via a
-// special, relatively slow core routine — arduino-pico's Bootsel.h), so
-// this is polled once per loop() iteration, not per generation, and
-// debounced by waiting out the release the same way the core's own
-// example does.
-static void poll_bootsel() {
-  bool pressed = BOOTSEL;
-  if (pressed && !bootsel_was_pressed) {
-    while (BOOTSEL) delay(1);
-    speed = next_speed(speed);
-    Serial.print("speed ");
-    Serial.println(speed_name(speed));
+// Button sampling, in service of a multi-press gesture vocabulary that
+// does not exist yet: telling a double press from a triple one means
+// sampling often enough to catch a brisk tap, which is roughly 30-40ms
+// down and a similar gap, so four or five samples across one wants
+// 8ms or better. Sampling once per loop() gave 15ms, which would drop
+// fast taps — hence the banded redraw below, which samples between
+// bands instead.
+//
+// BOOTSEL is not a normal GPIO. It sits on the flash chip-select line,
+// so arduino-pico's read floats flash CS, stalls the other core,
+// disables interrupts and busy-waits ~33us for the line to settle:
+// about 35-40us a read, some 2000x a normal pin read. That is the floor
+// on how often this can be sampled — at 2ms it costs about 2% of the
+// time, which is fine, but there is no point going much below 1ms.
+static const unsigned long DEBOUNCE_MS = 20;
+
+static bool button_raw = false;         // last raw sample
+static unsigned long button_raw_ms = 0; // when the raw state last changed
+static bool button_down = false;        // debounced state
+static unsigned long button_presses = 0;  // debounced press edges seen
+static unsigned long presses_acted = 0;   // how many loop() has consumed
+
+// How long the last completed press lasted. The gesture vocabulary will
+// need this to tell a tap from a two-second hold, and reporting it now
+// is also how the hold is being tested at all: the board can be held
+// whenever, and the number read back afterwards, rather than anyone
+// trying to press in time with a watching terminal.
+static unsigned long press_began_ms = 0;
+static unsigned long press_held_ms = 0;
+static bool press_to_report = false;
+
+// Sampling interval actually achieved, so the 2ms claim can be checked
+// rather than assumed. Reset at every report.
+static unsigned long last_sample_us = 0;
+static unsigned long worst_gap_us = 0;
+
+// Cheap enough to call from anywhere with a spare moment, and called
+// from several: the top of loop(), between redraw bands, and inside the
+// slow-speed wait. Records edges; it never acts on them, so it is safe
+// to call in the middle of a display transaction.
+static void button_tick() {
+  unsigned long now_us = micros();
+  if (last_sample_us != 0) {
+    unsigned long gap = now_us - last_sample_us;
+    if (gap > worst_gap_us) worst_gap_us = gap;
   }
-  bootsel_was_pressed = pressed;
+  last_sample_us = now_us;
+
+  bool raw = BOOTSEL;
+  unsigned long now = millis();
+  if (raw != button_raw) {
+    button_raw = raw;
+    button_raw_ms = now;
+  }
+  // A mechanical button bounces for a few milliseconds. The old code
+  // swallowed that by waiting out the release before acting; sampling
+  // at 2ms would instead see one press as two or three, so the state
+  // only counts once it has held still for DEBOUNCE_MS.
+  if (raw != button_down && (now - button_raw_ms) >= DEBOUNCE_MS) {
+    button_down = raw;
+    if (button_down) {
+      button_presses++;
+      press_began_ms = now;
+    } else {
+      // Recorded rather than printed: this runs inside the display's SPI
+      // transaction, and loop() is the right place to talk to serial.
+      press_held_ms = now - press_began_ms;
+      press_to_report = true;
+    }
+  }
 }
 
 static void seed_random_row(unsigned char *row, int width) {
@@ -151,6 +206,11 @@ static void seed_random_row(unsigned char *row, int width) {
 // row until the history first fills, matching R-U3's "filled rows from
 // the top, background below" on the desktop.
 static void redraw_history() {
+  // Building the frame is 55,000 palette lookups and takes longer than a
+  // band of SPI does — measured, it was the single longest unsampled
+  // stretch in the loop once the writes were banded, so it gets sampled
+  // through on the same rhythm.
+  static const int FILL_SAMPLE_ROWS = 22;
   for (int y = 0; y < HEIGHT; y++) {
     if (y < history_count) {
       int slot = (history_next - history_count + y + HEIGHT) % HEIGHT;
@@ -158,10 +218,27 @@ static void redraw_history() {
     } else {
       for (int x = 0; x < WIDTH; x++) frame_pixels[y][x] = PALETTE[0];
     }
+    if (y % FILL_SAMPLE_ROWS == 0) button_tick();
   }
+  // Sent in bands rather than one burst, purely to create moments to
+  // sample the button in. The redraw is ~15ms of blocking SPI and used
+  // to be the whole loop, so sampling could only happen once per frame;
+  // 22 rows is about 2ms of transfer, which brings sampling to roughly
+  // that. It costs nothing measurable: per-row writes were tried on
+  // this board early on and made no difference to redraw time either
+  // way, so band size is free to choose on other grounds.
+  //
+  // Sampling between bands, inside the transaction, is safe — no
+  // transfer is in flight at a band boundary, and the button read
+  // touches the flash chip-select line, not this display's.
+  static const int BAND_ROWS = 22;
   tft.startWrite();
   tft.setAddrWindow(0, 0, WIDTH, HEIGHT);
-  tft.writePixels(&frame_pixels[0][0], (uint32_t)WIDTH * HEIGHT);
+  for (int top = 0; top < HEIGHT; top += BAND_ROWS) {
+    int rows = (HEIGHT - top < BAND_ROWS) ? (HEIGHT - top) : BAND_ROWS;
+    tft.writePixels(&frame_pixels[top][0], (uint32_t)WIDTH * rows);
+    button_tick();
+  }
   tft.endWrite();
 }
 
@@ -232,7 +309,27 @@ void setup() {
 }
 
 void loop() {
-  poll_bootsel();
+  button_tick();
+
+  // One press still just advances the speed, as before. Acting on the
+  // counted press edge rather than waiting out the release makes it
+  // slightly more responsive and, more to the point, stops the loop
+  // blocking for as long as a button is held — which a gesture that
+  // ends in a two-second hold would otherwise do.
+  if (button_presses != presses_acted) {
+    presses_acted = button_presses;
+    speed = next_speed(speed);
+    Serial.print("speed ");
+    Serial.println(speed_name(speed));
+  }
+
+  if (press_to_report) {
+    press_to_report = false;
+    Serial.print("press held ");
+    Serial.print(press_held_ms);
+    Serial.print("ms");
+    Serial.println(press_held_ms >= 2000 ? "  (a long press, >=2s)" : "");
+  }
 
   // At x2/x4, step several generations before the one redraw that shows
   // them — the redraw is the SPI-bound cost, so this is the only way to
@@ -285,7 +382,9 @@ void loop() {
                                                   : 0;
   if (wait_ms) {
     unsigned long wait_until = millis() + wait_ms;
-    while (millis() < wait_until) {}
+    while (millis() < wait_until) {
+      button_tick();  // the other long stretch worth sampling through
+    }
   }
 
   unsigned long now = millis();
@@ -303,7 +402,10 @@ void loop() {
     Serial.print(speed_name(speed));
     Serial.print(", redraw ");
     Serial.print(redraw_ms);
-    Serial.println("ms)");
+    Serial.print("ms, button gap <=");
+    Serial.print(worst_gap_us);
+    Serial.println("us)");
+    worst_gap_us = 0;
     total_at_last_report = total_generation;
     last_report_ms = now;
   }
