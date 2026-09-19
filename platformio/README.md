@@ -133,19 +133,29 @@ RP2350 boards in play don't share LED wiring (a plain GPIO pin on one,
 likely a WS2812 on the other), so a visual smoke test needs a
 board-specific follow-up rather than a guess.
 
-## A machine note, not an ODCA one
+## A machine note, not an ODCA one — resolved
 
-`cc` on this Mac wouldn't link anything at all while building this
-(`ld: tapi error: malformed file`, "unknown architecture
-arm64e.x1-macos"). The cause is Xcode/OS version skew, not corruption:
-the OS and its Command Line Tools package are macOS 27.0, but Xcode.app
-itself is still 26.6 (`xcodebuild -version`), and 26.6's linker doesn't
-recognize `arm64e.x1`, a target tag 27.0's SDK declares that didn't
-exist when 26.6 shipped. The default `MacOSX.sdk` symlink under
-`/Library/Developer/CommandLineTools/SDKs/` points at that 27.0 SDK; an
-older 26.5 one sits right next to it and works fine. `host_test/run`
-passes an explicit `-isysroot $(xcrun --sdk macosx --show-sdk-path)`
-to use it, harmless on a healthy machine. The real fix, when wanted, is
-updating Xcode; this just routes around it. It never touched the
-firmware build, which uses PlatformIO's own bundled cross-compiler, not
+For a while in September 2026, `cc` on this Mac would not link anything
+at all (`ld: tapi error: malformed file`, "unknown architecture
+arm64e.x1-macos"). The cause was Xcode/OS version skew rather than
+corruption: the OS and its Command Line Tools were macOS 27.0 while
+Xcode.app was still 26.6, and 26.6's linker did not recognise
+`arm64e.x1`, a target tag the 27.0 SDK declares and that did not exist
+when 26.6 shipped.
+
+Fixed (2026-09-19) by updating Xcode to 27.0, so all three now agree.
+Verified rather than assumed: plain `cc` links and runs with no special
+flags, the default SDK resolves to 27.0, and `host_test/run` passes
+clean. Expect macOS to ask you to accept the Xcode licence after such
+an update — until you do, *every* developer tool fails, git included,
+because `/usr/bin/git` and friends are all one small shim that refuses
+to dispatch into an unlicensed Xcode. `sudo xcodebuild -license` clears
+it; `DEVELOPER_DIR=/Library/Developer/CommandLineTools` is a
+no-privileges way round it in the meantime.
+
+`host_test/run` still passes an explicit
+`-isysroot $(xcrun --sdk macosx --show-sdk-path)`. That is no longer
+load-bearing, but it is the standard way to name a sysroot on macOS and
+costs nothing, so it stays. None of this ever touched the firmware
+build, which uses PlatformIO's own bundled cross-compiler rather than
 the system one.
