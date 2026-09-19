@@ -7,6 +7,7 @@ import Foundation
 /// 2). `options` take the next argument as their value; one without a
 /// value is a usage error.
 public func parseArguments(program: String, help: String, flags: [String] = [], options: [String] = [],
+                           valueNames: [String: String] = [:],
                            positional: String = "<file.odca>", many: Bool = false)
     -> (files: [URL], flags: Set<String>, options: [String: String]) {
     setlinebuf(stdout)  // status lines (R-O) arrive promptly even when piped or logged
@@ -39,7 +40,10 @@ public func parseArguments(program: String, help: String, flags: [String] = [], 
         i += 1
     }
     guard !files.isEmpty, files.count == 1 || many else {
-        let usage = flags.map { " [\($0)]" }.joined() + options.map { " [\($0) N]" }.joined()
+        // Most options take a number, so `N` is the default stand-in;
+        // `valueNames` lets one that does not say what it takes instead.
+        let usage = flags.map { " [\($0)]" }.joined()
+            + options.map { " [\($0) \(valueNames[$0] ?? "N")]" }.joined()
         print("usage: \(program) \(positional)\(usage)")
         exit(2)
     }

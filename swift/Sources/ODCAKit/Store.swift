@@ -187,6 +187,39 @@ public struct Store {
         return pairs
     }
 
+    /// The union of several odca files' pairs (R-E1), in the order first
+    /// seen. A pair's name is its identity: where one name appears in more
+    /// than one file the earlier file's pair wins and the later is dropped,
+    /// so the files' order on the command line decides. A pair with no name
+    /// is identified by its content instead, so the same unnamed pair in two
+    /// files appears once rather than twice.
+    public static func loadOdcaFiles(_ urls: [URL]) -> [Pair] {
+        var pairs: [Pair] = []
+        var names = Set<String>()
+        var unnamed = Set<[String]>()
+        for url in urls {
+            for pair in loadOdcaFile(url) ?? [] {
+                if let name = pair.name {
+                    guard names.insert(name).inserted else { continue }
+                } else {
+                    guard unnamed.insert([pair.rule, pair.colorset] + pair.colors).inserted else { continue }
+                }
+                pairs.append(pair)
+            }
+        }
+        return pairs
+    }
+
+    /// The union of several odca files' seeds (R-E1), merged rule by rule and
+    /// width by width. Unlike pairs this does not go by the files' order:
+    /// seeds are not competing values but findings, so all of them are
+    /// pooled and the ten longest-lived kept (R-E3), whichever files they
+    /// came from. Nothing an earlier search found is ever discarded because
+    /// a file was named later.
+    public static func loadSeeds(_ urls: [URL]) -> Seeds {
+        urls.reduce(Seeds()) { Evolve.merge($0, loadSeeds($1)) }
+    }
+
     /// The file's seeds (R-P3, section 4e): rule ID -> width -> seeds, longest
     /// first. Empty when the file is missing, unparseable, or has none;
     /// malformed entries are skipped.

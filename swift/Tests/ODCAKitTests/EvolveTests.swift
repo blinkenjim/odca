@@ -95,6 +95,68 @@ final class EvolveTests: XCTestCase {
         XCTAssertEqual(ended, [])  // nothing finished, nothing kept
     }
 
+    /// R-E1: several input files become one body of data. Pairs go by name,
+    /// and the file named earlier wins a clash; the order is that of first
+    /// appearance.
+    func testSeveralFilesUnionTheirPairsEarlierFileWinningAClash() throws {  // PT-47, R-E1
+        let dir = try scratch()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let colors = ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]
+        let first = dir.appendingPathComponent("first.odca")
+        let second = dir.appendingPathComponent("second.odca")
+        Store.saveOdcaFile([Pair(name: "shared", rule: kills3.id, colorset: "A", colors: colors),
+                            Pair(name: "only-in-first", rule: kills3.id, colorset: "B", colors: colors)],
+                           seeds: [:], to: first)
+        // Same name, different rule: the clash. Plus one the first file lacks.
+        Store.saveOdcaFile([Pair(name: "shared", rule: allZero.id, colorset: "Z", colors: colors),
+                            Pair(name: "only-in-second", rule: allZero.id, colorset: "C", colors: colors)],
+                           seeds: [:], to: second)
+
+        let union = Store.loadOdcaFiles([first, second])
+        XCTAssertEqual(union.map(\.name), ["shared", "only-in-first", "only-in-second"])
+        XCTAssertEqual(union[0].rule, kills3.id)      // the earlier file's "shared", not the later one's
+        XCTAssertEqual(union[0].colorset, "A")
+
+        // Naming them the other way round hands the clash to the other file.
+        let swapped = Store.loadOdcaFiles([second, first])
+        XCTAssertEqual(swapped.map(\.name), ["shared", "only-in-second", "only-in-first"])
+        XCTAssertEqual(swapped[0].rule, allZero.id)
+    }
+
+    /// R-E1, R-E3: seeds are findings rather than competing values, so the
+    /// union pools them and keeps the ten longest-lived whatever file they
+    /// came from. A later file's better seed is never dropped for being
+    /// named later — which is what separates this from the rule for pairs.
+    func testSeveralFilesPoolTheirSeedsAndKeepTheLongestTen() throws {  // PT-47, R-E1, R-E3
+        let dir = try scratch()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let first = dir.appendingPathComponent("first.odca")
+        let second = dir.appendingPathComponent("second.odca")
+        let pair = Pair(name: "p", rule: kills3.id, colorset: "A",
+                        colors: ["#121218", "#EBEBE1", "#FFA136", "#409CFF"])
+        // Six each at one width, none shared, and the very best is in the
+        // file named second. Rows use only states 0-3, since loadSeeds
+        // rightly discards any row holding a digit no state can be.
+        func rows(_ lead: String) -> [Seed] {
+            (0..<6).map { seed(lead + String($0 / 4) + String($0 % 4), (lead == "111111" ? 100 : 200) + $0) }
+        }
+        Store.saveOdcaFile([pair], seeds: [kills3.id: [8: rows("111111")]], to: first)
+        Store.saveOdcaFile([pair], seeds: [kills3.id: [8: rows("222222")]], to: second)
+
+        let union = Store.loadSeeds([first, second])
+        let ages = union[kills3.id]![8]!.map(\.generations)
+        XCTAssertEqual(ages, [205, 204, 203, 202, 201, 200, 105, 104, 103, 102])  // twelve pooled, the best ten kept
+        XCTAssertEqual(ages.count, Evolve.keep)
+        XCTAssertEqual(Store.loadSeeds([second, first])[kills3.id]![8]!.map(\.generations), ages)  // order cannot change it
+
+        // A width only the later file has survives the union untouched.
+        Store.saveOdcaFile([pair], seeds: [kills3.id: [8: [seed("11111110", 100)],
+                                                       16: [seed("1111111011111110", 7)]]], to: second)
+        let widths = Store.loadSeeds([first, second])[kills3.id]!
+        XCTAssertEqual(widths.keys.sorted(), [8, 16])
+        XCTAssertEqual(widths[16]!.map(\.generations), [7])
+    }
+
     func testSeedsRoundTripAndLayout() throws {  // PT-43, R-P3
         let dir = try scratch()
         defer { try? FileManager.default.removeItem(at: dir) }

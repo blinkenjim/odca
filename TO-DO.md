@@ -1,6 +1,19 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-16):** Spec 3.72.0, Swift 3.72.0, Python
+**YOU ARE HERE (2026-09-19):** Spec 3.74.0, Swift 3.74.0, Python
+3.73.0: `odca-evolve` takes several odca files and searches their union,
+with `-o` saying where the results go (R-E1). Pairs unite by name with
+the earlier file on the command line winning a clash; seeds are pooled
+instead of chosen between, the ten longest-lived kept for each rule and
+width whichever file they came from, so no earlier search is thrown away
+for having been named later (the user's own call between those two
+readings). `-o` is required with more than one input file, optional with
+one, and may name an input file either way. Swift only, odca-evolve
+being Swift only. Before that, a long MCU arc: three boards tried, the
+ESP32-C6 dropped as unreliable (platformio/ESP32-C6-DROPPED.md), the
+RP2350 and the CYD both running; and a six-gesture button vocabulary
+built but NOT yet verified working (see its own entry below). Before
+that, spec 3.72.0, Swift 3.72.0, Python
 3.73.0: the repetition and stagnation windows (R-A1) are fixed
 generation counts, 4000 and 1600, no longer `10 x rows` / `4 x rows`;
 R-A2's re-init trigger and R-K13's paused zip are the only places

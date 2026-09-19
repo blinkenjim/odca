@@ -134,18 +134,26 @@ the candidate stash.
 public let helpOdcaEvolve = """
 odca-evolve: search an odca file's rules for their longest-lived seeds
 
-usage: odca-evolve <file.odca> --cells N --time SECONDS [--cap N]
-                   [--parity [--limit N]]
+usage: odca-evolve <file.odca> [<file.odca> ...] --cells N --time SECONDS
+                   [--cap N] [--parity [--limit N]] [-o <file.odca>]
        odca-evolve --help
 
-For every distinct rule in the file, in order, spends the time budget
+Given more than one file, works on the union of them all as though it
+had been read from one: a pair's name is its identity, and where the
+same name appears in more than one file the file named earlier wins.
+Seeds are pooled rather than chosen between, the ten longest-lived kept
+for each rule and width whichever file they came from, so nothing an
+earlier search found is lost. With more than one file, -o must say
+where the results go; it may name one of the input files.
+
+For every distinct rule in the union, in order, spends the time budget
 drawing random rows of N cells and evolving each, in wrap mode, until a
 state the rule can produce has died out with no other state left in a
 minority (the extinction that makes odca re-seed), or a cycle of any
 period is confirmed (as odca's own detector confirms one), or the cap. The
 ten longest-lived rows are kept, merged with any the file already holds
-for that rule and width, and written back to the file as the budget runs
-out; then the next rule, and after the last the first again, round trip
+for that rule and width, and written to the output file as the budget
+runs out; then the next rule, and after the last the first again, round trip
 after round trip until Ctrl-C. Every processor works at once, each on
 rows of its own. odca plays a pair from its longest-lived seed when the file
 holds one for exactly the width on screen.
@@ -166,6 +174,10 @@ holds one for exactly the width on screen.
   --limit N       with --parity: at most N rules give up their turn per
                   round trip, those furthest ahead; 0, the default, is no
                   limit
+  -o FILE         where to write the results. Required with more than one
+                  input file, optional with one (which otherwise has its
+                  own results written back to it), and may name one of the
+                  input files either way
 
 Output: a line as each round trip begins (and the parity plan after it),
 a line as each rule is taken up, a line for every row that joins the ten

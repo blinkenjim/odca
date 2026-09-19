@@ -4,27 +4,45 @@ import Foundation
 import ODCAKit
 
 let (files, flags, options) = parseArguments(program: "odca-evolve", help: helpOdcaEvolve,
-                                             flags: ["--parity"], options: ["--cells", "--time", "--cap", "--limit"])
+                                             flags: ["--parity"],
+                                             options: ["--cells", "--time", "--cap", "--limit", "-o"],
+                                             valueNames: ["-o": "<file.odca>"],
+                                             positional: "<file.odca> [<file.odca> ...]", many: true)
 let parity = flags.contains("--parity")  // R-E5
 if options["--limit"] != nil && !parity {
     print("odca-evolve: --limit applies only with --parity")
     exit(2)
 }
 let limit = wholeNumber(program: "odca-evolve", options: options, "--limit", unit: "rules", minimum: 0, default: 0)  // R-E5: 0 is no limit
-let file = files[0]
 let cells = wholeNumber(program: "odca-evolve", options: options, "--cells", unit: "cells", minimum: Session.minCols)  // R-E1
 let budget = wholeNumber(program: "odca-evolve", options: options, "--time", unit: "seconds")  // R-E1
 let cap = wholeNumber(program: "odca-evolve", options: options, "--cap", unit: "generations", default: Evolve.defaultCap)  // R-E2
-guard FileManager.default.fileExists(atPath: file.path) else {  // R-E1: the file must exist
+
+// R-E1: one input file writes its findings back to itself, as it always
+// has; several need `-o` to say where the union should go, since writing
+// to any one of them would be a guess. `-o` is allowed with one file
+// too, including when it names that same file.
+let output: URL
+if let path = options["-o"] {
+    output = URL(fileURLWithPath: path)
+} else if files.count == 1 {
+    output = files[0]
+} else {
+    print("odca-evolve: -o <file.odca> is required with more than one file")
+    exit(2)
+}
+for file in files where !FileManager.default.fileExists(atPath: file.path) {  // R-E1: every input must exist
     print("error: \(file.relativePath) does not exist")
     exit(1)
 }
-let pairs = Store.loadOdcaFile(file) ?? []
-guard !pairs.isEmpty else {  // R-E1: and hold pairs
-    print("error: \(file.relativePath): no pairs")
+// The union is wholly in memory before anything is written, so naming an
+// input file as the output is safe.
+let pairs = Store.loadOdcaFiles(files)
+guard !pairs.isEmpty else {  // R-E1: and between them hold pairs
+    print("error: \(files.map(\.relativePath).joined(separator: ", ")): no pairs")
     exit(1)
 }
-var seeds = Store.loadSeeds(file)
+var seeds = Store.loadSeeds(files)
 var rules: [String] = []  // distinct, in order of first appearance (R-E2)
 for pair in pairs where !rules.contains(pair.rule) { rules.append(pair.rule) }
 
@@ -119,7 +137,7 @@ while true {
         say(kept.map { String($0.generations) }.joined(separator: ", "), at: deadline)
     }
     seeds[id, default: [:]][cells] = kept  // R-E3: the merged ten, written now
-    Store.saveOdcaFile(pairs, seeds: seeds, to: file)
+    Store.saveOdcaFile(pairs, seeds: seeds, to: output)
     if interrupted { exit(130) }
   }
 }

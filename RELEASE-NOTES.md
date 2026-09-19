@@ -5,6 +5,32 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.74.0 (Swift, spec) — 2026-09-19
+
+`odca-evolve` now takes as many odca files as you like and searches the
+union of them, which is what you want when your findings have ended up
+spread across a keeper file and a couple of working copies.
+
+    odca-evolve interesting.odca copy.odca esp32.odca \
+        -o combined.odca --cells 600 --time 300
+
+Pairs and seeds unite by different rules, and the difference is the
+point. *Pairs* go by name, and where two files disagree the one named
+earlier on the command line wins, so the order you type them in is how
+you say which file you trust. *Seeds* are not chosen between at all:
+they are findings, so every file's seeds for a rule and width are pooled
+and the ten longest-lived kept, whichever file each came from. An
+overnight search recorded in the third file is never thrown away because
+the first file was named first.
+
+The new `-o` says where the results go, and is required once there is
+more than one input file, since writing back into any single one of them
+would be a guess. With one file it stays optional and that file is
+written back to as before. Either way `-o` may name one of the input
+files — including, harmlessly, the one input file you gave. The union is
+built wholly in memory before anything is written, so that is safe, and
+no input file that is not the output is ever touched.
+
 ## 3.72.0 (Swift, spec) and 3.73.0 (Python) — 2026-09-16
 
 The repetition and stagnation windows no longer know the screen exists.

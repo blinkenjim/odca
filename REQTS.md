@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.72.0 — 2026-09-16
+Version 3.74.0 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -98,7 +98,9 @@ rest of that audit — R-O17, R-P3, R-U1, R-K4, R-K10, R-U9, R-X8, R-A2,
 R-K6, R-B1, R-K19, R-W9 (wording and place), R-O16, R-N2, R-U4, section
 4e's optionality; the `odca` help text on cycle-ended seeds. 3.72.0: the
 repetition and stagnation windows are fixed generation counts, not
-screenfuls — R-A1, R-U8.)
+screenfuls — R-A1, R-U8. 3.74.0: `odca-evolve` takes several files and
+works on their union, with `-o` to say where the results go — R-E1,
+R-E2, R-E3, R-U9, section 4e, section 10.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -991,11 +993,40 @@ an implementation until it ships the program: the Python implementation
 has the player side of this section (R-P3's seeds, R-X4, R-X8, R-W9)
 and no `odca-evolve` yet, at the user's direction.
 
-**R-E1 (entry).** `odca-evolve <file.odca> --cells N --time SECONDS
-[--cap N] [--parity [--limit N]]` — the file is the one required argument and must exist and
-hold at least one pair (else `error: <file> does not exist` / `error:
-<file>: no pairs`, exit 1); `--cells`, the width of the rows, a whole
-number of 3 or more (R-M2), and `--time`, the budget per rule in whole
+**R-E1 (entry).** `odca-evolve <file.odca> [<file.odca> ...] --cells N
+--time SECONDS [--cap N] [--parity [--limit N]] [-o <file.odca>]` — at
+least one file is required; every one given must exist and between them
+they must hold at least one pair (else `error: <file> does not exist` /
+`error: <file>[, <file>...]: no pairs`, exit 1).
+
+Given several files the program works on their *union*, formed wholly in
+memory before anything is written and then treated exactly as though it
+had been read from a single file (R-E2 onward are unchanged by this).
+Pairs and seeds unite by different rules, deliberately:
+
+- *Pairs* go by name: a name is a pair's identity, and where the same
+  name appears in more than one file the file named earlier on the
+  command line wins, later ones being dropped. A pair with no name is
+  identified by its content instead, so the same unnamed pair in two
+  files appears once. The order is that of first appearance, which
+  decides the order rules are taken up in (R-E2).
+- *Seeds* are pooled, not chosen between. They are findings rather than
+  competing values, so all files' seeds for a rule and width are merged
+  and the ten longest-lived kept (R-E3), whichever file each came from;
+  the command-line order does not affect the result. Nothing an earlier
+  search recorded is discarded for having been named later.
+
+`-o` says where the results are written. It is required with more than
+one input file (else `odca-evolve: -o <file.odca> is required with more
+than one file`, exit 2), since writing to any one input would be a
+guess; with a single input file it is optional, that file being written
+back to as before. It may name one of the input files in either case,
+including the single-file case where it names that same file, which is
+simply the default spelled out. Only the output file is written; input
+files that are not the output are never modified.
+
+The remaining options are unaffected by any of this. `--cells`, the
+width of the rows, a whole number of 3 or more (R-M2), and `--time`, the budget per rule in whole
 seconds, are required; `--cap` (R-E2) is a whole number of generations,
 100000 by default; `--limit` (R-E5) is a whole number of rules, 0 by
 default, and a usage error without `--parity` (`odca-evolve: --limit
@@ -1006,7 +1037,7 @@ program opens no window, starts no background search (R-S), and neither
 reads nor writes `$HOME/.odca` (R-P1, R-P2).
 
 **R-E2 (the search).** The program takes up each distinct rule of the
-file's pairs in order of first appearance and prints its line (R-O16),
+pairs (of the union, given several files — R-E1) in order of first appearance and prints its line (R-O16),
 and after the last rule begins again with the first: *round trips*
 through the rules, numbered from 1 and each announced (R-O16), until
 interrupted (R-E4); it never ends on its own.
