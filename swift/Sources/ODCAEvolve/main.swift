@@ -81,25 +81,42 @@ signal(SIGINT) { _ in interrupted = true }
 let terminal = isatty(1) != 0
 let outputLock = NSLock()
 var countdownShown = false
+
+/// R-E6: whether the blank line that separates one verbose burst from the
+/// next is already on screen and not yet used up. There is only ever one,
+/// and either the countdown or the next burst puts it there, whichever
+/// comes first: the countdown draws it so that it does not sit flush
+/// against the burst above, and a burst arriving afterwards writes over
+/// the countdown's own line rather than adding a second blank.
+var separatorOnScreen = false
+
 func clearCountdown() {
     if countdownShown {
-        print("\r\u{1B}[K", terminator: "")
+        print("\r\u{1B}[K", terminator: "")  // back to column 0 and erase, leaving the line to be written on
         countdownShown = false
     }
 }
-/// `blankBefore` puts an empty line above, inside the same lock, so the
-/// blank and the line it announces cannot be separated (R-E6: it is what
-/// keeps one verbose burst visually apart from the next).
+/// `blankBefore` asks for an empty line above, put there inside the same
+/// lock so the blank and the line it announces cannot be separated. If the
+/// countdown already laid one down, this takes over that line instead of
+/// adding another.
 func say(_ line: String, at deadline: Date, blankBefore: Bool = false) {
     outputLock.lock()
     clearCountdown()
-    if blankBefore { print("") }
+    if blankBefore && !separatorOnScreen { print("") }
     print("\(Evolve.hms(deadline.timeIntervalSinceNow)) \(line)")
+    separatorOnScreen = false
     outputLock.unlock()
 }
 func countdown(_ text: String) {
     guard terminal else { return }
     outputLock.lock()
+    // Only on its first draw after a line, and only under verbose, where
+    // blanks are the way bursts are told apart; plain output stays as it was.
+    if verbose && !separatorOnScreen && !countdownShown {
+        print("")
+        separatorOnScreen = true
+    }
     print("\r\u{1B}[K" + text, terminator: "")
     fflush(stdout)
     countdownShown = true

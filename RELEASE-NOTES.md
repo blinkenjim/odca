@@ -5,6 +5,27 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.78.3 (Swift, spec) — 2026-09-19
+
+The countdown now joins in the verbose spacing instead of sitting flush
+against the burst above it:
+
+    00:00:06 1803
+                                    <- the separating blank
+    00:00:06  48 seeds/s            <- the countdown, redrawing here
+
+and when the next row is kept, the countdown is erased and the burst
+begins on that same line, so you still see exactly one empty line
+between bursts rather than two:
+
+    00:00:06 1803
+
+    00:00:06 kept 2144 generations, rank 1 (states 1, 2 extinct)
+
+Whichever comes first, the countdown or the next burst, lays the blank
+down; the other takes it as given. Plain output is untouched, countdown
+included.
+
 ## 3.78.2 (Swift, spec) — 2026-09-19
 
 The overwrite warning now shouts:

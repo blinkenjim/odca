@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.78.2 — 2026-09-19
+Version 3.78.3 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -108,7 +108,8 @@ output is warned about — R-E1, R-U9. 3.78.0: `-v` / `--verbose` names the
 pairs a rule belongs to and the ten as they stand, at every join and at
 the end of a turn — R-E6, R-O16, R-U9. 3.78.1: each verbose burst opens
 with a blank line — R-E6. 3.78.2: the overwrite warning reads
-`*** WARNING: ...` — R-E1.)
+`*** WARNING: ...` — R-E1. 3.78.3: the verbose countdown sits below the
+blank that separates bursts, and a burst reuses its line — R-E6, R-E4.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1081,9 +1082,19 @@ is printed.
 Each burst opens with an empty line, so that one is plainly separate
 from the next: one blank above the `kept` line of a join, and one above
 the first of the lines closing a turn, whichever that is. The blank is
-printed with the line it announces, never apart from it. Without
-`-v` nothing gains a blank line, a join being one line there and needing
-no spacing.
+printed with the line it announces, never apart from it.
+
+The countdown (R-E4) takes part in that spacing rather than sitting
+against the burst above it. Whichever comes first, the countdown's first
+draw or the next burst, puts the blank there, and there is only ever
+one: a countdown that has already drawn it keeps its own line directly
+below, and a burst arriving afterwards erases the countdown and writes
+in its place rather than adding a second blank. Between any two bursts
+exactly one empty line is seen, whether or not the countdown drew in
+between.
+
+Without `-v` nothing gains a blank line, the countdown included: a join
+is one line there and needs no spacing.
 
 **R-E2 (the search).** The program takes up each distinct rule of the
 pairs (of the union, given several files — R-E1) in order of first appearance and prints its line (R-O16),

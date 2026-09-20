@@ -193,7 +193,9 @@ holds one for exactly the width on screen.
                   name, its colour set and the rule — and the ages of
                   the ten as they stand at that moment. Each burst opens
                   with a blank line, to keep one plainly apart from the
-                  next
+                  next; the countdown sits below that blank, and the
+                  burst that follows takes over its line, so exactly one
+                  empty line falls between any two bursts
 
 Output: a line as each round trip begins (and the parity plan after it),
 a line as each rule is taken up, a line for every row that joins the ten
