@@ -87,21 +87,27 @@ static uint16_t rgb565_swapped(uint8_t r, uint8_t g, uint8_t b) {
 // region the user sees strobing worst. Flicker visibility tracks
 // luminance contrast, and the desktop palette puts these two far
 // apart: #121218 sits around relative luminance 19, #409CFF around 140.
-// Closing that gap all but stops the strobing, confirmed on the screen.
+// Closing that gap all but stops the strobing.
 //
-// First attempt lifted state 0 to #275080, about 45% of the way toward
-// state 3. Strobing nearly vanished, but pulling the dark state that
-// far up cost contrast against states 1 and 2 as well (the user's read).
+// Two ways of closing it were tried on the screen. Lifting state 0
+// to #275080, about 45% of the way toward state 3: "almost no
+// strobing", at the cost of some contrast against states 1 and 2, since
+// the dark state comes up to meet them as well. Or dropping state 3 to
+// pure black instead, leaving both of the pair dark so white and orange
+// keep their full strength: that kills the strobing too, but where 0
+// and 3 alternate the structure goes from low-contrast to nearly
+// invisible, so the texture is lost rather than merely dimmed.
 //
-// This is the opposite approach: state 0 goes back to the desktop's own
-// value and state 3 comes down to pure black instead. The 0/3 pair
-// still ends up close enough to stop strobing, but both are now dark,
-// so states 1 and 2 keep their full contrast against the field rather
-// than everything washing toward mid-blue. The cost moves rather than
-// disappearing: where 0 and 3 alternate, that structure is now nearly
-// invisible instead of merely low-contrast.
-static const uint8_t S0_R = 0x12, S0_G = 0x12, S0_B = 0x18;  // desktop's own
-static const uint8_t S3_R = 0x00, S3_G = 0x00, S3_B = 0x00;  // desktop's own: 0x40, 0x9C, 0xFF
+// The user chose the first, having seen both (2026-09-19): losing a
+// little contrast against the other two states is the better trade than
+// losing the texture of the 0/3 bands altogether.
+//
+// This makes the CYD the one platform not showing "ODCA default". If it
+// is worth keeping, its proper home is a named colour set in
+// library.json that every platform can reach, rather than a local edit
+// on the board that happened to expose the problem.
+static const uint8_t S0_R = 0x27, S0_G = 0x50, S0_B = 0x80;  // desktop's own: 0x12, 0x12, 0x18
+static const uint8_t S3_R = 0x40, S3_G = 0x9C, S3_B = 0xFF;  // desktop's own
 
 static const uint16_t PALETTE_WIRE[4] = {
     rgb565_swapped(S0_R, S0_G, S0_B), rgb565_swapped(0xEB, 0xEB, 0xE1),
