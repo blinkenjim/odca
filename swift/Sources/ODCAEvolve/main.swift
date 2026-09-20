@@ -4,11 +4,12 @@ import Foundation
 import ODCAKit
 
 let (files, flags, options) = parseArguments(program: "odca-evolve", help: helpOdcaEvolve,
-                                             flags: ["--parity"],
+                                             flags: ["--parity", "-v", "--verbose"],
                                              options: ["--cells", "--time", "--cap", "--limit", "-o"],
                                              valueNames: ["-o": "<file.odca>"],
                                              positional: "<file.odca> [<file.odca> ...]", many: true)
 let parity = flags.contains("--parity")  // R-E5
+let verbose = flags.contains("-v") || flags.contains("--verbose")  // R-E6
 if options["--limit"] != nil && !parity {
     print("odca-evolve: --limit applies only with --parity")
     exit(2)
@@ -53,6 +54,19 @@ guard !pairs.isEmpty else {  // R-E1: and between them hold pairs
 var seeds = Store.loadSeeds(files)
 var rules: [String] = []  // distinct, in order of first appearance (R-E2)
 for pair in pairs where !rules.contains(pair.rule) { rules.append(pair.rule) }
+
+// R-E6: which pairs a rule belongs to, for the verbose lines. A rule can
+// belong to more than one — the same automaton under different colours is
+// a different pair — so this is a list, and each gets its own line rather
+// than one of them standing in for the rest.
+var pairsByRule: [String: [Pair]] = [:]
+for pair in pairs { pairsByRule[pair.rule, default: []].append(pair) }
+func pairLines(_ id: String) -> [String] {
+    (pairsByRule[id] ?? []).map { "\($0.name ?? "(unnamed)"), \($0.colorset), \(id)" }
+}
+func ages(_ seeds: [Seed]) -> String {  // R-O16: generations, longest first
+    seeds.map { String($0.generations) }.joined(separator: ", ")
+}
 
 // Ctrl-C: finish the rule in hand by writing what it has, then leave (R-E4).
 var interrupted = false
@@ -114,8 +128,16 @@ while true {
     let place = parity ? ", running \(ran) of \(toRun)" : ""  // R-O16: its place among the rules that run
     say("rule \(id) (\(index + 1)/\(rules.count)\(place)): \(cells) cells", at: deadline)  // opens with the whole budget
     let search = SeedSearch(rule: rule, cells: cells, cap: cap, kept: seeds[id]?[cells] ?? [])
-    search.onKept = { seed, rank in
+    // R-E6: verbose adds, under each join, which pairs the rule belongs to
+    // and the ten as they now stand. The ten come in as an argument rather
+    // than being read back from the search: this runs with the search's lock
+    // held, and reading `kept` would take that same lock and deadlock.
+    search.onKept = { seed, rank, kept in
         say("kept \(seed.generations) generations, rank \(rank) (\(seed.end))", at: deadline)
+        if verbose {
+            for line in pairLines(id) { say(line, at: deadline) }
+            say(ages(kept), at: deadline)
+        }
     }
     // The rate shown is recent, not cumulative: rows finished over the last
     // ten seconds of ticks. A cumulative average carries the rows still in
@@ -142,7 +164,10 @@ while true {
     outputLock.unlock()
     if cutShort { say("all ten survived the cap: turn ended early", at: deadline) }  // R-O16
     if !kept.isEmpty {  // R-O16: the ages of the ten, longest first, before moving on
-        say(kept.map { String($0.generations) }.joined(separator: ", "), at: deadline)
+        if verbose {  // R-E6: name the pairs this rule belongs to first
+            for line in pairLines(id) { say(line, at: deadline) }
+        }
+        say(ages(kept), at: deadline)
     }
     seeds[id, default: [:]][cells] = kept  // R-E3: the merged ten, written now
     Store.saveOdcaFile(pairs, seeds: seeds, to: output)

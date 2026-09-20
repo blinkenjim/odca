@@ -1,7 +1,14 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-19):** Spec 3.76.0, Swift 3.76.0, Python
-3.73.0: `odca-evolve` takes several odca files and searches their union,
+**YOU ARE HERE (2026-09-19):** Spec 3.78.0, Swift 3.78.0, Python
+3.73.0: 3.78.0: `odca-evolve -v` / `--verbose` (R-E6) names the pairs a
+rule belongs to and prints the ten as they stand, at every join and
+again as a turn ends; printing only, nothing about the search changes.
+One pair line per pair, since a rule can belong to several. Implementing
+it needed `SeedSearch.onKept` to hand over the ten as a third argument:
+it fires with the search's lock held and that lock is not recursive, so
+reading `kept` from the callback would have deadlocked on the first
+seed. Before that, `odca-evolve` takes several odca files and searches their union,
 with `-o` saying where the results go (R-E1). 3.76.0: `-o` is required
 however many inputs are given — it used to be implicit for a single
 file, so searching a file and rewriting it were the same act and a

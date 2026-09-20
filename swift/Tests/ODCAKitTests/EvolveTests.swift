@@ -68,7 +68,7 @@ final class EvolveTests: XCTestCase {
         let search = SeedSearch(rule: kills3, cells: 12, cap: 50, workers: 2, kept: [seed("333333333333", 6, "survived")])
         var reported: [(Seed, Int)] = []
         let lock = NSLock()
-        search.onKept = { seed, rank in lock.lock(); reported.append((seed, rank)); lock.unlock() }
+        search.onKept = { seed, rank, _ in lock.lock(); reported.append((seed, rank)); lock.unlock() }
         var ticks = 0
         let kept = search.run(until: Date().addingTimeInterval(1.5)) { remaining in
             ticks += 1

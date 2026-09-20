@@ -5,6 +5,28 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.78.0 (Swift, spec) — 2026-09-19
+
+`odca-evolve -v` (or `--verbose`) says more while it works.
+
+Watching a long search, the `kept` lines tell you a row joined the ten
+but not which of your pairs just got better, nor how the ten now stand.
+Verbose answers both. Under every join, and again as a rule's turn ends,
+it names the pairs the rule belongs to and prints the ten:
+
+    00:00:02 kept 9531 generations, rank 3 (states 1, 2 extinct)
+    00:00:02 pair-0000, ODCA default, 33233022210132010013
+    00:00:02 pair-0007, Fiery Ice Cream Delight, 33233022210132010013
+    00:00:02 10514, 9884, 9531, 8630, 8062, 7712, 7676, 7537, 7390, 7318
+
+Note the two pair lines. A rule can belong to more than one pair — the
+same automaton under another colour set is another pair, and four rules
+in `interesting.odca` are already like that — so each gets its own line
+rather than one of them standing in for the rest.
+
+It changes only what is printed. Nothing about what is searched, kept or
+written differs with the flag on.
+
 ## 3.76.0 (Swift, spec) — 2026-09-19
 
 `odca-evolve` now always requires `-o`, even for a single file.

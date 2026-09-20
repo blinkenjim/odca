@@ -136,6 +136,7 @@ odca-evolve: search an odca file's rules for their longest-lived seeds
 
 usage: odca-evolve <file.odca> [<file.odca> ...] -o <file.odca>
                    --cells N --time SECONDS [--cap N] [--parity [--limit N]]
+                   [-v | --verbose]
        odca-evolve --help
 
 Given more than one file, works on the union of them all as though it
@@ -185,6 +186,12 @@ holds one for exactly the width on screen.
                   the input files, which is warned about since it
                   overwrites that file. Input files that are not the
                   output are never modified
+  -v, --verbose   say more, and only say more: nothing about what is
+                  searched or written changes. Under each row that joins
+                  the ten, and again as a rule's turn ends, names the
+                  pairs the rule belongs to — one line each, the pair's
+                  name, its colour set and the rule — and the ages of
+                  the ten as they stand at that moment
 
 Output: a line as each round trip begins (and the parity plan after it),
 a line as each rule is taken up, a line for every row that joins the ten

@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.76.0 — 2026-09-19
+Version 3.78.0 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -104,7 +104,9 @@ R-E2, R-E3, R-U9, section 4e, section 10. 3.74.1: that union loses
 nothing — pairs unite by content and a shared name is a clash of labels
 only, the later pair renamed rather than dropped — R-E1. 3.76.0: `-o` is
 required however many input files are given, and naming an input as the
-output is warned about — R-E1, R-U9.)
+output is warned about — R-E1, R-U9. 3.78.0: `-v` / `--verbose` names the
+pairs a rule belongs to and the ten as they stand, at every join and at
+the end of a turn — R-E6, R-O16, R-U9.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1053,6 +1055,24 @@ missing required option prints `odca-evolve: --cells is required`, exit
 2). The
 program opens no window, starts no background search (R-S), and neither
 reads nor writes `$HOME/.odca` (R-P1, R-P2).
+
+**R-E6 (verbose, `-v` / `--verbose`).** Either spelling turns on extra
+reporting; both mean the same thing and giving both is not an error. It
+changes only what is printed, never what is searched or written.
+
+Two moments gain lines. As a seed joins the ten (R-E3), under the `kept`
+line of R-O16: one line per pair the rule belongs to, each giving the
+pair's name, its colour set's name, and the rule, comma-separated
+(`pair-0004, ODCA default, 33233022210132010013`; a pair with no name
+reads `(unnamed)`); then the ages of the ten as they now stand, in the
+same form R-O16 prints when a rule's turn ends. And as a rule's turn
+ends, the same pair lines before that ages line.
+
+A rule may belong to more than one pair — the same automaton under
+another colour set is another pair — so each gets its own line rather
+than one standing in for the rest. The ages reported at a join are those
+at the moment of that join, not as they may stand by the time the line
+is printed.
 
 **R-E2 (the search).** The program takes up each distinct rule of the
 pairs (of the union, given several files — R-E1) in order of first appearance and prints its line (R-O16),

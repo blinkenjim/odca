@@ -127,7 +127,13 @@ public final class SeedSearch: @unchecked Sendable {
     public let cap: Int
     public let workers: Int
     /// Called, serialized, with each seed that joins the ten and its 1-based rank at the time.
-    public var onKept: ((Seed, Int) -> Void)?
+    /// Called as a seed joins the ten: the seed, its 1-based rank, and the
+    /// ten as they now stand. The list is handed over rather than read back
+    /// from `kept`, for two reasons: this runs with the lock held and `kept`
+    /// takes that same lock, which is not recursive, so reading it here would
+    /// deadlock; and a snapshot is what the caller wants anyway, matching the
+    /// moment of the keep rather than whatever another worker did since.
+    public var onKept: ((Seed, Int, [Seed]) -> Void)?
     private let lock = NSLock()
     private var stopRequested = false
     private var keptRows: [Seed]
@@ -176,7 +182,7 @@ public final class SeedSearch: @unchecked Sendable {
         guard let index = Evolve.rank(of: seed, among: keptRows) else { return }
         keptRows.insert(seed, at: index)
         if keptRows.count > Evolve.keep { keptRows.removeLast() }
-        onKept?(seed, index + 1)
+        onKept?(seed, index + 1, keptRows)
     }
 
     /// Search until `deadline` or `stop()`, calling `tick` about once a
