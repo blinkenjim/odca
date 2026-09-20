@@ -84,9 +84,13 @@ func clearCountdown() {
         countdownShown = false
     }
 }
-func say(_ line: String, at deadline: Date) {
+/// `blankBefore` puts an empty line above, inside the same lock, so the
+/// blank and the line it announces cannot be separated (R-E6: it is what
+/// keeps one verbose burst visually apart from the next).
+func say(_ line: String, at deadline: Date, blankBefore: Bool = false) {
     outputLock.lock()
     clearCountdown()
+    if blankBefore { print("") }
     print("\(Evolve.hms(deadline.timeIntervalSinceNow)) \(line)")
     outputLock.unlock()
 }
@@ -133,7 +137,11 @@ while true {
     // than being read back from the search: this runs with the search's lock
     // held, and reading `kept` would take that same lock and deadlock.
     search.onKept = { seed, rank, kept in
-        say("kept \(seed.generations) generations, rank \(rank) (\(seed.end))", at: deadline)
+        // Verbose makes each join a burst of several lines, so it opens with
+        // a blank one to keep bursts apart. Plain output stays one line a
+        // join and needs no spacing.
+        say("kept \(seed.generations) generations, rank \(rank) (\(seed.end))",
+            at: deadline, blankBefore: verbose)
         if verbose {
             for line in pairLines(id) { say(line, at: deadline) }
             say(ages(kept), at: deadline)
@@ -162,12 +170,20 @@ while true {
     outputLock.lock()
     clearCountdown()
     outputLock.unlock()
-    if cutShort { say("all ten survived the cap: turn ended early", at: deadline) }  // R-O16
+    // R-E6: the lines closing a turn are a burst of their own, so under
+    // verbose they open with a blank line as a join does — one blank for
+    // the whole of what follows, not one per line.
+    var turnEndOpened = false
+    func closing(_ line: String) {
+        say(line, at: deadline, blankBefore: verbose && !turnEndOpened)
+        turnEndOpened = true
+    }
+    if cutShort { closing("all ten survived the cap: turn ended early") }  // R-O16
     if !kept.isEmpty {  // R-O16: the ages of the ten, longest first, before moving on
         if verbose {  // R-E6: name the pairs this rule belongs to first
-            for line in pairLines(id) { say(line, at: deadline) }
+            for line in pairLines(id) { closing(line) }
         }
-        say(ages(kept), at: deadline)
+        closing(ages(kept))
     }
     seeds[id, default: [:]][cells] = kept  // R-E3: the merged ten, written now
     Store.saveOdcaFile(pairs, seeds: seeds, to: output)

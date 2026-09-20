@@ -191,7 +191,9 @@ holds one for exactly the width on screen.
                   the ten, and again as a rule's turn ends, names the
                   pairs the rule belongs to — one line each, the pair's
                   name, its colour set and the rule — and the ages of
-                  the ten as they stand at that moment
+                  the ten as they stand at that moment. Each burst opens
+                  with a blank line, to keep one plainly apart from the
+                  next
 
 Output: a line as each round trip begins (and the parity plan after it),
 a line as each rule is taken up, a line for every row that joins the ten

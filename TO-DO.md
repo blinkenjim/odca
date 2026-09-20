@@ -1,6 +1,6 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-19):** Spec 3.78.0, Swift 3.78.0, Python
+**YOU ARE HERE (2026-09-19):** Spec 3.78.1, Swift 3.78.1, Python
 3.73.0: 3.78.0: `odca-evolve -v` / `--verbose` (R-E6) names the pairs a
 rule belongs to and prints the ten as they stand, at every join and
 again as a turn ends; printing only, nothing about the search changes.

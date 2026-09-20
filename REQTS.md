@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.78.0 — 2026-09-19
+Version 3.78.1 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -106,7 +106,8 @@ only, the later pair renamed rather than dropped — R-E1. 3.76.0: `-o` is
 required however many input files are given, and naming an input as the
 output is warned about — R-E1, R-U9. 3.78.0: `-v` / `--verbose` names the
 pairs a rule belongs to and the ten as they stand, at every join and at
-the end of a turn — R-E6, R-O16, R-U9.)
+the end of a turn — R-E6, R-O16, R-U9. 3.78.1: each verbose burst opens
+with a blank line — R-E6.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1073,6 +1074,13 @@ another colour set is another pair — so each gets its own line rather
 than one standing in for the rest. The ages reported at a join are those
 at the moment of that join, not as they may stand by the time the line
 is printed.
+
+Each burst opens with an empty line, so that one is plainly separate
+from the next: one blank above the `kept` line of a join, and one above
+the first of the lines closing a turn, whichever that is. The blank is
+printed with the line it announces, never apart from it. Without
+`-v` nothing gains a blank line, a join being one line there and needing
+no spacing.
 
 **R-E2 (the search).** The program takes up each distinct rule of the
 pairs (of the union, given several files — R-E1) in order of first appearance and prints its line (R-O16),

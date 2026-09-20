@@ -5,6 +5,22 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.78.1 (Swift, spec) — 2026-09-19
+
+Verbose output now puts a blank line above each burst, so one is plainly
+separate from the next rather than running together into a wall:
+
+    00:00:01 kept 1504 generations, rank 5 (state 2 extinct)
+    00:00:01 pair-0000, ODCA default, 33233022210132010013
+    00:00:01 2041, 1652, 1581, 1562, 1504, 1443, 1433, 1426
+
+    00:00:00 pair-0000, ODCA default, 33233022210132010013
+    00:00:00 2041, 1652, 1581, 1562, 1504, 1443, 1433, 1426
+
+The lines closing a rule's turn get one too, being a burst in their own
+right; without that they read as a continuation of the last join. Plain
+output is untouched — a join is one line there and needs no spacing.
+
 ## 3.78.0 (Swift, spec) — 2026-09-19
 
 `odca-evolve -v` (or `--verbose`) says more while it works.
