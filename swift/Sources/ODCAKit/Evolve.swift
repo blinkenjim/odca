@@ -54,6 +54,65 @@ public enum Evolve {
     }
     static let stopCheckEvery = 1024  // generations between looks at the stop flag
 
+/// R-E2's stagnation clause: the minority population of the last
+/// `Session.stagnationWindow` generations, answering R-A1's question — is
+/// `(max - min) / mean` under the swing? — in constant time per generation.
+///
+/// The player rescans its whole window on every row, which costs nothing at
+/// display rates; a search measuring millions of generations cannot. So the
+/// sum is carried, and the extremes are kept in two deques of slot numbers,
+/// oldest at the front and values monotonic behind it. A slot leaves the
+/// front when it falls out of the window and the back when the arriving
+/// value beats it, which it never comes back from, so each slot is pushed
+/// and popped once and the front is always the window's extreme.
+struct StagnationWindow {
+    private let width: Int
+    private var values: [Int]
+    private var least: [Int], greatest: [Int]  // slot numbers, monotonic
+    private var leastFront = 0, leastBack = 0
+    private var greatestFront = 0, greatestBack = 0
+    private var arrived = 0, sum = 0
+
+    init(width: Int) {
+        self.width = width
+        values = [Int](repeating: 0, count: width)
+        least = values
+        greatest = values
+    }
+
+    /// Admits one generation's minority population and says whether the
+    /// window is now both full and steady.
+    mutating func admit(_ population: Int) -> Bool {
+        // Once full, the slot about to be written is the oldest, so this is
+        // where it leaves the sum and, if it is one, an extreme.
+        let slot = arrived % width
+        if arrived >= width {
+            sum -= values[slot]
+            if least[leastFront % width] == slot { leastFront += 1 }
+            if greatest[greatestFront % width] == slot { greatestFront += 1 }
+        }
+        values[slot] = population
+        sum += population
+        while leastBack > leastFront, values[least[(leastBack - 1) % width]] >= population {
+            leastBack -= 1
+        }
+        least[leastBack % width] = slot
+        leastBack += 1
+        while greatestBack > greatestFront, values[greatest[(greatestBack - 1) % width]] <= population {
+            greatestBack -= 1
+        }
+        greatest[greatestBack % width] = slot
+        greatestBack += 1
+        arrived += 1
+
+        guard arrived >= width else { return false }
+        let mean = Double(sum) / Double(width)
+        let spread = values[greatest[greatestFront % width]] - values[least[leastFront % width]]
+        return mean > 0 && Double(spread) / mean < Session.stagnationSwing
+    }
+}
+
+
     /// Evolve `row` under `rule` in wrap mode until extinction, a confirmed
     /// cycle, or the cap (R-E2). nil when `shouldStop` said to abandon the row.
     public static func lifetime(rule: Rule, row: [UInt8], cap: Int,
@@ -64,9 +123,14 @@ public enum Evolve {
         // proves the future periodic, the steps since the snapshot the period.
         var snapshot: [UInt8]?
         var power = 1, steps = 0
+        // R-E2: the stagnation clause of R-A1, run on the same populations
+        // the player watches, so a seed's lifetime ends where the player
+        // would re-seed rather than running on to the cap unwatchable.
+        var steady = StagnationWindow(width: Session.stagnationWindow)
         while automaton.generation < cap {
             let next = automaton.step()
-            if let end = Session.extinction(in: next, rule: rule) {
+            let (end, minorityPopulation) = Session.census(of: next, rule: rule)
+            if let end = end {
                 return Seed(row: row, generations: automaton.generation, end: end)
             }
             if let saved = snapshot {
@@ -81,6 +145,12 @@ public enum Evolve {
                 }
             } else {
                 snapshot = next
+            }
+            // Last of the three: an extinction or a confirmed cycle says
+            // outright what the row has become, where stagnation only says
+            // it has stopped going anywhere.
+            if steady.admit(minorityPopulation) {
+                return Seed(row: row, generations: automaton.generation, end: "stagnant")
             }
             if automaton.generation % stopCheckEvery == 0 && shouldStop() { return nil }
         }

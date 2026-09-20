@@ -1,7 +1,20 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-19):** Spec 3.78.6, Swift 3.78.6, Python
-3.73.0: 3.78.0: `odca-evolve -v` / `--verbose` (R-E6) names the pairs a
+**YOU ARE HERE (2026-09-19):** Spec 3.80.0, Swift 3.80.0, Python
+3.73.0: 3.80.0: `odca-evolve` ends a seed at stagnation as well as at
+extinction and a confirmed cycle (R-E2), so a lifetime now means what it
+claims to — how long the rule stays worth watching — rather than how
+long it avoids two particular deaths. This came out of asking whether
+the rule's lookup table could predict boringness without running the
+automaton: it cannot, and the measuring was tested and thrown away
+(orphan counts and image growth rate put this rule family inside the
+10th-90th percentile of random rules, because totalistic rules preserve
+variety almost by construction). What the experiment did turn up was
+that evolve and the player disagreed about `boring`. Recorded lifetimes
+for rules that reached the cap under the old measure are stale and worth
+re-searching; nothing rewrites them. 3.78.7: `Rule` settles a producible
+mask at init instead of `Session.census` rebuilding it every generation,
+about eleven percent off a search, no behavioral change. 3.78.0: `odca-evolve -v` / `--verbose` (R-E6) names the pairs a
 rule belongs to and prints the ten as they stand, at every join and
 again as a turn ends; printing only, nothing about the search changes.
 One pair line per pair, since a rule can belong to several. Implementing

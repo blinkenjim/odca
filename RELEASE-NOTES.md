@@ -5,6 +5,35 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.80.0 (Swift, spec) — 2026-09-19
+
+`odca-evolve` now ends a seed's life where `odca` would re-seed. It
+already stopped at an extinction and at a confirmed cycle; it now stops
+at stagnation too — R-A1's third clause, the minority population holding
+steady for 1600 generations — which the search had been ignoring.
+
+The point is that a lifetime is supposed to predict how long a rule
+stays worth watching, and the two programs disagreed about what that
+meant. A rule could hold all four states, never repeat, and sit there
+doing nothing for the whole of the cap, recording 100,000 generations
+for something you would have re-seeded within a minute.
+
+On a real file of sixteen rules this changed exactly the rules it
+should. Every rule whose seeds already died or cycled kept its lifetimes
+to the generation. Of six rules recorded as surviving the cap, two now
+end stagnant at around 2,500 generations, and a third turns out to have
+been recorded before 3.60.0 taught the search about cycles — it ends
+repeating. The remaining three genuinely survive.
+
+**Your recorded lifetimes for such rules are now wrong and worth
+re-searching.** Nothing rewrites them; a rule that reached the cap under
+the old measure keeps that number until you search it again.
+
+The search did not get slower for it. The window's sum and extremes are
+carried as it slides rather than rescanned, so the test is constant time
+per generation: 0.174 s before and 0.173 s after, on a 600-cell seed run
+to a cap of 100,000.
+
 ## 3.78.7 (Swift, spec) — 2026-09-19
 
 Nothing changes on screen or in a file; `odca-evolve` simply measures

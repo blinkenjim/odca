@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.78.7 — 2026-09-19
+Version 3.80.0 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -115,7 +115,9 @@ R-E6. 3.78.5: the verbose ages star the row that has just joined —
 R-E6. 3.78.6: a verbose join's first line carries the width — R-E6.
 3.78.7: the census of R-A1 reads a producible mask settled once with
 the rule rather than rebuilt on every generation — no behavioral
-change, R-M5.)
+change, R-M5. 3.80.0: a seed's lifetime ends at stagnation as well as at
+extinction and a confirmed cycle, so it ends where the player would
+re-seed — R-E2.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1130,12 +1132,18 @@ by Brent's algorithm exactly as the player runs it from a fresh seed
 the steps since it reach a power of two; a generation equal to the
 snapshot confirms a cycle whose period is those steps), which gives
 that generation as the lifetime and `repeating (period <N>)` as the
-end — extinction is tested first on a generation that is both; or the
-cap, `--cap` generations computed without either, which gives lifetime
-`--cap` and end `survived`. The screenful-based repetition and the
-stagnation of R-A1 play no part. (Until 3.60.0 only extinction ended a
-row, so a row that settled into a cycle lived to the cap; seeds so
-recorded stay as they are.) A row still evolving
+end; or the first generation at which the row is *stagnant* — R-A1's
+stagnation clause exactly, the minority populations of the last 1600
+computed generations spanning less than a quarter of their mean — which
+gives that generation as the lifetime and `stagnant` as the end. On a
+generation answering to more than one of the three, they are tested in
+that order. Failing all three there is the cap, `--cap` generations
+computed, which gives lifetime `--cap` and end `survived`. The
+screenful-based repetition of R-A1 plays no part. (Until 3.60.0 only
+extinction ended a row, so a row that settled into a cycle lived to the
+cap; until 3.80.0 stagnation did not end one either, so a row that had
+stopped going anywhere without dying out or repeating did the same.
+Seeds recorded under either stay as they are.) A row still evolving
 when the budget ends, or when the program is interrupted (R-E4), is
 discarded. The conformance vectors (TESTS.md, `lifetimes`) fix the
 measure.

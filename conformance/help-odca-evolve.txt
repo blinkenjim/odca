@@ -24,7 +24,9 @@ For every distinct rule in the union, in order, spends the time budget
 drawing random rows of N cells and evolving each, in wrap mode, until a
 state the rule can produce has died out with no other state left in a
 minority (the extinction that makes odca re-seed), or a cycle of any
-period is confirmed (as odca's own detector confirms one), or the cap. The
+period is confirmed (as odca's own detector confirms one), or the minority
+population has held steady long enough to count as stagnant (as it does on
+screen), or the cap. The
 ten longest-lived rows are kept, merged with any the file already holds
 for that rule and width, and written to the output file as the budget
 runs out; then the next rule, and after the last the first again, round trip

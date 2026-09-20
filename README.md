@@ -100,7 +100,9 @@ the keyboard:
 - **`odca-evolve <file.odca> --cells N --time SECONDS [--cap N] [--parity [--limit N]]`** (Swift
   only, for now) searches each rule in the file for the starting rows
   that keep it alive longest at a width of N cells: random rows evolved
-  until a state dies out or a cycle is confirmed, the ten longest-lived kept and written back
+  until a state dies out, a cycle is confirmed, or the row goes stagnant —
+  the same three endings that make `odca` re-seed — the ten longest-lived
+  kept and written back
   into the file, `--time` seconds per rule, every processor at work,
   round trip after round trip through the rules until Ctrl-C. It
   opens no window. `odca` then starts a pair from its best seed whenever

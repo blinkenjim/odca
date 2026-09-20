@@ -38,6 +38,56 @@ final class EvolveTests: XCTestCase {
         XCTAssertNil(Evolve.lifetime(rule: kills3, row: [3, 1], cap: 10))  // narrower than any row
     }
 
+    func testStagnationEndsARowAsItEndsOneOnScreen() {  // PT-40, R-E2, R-A1
+        // A real rule and row: the minority population settles and the row is
+        // stagnant at 1699, having neither died out nor confirmed a cycle.
+        let rule = try! Rule(id: "22310203230002331122")
+        let text = "101301022322231203211111313232203210122300301300221101010012111220"
+            + "031222122111010333303200001103010101312130311111002003"
+        let row = text.map { UInt8($0.wholeNumberValue!) }
+        XCTAssertEqual(Evolve.lifetime(rule: rule, row: row, cap: 20_000), seed(text, 1699, "stagnant"))
+        // The cap comes first when it falls inside the window.
+        XCTAssertEqual(Evolve.lifetime(rule: rule, row: row, cap: 1_000)?.end, "survived")
+        // A window narrower than the stagnation window never judges: kills3
+        // still ends by extinction, not stagnation.
+        XCTAssertEqual(Evolve.lifetime(rule: kills3, row: seed("3333333311111111", 0).row, cap: 100)?.end,
+                       "state 3 extinct")
+    }
+
+    func testStagnationWindowMatchesRescanningTheWholeWindow() {  // PT-40, R-E2
+        // The carried sum and the two monotonic deques must answer exactly
+        // what the player gets by rescanning, on every prefix and for every
+        // shape of sequence: rising (which grows the least-deque), falling
+        // (which grows the greatest-deque), flat, and noisy.
+        var rng = Xoshiro256(seed: 99)
+        let width = 16
+        for shape in 0..<4 {
+            var window = Evolve.StagnationWindow(width: width)
+            var seen: [Int] = []
+            for step in 0..<200 {
+                let population: Int
+                switch shape {
+                case 0: population = step                      // strictly rising
+                case 1: population = 400 - step                // strictly falling
+                case 2: population = 7                         // flat
+                default: population = Int(rng.next() % 40)     // noisy
+                }
+                let said = window.admit(population)
+                seen.append(population)
+                if seen.count > width { seen.removeFirst() }
+                let naive: Bool
+                if seen.count < width {
+                    naive = false
+                } else {
+                    let mean = Double(seen.reduce(0, +)) / Double(width)
+                    naive = mean > 0
+                        && Double(seen.max()! - seen.min()!) / mean < Session.stagnationSwing
+                }
+                XCTAssertEqual(said, naive, "shape \(shape), step \(step)")
+            }
+        }
+    }
+
     func testMergeAndRankKeepTheLongestTen() {  // PT-41, R-E3
         let a = (0..<12).map { n -> Seed in  // twelve distinct rows: n in binary, 0 -> 1, 1 -> 3
             let bits = String(n, radix: 2)
