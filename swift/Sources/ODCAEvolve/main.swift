@@ -67,8 +67,13 @@ for pair in pairs { pairsByRule[pair.rule, default: []].append(pair) }
 func pairLines(_ id: String) -> [String] {
     (pairsByRule[id] ?? []).map { "\($0.name ?? "(unnamed)"), \($0.colorset), \(id)" }
 }
-func ages(_ seeds: [Seed]) -> String {  // R-O16: generations, longest first
-    seeds.map { String($0.generations) }.joined(separator: ", ")
+/// R-O16: generations, longest first. `marking` stars one of them, which
+/// under verbose is the row that has just joined (R-E6) — the point of a
+/// join is which of the ten is new, and the ages alone do not say.
+func ages(_ seeds: [Seed], marking marked: Int? = nil) -> String {
+    seeds.enumerated()
+        .map { (i, seed) in (i == marked ? "*" : "") + String(seed.generations) }
+        .joined(separator: ", ")
 }
 
 // Ctrl-C: finish the rule in hand by writing what it has, then leave (R-E4).
@@ -164,7 +169,9 @@ while true {
         // verbose is the pairs the rule belongs to: they name what is being
         // improved, and so read better above the news than below it.
         let keptLine = "kept \(seed.generations) generations, rank \(rank) (\(seed.end))"
-        let lines = verbose ? pairLines(id) + [keptLine, ages(kept)] : [keptLine]
+        // rank is 1-based and is where the row was inserted, so kept[rank - 1]
+        // is the row this burst is announcing.
+        let lines = verbose ? pairLines(id) + [keptLine, ages(kept, marking: rank - 1)] : [keptLine]
         for (i, line) in lines.enumerated() {
             say(line, at: deadline, blankBefore: verbose && i == 0)
         }

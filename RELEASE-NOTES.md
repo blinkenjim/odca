@@ -5,6 +5,19 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.78.5 (Swift, spec) — 2026-09-19
+
+The verbose ages now star the row that has just joined, so you can see
+at a glance where in the ten it landed rather than reading the rank off
+the line above and counting:
+
+    00:00:03 pair-0000, ODCA default, 33233022210132010013
+    00:00:03 kept 1390 generations, rank 3 (states 1, 2 extinct)
+    00:00:03 4381, 1781, *1390, 535
+
+Only a join is marked. The ages printed as a rule's turn ends carry no
+asterisk, nothing having just arrived.
+
 ## 3.78.4 (Swift, spec) — 2026-09-19
 
 The verbose pair lines now come above the `kept` line rather than below

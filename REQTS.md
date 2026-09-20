@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.78.4 — 2026-09-19
+Version 3.78.5 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -111,6 +111,7 @@ with a blank line — R-E6. 3.78.2: the overwrite warning reads
 `*** WARNING: ...` — R-E1. 3.78.3: the verbose countdown sits below the
 blank that separates bursts, and a burst reuses its line — R-E6, R-E4.
 3.78.4: the verbose pair lines come above the `kept` line, not below —
+R-E6. 3.78.5: the verbose ages star the row that has just joined —
 R-E6.)
 
 Versioning is semantic and shared by the whole code base: the
@@ -1072,7 +1073,11 @@ per pair the rule belongs to, each giving the pair's name, its colour
 set's name, and the rule, comma-separated (`pair-0004, ODCA default,
 33233022210132010013`; a pair with no name reads `(unnamed)`); then the
 `kept` line of R-O16; then the ages of the ten as they now stand, in the
-same form R-O16 prints when a rule's turn ends. The pairs come first
+same form R-O16 prints when a rule's turn ends, except that the row
+which has just joined is preceded by a single asterisk (`4381, 1781,
+*1390, 535`) — the point of a join is which of the ten is new, and the
+ages alone do not say. The asterisk marks the join only: the ages
+printed as a turn ends carry none, no row having just arrived. The pairs come first
 because they name what is being improved, which reads better above the
 news of the improvement than below it. And as a rule's turn ends, the
 same pair lines before that ages line.

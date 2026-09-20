@@ -191,7 +191,8 @@ holds one for exactly the width on screen.
                   the ten, and again as a rule's turn ends, names the
                   pairs the rule belongs to — one line each, the pair's
                   name, its colour set and the rule — and under the join
-                  the ages of the ten as they stand. Each burst opens
+                  the ages of the ten as they stand, the row that has
+                  just arrived marked with an asterisk. Each burst opens
                   with a blank line, to keep one plainly apart from the
                   next; the countdown sits below that blank, and the
                   burst that follows takes over its line, so exactly one
