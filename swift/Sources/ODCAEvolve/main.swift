@@ -42,7 +42,10 @@ func sameFile(_ a: URL, _ b: URL) -> Bool {
         == b.resolvingSymlinksInPath().standardizedFileURL.path
 }
 if let shared = files.first(where: { sameFile($0, output) }) {  // R-E1
-    print("odca-evolve: warning: \(shared.relativePath) is both an input and the output, and will be overwritten")
+    // Shouted rather than prefixed with the program name as other messages
+    // are: this one warns that a file is about to be rewritten, and is worth
+    // catching the eye in a scrolling terminal.
+    print("*** WARNING: \(shared.relativePath) is both an input and the output, and will be overwritten")
 }
 // The union is wholly in memory before anything is written, so naming an
 // input file as the output is safe.

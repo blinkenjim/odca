@@ -5,6 +5,16 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.78.2 (Swift, spec) — 2026-09-19
+
+The overwrite warning now shouts:
+
+    *** WARNING: interesting.odca is both an input and the output, and will be overwritten
+
+It is the one message that does not begin with the program's name. It
+warns that a file is about to be rewritten, and wants finding in a
+terminal that is already scrolling.
+
 ## 3.78.1 (Swift, spec) — 2026-09-19
 
 Verbose output now puts a blank line above each burst, so one is plainly

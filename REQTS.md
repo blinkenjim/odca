@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.78.1 — 2026-09-19
+Version 3.78.2 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -107,7 +107,8 @@ required however many input files are given, and naming an input as the
 output is warned about — R-E1, R-U9. 3.78.0: `-v` / `--verbose` names the
 pairs a rule belongs to and the ten as they stand, at every join and at
 the end of a turn — R-E6, R-O16, R-U9. 3.78.1: each verbose burst opens
-with a blank line — R-E6.)
+with a blank line — R-E6. 3.78.2: the overwrite warning reads
+`*** WARNING: ...` — R-E1.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1035,9 +1036,11 @@ many input files are given (else `odca-evolve: -o <file.odca> is
 required`, exit 2). It may name one of the input files, which is the
 ordinary way to go on searching one file; because that overwrites the
 file, the program says so before it begins:
-`odca-evolve: warning: <file> is both an input and the output, and will
-be overwritten`, on standard output, naming the input as it was given on
-the command line. Paths are compared resolved, so the same file named
+`*** WARNING: <file> is both an input and the output, and will be
+overwritten`, on standard output, naming the input as it was given on
+the command line. Alone among the program's messages it is not prefixed
+with the program's name: it warns that a file is about to be rewritten,
+and is meant to catch the eye. Paths are compared resolved, so the same file named
 two ways is recognised as one. Only the output file is written; input
 files that are not the output are never modified.
 
