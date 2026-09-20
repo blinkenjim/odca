@@ -159,12 +159,14 @@ while true {
     search.onKept = { seed, rank, kept in
         // Verbose makes each join a burst of several lines, so it opens with
         // a blank one to keep bursts apart. Plain output stays one line a
-        // join and needs no spacing.
-        say("kept \(seed.generations) generations, rank \(rank) (\(seed.end))",
-            at: deadline, blankBefore: verbose)
-        if verbose {
-            for line in pairLines(id) { say(line, at: deadline) }
-            say(ages(kept), at: deadline)
+        // join and needs no spacing. The burst is assembled first so the
+        // blank always falls on whatever line comes first, which under
+        // verbose is the pairs the rule belongs to: they name what is being
+        // improved, and so read better above the news than below it.
+        let keptLine = "kept \(seed.generations) generations, rank \(rank) (\(seed.end))"
+        let lines = verbose ? pairLines(id) + [keptLine, ages(kept)] : [keptLine]
+        for (i, line) in lines.enumerated() {
+            say(line, at: deadline, blankBefore: verbose && i == 0)
         }
     }
     // The rate shown is recent, not cumulative: rows finished over the last

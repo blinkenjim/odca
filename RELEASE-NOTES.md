@@ -5,6 +5,15 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.78.4 (Swift, spec) — 2026-09-19
+
+The verbose pair lines now come above the `kept` line rather than below
+it, so a burst reads as a heading and then its news:
+
+    00:00:02 pair-0000, ODCA default, 33233022210132010013
+    00:00:02 kept 719 generations, rank 1 (states 1, 2 extinct)
+    00:00:02 719, 423
+
 ## 3.78.3 (Swift, spec) — 2026-09-19
 
 The countdown now joins in the verbose spacing instead of sitting flush

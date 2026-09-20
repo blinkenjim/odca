@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.78.3 — 2026-09-19
+Version 3.78.4 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -109,7 +109,9 @@ pairs a rule belongs to and the ten as they stand, at every join and at
 the end of a turn — R-E6, R-O16, R-U9. 3.78.1: each verbose burst opens
 with a blank line — R-E6. 3.78.2: the overwrite warning reads
 `*** WARNING: ...` — R-E1. 3.78.3: the verbose countdown sits below the
-blank that separates bursts, and a burst reuses its line — R-E6, R-E4.)
+blank that separates bursts, and a burst reuses its line — R-E6, R-E4.
+3.78.4: the verbose pair lines come above the `kept` line, not below —
+R-E6.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1065,13 +1067,15 @@ reads nor writes `$HOME/.odca` (R-P1, R-P2).
 reporting; both mean the same thing and giving both is not an error. It
 changes only what is printed, never what is searched or written.
 
-Two moments gain lines. As a seed joins the ten (R-E3), under the `kept`
-line of R-O16: one line per pair the rule belongs to, each giving the
-pair's name, its colour set's name, and the rule, comma-separated
-(`pair-0004, ODCA default, 33233022210132010013`; a pair with no name
-reads `(unnamed)`); then the ages of the ten as they now stand, in the
-same form R-O16 prints when a rule's turn ends. And as a rule's turn
-ends, the same pair lines before that ages line.
+Two moments gain lines. As a seed joins the ten (R-E3): first one line
+per pair the rule belongs to, each giving the pair's name, its colour
+set's name, and the rule, comma-separated (`pair-0004, ODCA default,
+33233022210132010013`; a pair with no name reads `(unnamed)`); then the
+`kept` line of R-O16; then the ages of the ten as they now stand, in the
+same form R-O16 prints when a rule's turn ends. The pairs come first
+because they name what is being improved, which reads better above the
+news of the improvement than below it. And as a rule's turn ends, the
+same pair lines before that ages line.
 
 A rule may belong to more than one pair — the same automaton under
 another colour set is another pair — so each gets its own line rather
