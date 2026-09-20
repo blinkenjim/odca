@@ -167,10 +167,73 @@ public struct Store {
         }
     }
 
+    /// R-P6: why an odca file cannot be used, or nil when it can be.
+    ///
+    /// Loading skips whatever it does not understand, which is right for an
+    /// entry a later version added, but a file that will not parse at all
+    /// contributes *nothing*, and silently, there being no entry left to
+    /// skip. When that file is also where the results go, the next save
+    /// writes over it and everything it held is gone. So every program asks
+    /// this of its files before it starts and refuses to run on a bad one.
+    ///
+    /// A file that does not exist is not this test's business: `odca-select`
+    /// makes its file on the first save (R-W1), and the programs that do
+    /// require a file to exist already say so themselves.
+    public static func rejection(_ url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url) else { return nil }  // missing
+        guard let json = try? JSONSerialization.jsonObject(with: data) else {
+            return "\(url.relativePath): not valid JSON"
+        }
+        if let line = trailingComma(in: data) {
+            return "\(url.relativePath):\(line): a comma with nothing after it"
+        }
+        guard let root = json as? [String: Any] else {
+            return "\(url.relativePath): not an odca file (the top level is not an object)"
+        }
+        if let pairs = root["pairs"] ?? root["looks"], !(pairs is [Any]) {
+            return "\(url.relativePath): \"pairs\" is not a list"
+        }
+        if let seeds = root["seeds"], !(seeds is [String: Any]) {
+            return "\(url.relativePath): \"seeds\" is not an object"
+        }
+        return nil
+    }
+
+    /// R-P6: the line holding a comma that closes nothing — `[1,]` or
+    /// `{"a": 1,}` — or nil when there is none.
+    ///
+    /// JSON forbids these, but Foundation's JSONSerialization accepts them
+    /// and Python's `json`, which the other implementation reads these files
+    /// with, does not. An odca file is one format, so the stricter reading
+    /// wins: a file only one implementation can open is a broken file, and
+    /// this is exactly what a hand edit that deletes a block leaves behind.
+    static func trailingComma(in data: Data) -> Int? {
+        var inString = false, escaped = false, line = 1
+        let bytes = [UInt8](data)
+        for (i, byte) in bytes.enumerated() {
+            if byte == 0x0A { line += 1 }
+            if inString {
+                if escaped { escaped = false }
+                else if byte == 0x5C { escaped = true }       // backslash
+                else if byte == 0x22 { inString = false }     // closing quote
+            } else if byte == 0x22 {
+                inString = true
+            } else if byte == 0x2C {                          // comma
+                var j = i + 1
+                while j < bytes.count, bytes[j] == 0x20 || bytes[j] == 0x09
+                        || bytes[j] == 0x0A || bytes[j] == 0x0D { j += 1 }
+                if j < bytes.count, bytes[j] == 0x7D || bytes[j] == 0x5D { return line }
+            }
+        }
+        return nil
+    }
+
     // R-P3: an odca file — an ordered list of pairs (rule + color set), each
     // named when the file names it, and the seeds odca-evolve has recorded
     // (section 4e) by rule and width. The 3.0.0 key `looks` is still read.
-    /// nil when the file is missing, [] when unparseable; malformed pairs skipped.
+    /// nil when the file is missing, [] when unparseable; malformed pairs
+    /// skipped. Callers check Store.rejection first (R-P6), so in practice
+    /// the unparseable case is refused before it reaches here.
     public static func loadOdcaFile(_ url: URL) -> [Pair]? {
         guard let data = try? Data(contentsOf: url) else { return nil }  // missing
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]

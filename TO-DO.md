@@ -1,7 +1,13 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-19):** Spec 3.80.0, Swift 3.80.0, Python
-3.73.0: 3.80.0: `odca-evolve` ends a seed at stagnation as well as at
+**YOU ARE HERE (2026-09-20):** Spec 3.82.0, Swift 3.82.0, Python
+3.73.0: 3.82.0: every program refuses an odca file it cannot read
+rather than reading it as empty (R-P6), trailing commas included. This
+came out of nearly losing a night's search: a hand edit left a trailing
+comma, and since a file read as empty is a file about to be overwritten
+by the next save, the fault had to be caught before anything starts.
+Python has the same hole at `odca/store.py` and still needs the port.
+3.80.0: `odca-evolve` ends a seed at stagnation as well as at
 extinction and a confirmed cycle (R-E2), so a lifetime now means what it
 claims to — how long the rule stays worth watching — rather than how
 long it avoids two particular deaths. This came out of asking whether

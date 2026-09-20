@@ -5,6 +5,37 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.82.0 (Swift, spec) — 2026-09-20
+
+Every program now refuses to start on an odca file it cannot read,
+naming the file and the fault, instead of reading it as empty (R-P6).
+
+Loading is deliberately forgiving — it skips entries it does not
+understand, so a file a later version added fields to still opens. But a
+file that will not parse at all has no entries left to skip, so it
+contributed *nothing*, and said nothing about it. Where the same file is
+written back afterwards — `odca-select` always, `odca-evolve` whenever
+`-o` names one of its inputs — the next save then wrote over everything
+that file held. A one-character typo could silently destroy a night's
+search.
+
+Refused now: not valid JSON, a top level that is not an object, `pairs`
+holding a non-list, `seeds` holding a non-object. Entries inside those
+are still skipped rather than refused.
+
+Trailing commas count too, and the message names the line:
+
+    error: interesting.odca:1140: a comma with nothing after it
+
+They are the usual leftover of deleting a block by hand. JSON forbids
+them, but the two implementations disagree about that — Foundation's
+JSONSerialization reads them and Python's `json` refuses — so a file
+that Swift opened happily would not open in Python at all. One format is
+one format, and the stricter reading wins.
+
+Note that the Python implementation has the same hole in
+`odca/store.py`, and closing it is a separate port.
+
 ## 3.80.0 (Swift, spec) — 2026-09-19
 
 `odca-evolve` now ends a seed's life where `odca` would re-seed. It

@@ -32,6 +32,15 @@ for file in files where !FileManager.default.fileExists(atPath: file.path) {  //
     print("error: \(file.relativePath) does not exist")
     exit(1)
 }
+// R-P6: and be readable. An input that will not parse used to contribute
+// nothing without saying so, which with -o naming one of the inputs meant
+// the next save wrote over whatever that file held.
+for file in files {
+    if let why = Store.rejection(file) {
+        print("error: \(why)")
+        exit(1)
+    }
+}
 
 // Naming an input as the output is allowed and is the ordinary way to
 // keep searching one file, but it overwrites that file, so it is said

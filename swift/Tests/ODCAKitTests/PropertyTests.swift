@@ -120,6 +120,44 @@ final class PropertyTests: XCTestCase {
         XCTAssertEqual(Store.loadOdcaFile(url), [])
     }
 
+    // PT-48: R-P6 — a file that cannot be used is named, not quietly ignored.
+    func testUnusableOdcaFilesAreRejected() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("odca-reject-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("f.odca")
+        func rejection(_ text: String) throws -> String? {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            return Store.rejection(url)
+        }
+        // A file that is not there yet is not this test's business (R-W1).
+        XCTAssertNil(Store.rejection(dir.appendingPathComponent("absent.odca")))
+        XCTAssertNil(try rejection(#"{"pairs": []}"#))
+        XCTAssertNil(try rejection("{}"))  // nothing in it, but readable
+
+        XCTAssertEqual(try rejection("")?.hasSuffix("not valid JSON"), true)
+        XCTAssertEqual(try rejection("garbage")?.hasSuffix("not valid JSON"), true)
+        XCTAssertEqual(try rejection("[1, 2]")?.hasSuffix("(the top level is not an object)"), true)
+        XCTAssertEqual(try rejection(#"{"pairs": "x"}"#)?.hasSuffix(#""pairs" is not a list"#), true)
+        XCTAssertEqual(try rejection(#"{"looks": 3}"#)?.hasSuffix(#""pairs" is not a list"#), true)
+        XCTAssertEqual(try rejection(#"{"seeds": []}"#)?.hasSuffix(#""seeds" is not an object"#), true)
+
+        // A trailing comma is what a hand edit that deletes a block leaves
+        // behind. JSONSerialization takes it and Python's json does not, so
+        // the stricter reading wins and the line is named.
+        XCTAssertEqual(try rejection("{\n \"pairs\": [\n ],\n}")?
+            .hasSuffix(":3: a comma with nothing after it"), true)
+        XCTAssertEqual(try rejection("{\"pairs\": [1,]}")?
+            .hasSuffix(":1: a comma with nothing after it"), true)
+
+        // A comma inside a string is not one, however it is dressed.
+        XCTAssertNil(Store.trailingComma(in: Data(#"{"a": "x,", "b": 1}"#.utf8)))
+        XCTAssertNil(Store.trailingComma(in: Data(#"{"a": "x,}"}"#.utf8)))
+        XCTAssertNil(Store.trailingComma(in: Data(#"{"a": "b\"c,", "d": 1}"#.utf8)))
+        XCTAssertEqual(Store.trailingComma(in: Data(#"{"a": "x,}",}"#.utf8)), 1)
+    }
+
     // PT-11: stop() terminates workers; stopping an unstarted search is safe.
     // PT-12: delivered candidates are valid rules.
     func testSearchFindsCandidatesAndStops() {

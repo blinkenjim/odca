@@ -49,6 +49,14 @@ its own directory.
 
 Planned: `cpp/`.
 
+Every program refuses to start on an odca file it cannot read, naming the
+file and the fault, rather than reading it as empty. That matters because
+`odca-select` always writes back over the file it was given and
+`odca-evolve` does whenever `-o` names one of its inputs, so a file read as
+empty is a file about to be overwritten. Trailing commas count as
+unreadable — the usual leftover of deleting a block by hand — even though
+Swift's JSON reader accepts them where Python's does not.
+
 ## Versioning
 
 Semantic versioning across the whole code base, with one convention for

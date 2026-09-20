@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.80.0 — 2026-09-19
+Version 3.82.0 — 2026-09-20
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -117,7 +117,8 @@ R-E6. 3.78.6: a verbose join's first line carries the width — R-E6.
 the rule rather than rebuilt on every generation — no behavioral
 change, R-M5. 3.80.0: a seed's lifetime ends at stagnation as well as at
 extinction and a confirmed cycle, so it ends where the player would
-re-seed — R-E2.)
+re-seed — R-E2. 3.82.0: every program refuses an odca file it cannot
+read instead of reading it as empty, trailing commas included — R-P6.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1279,6 +1280,32 @@ in 3.0.0. The raw source of candidate palettes is
 
 **R-P5.** Merged into R-P3 in 3.0.0 (the screensaver file and the keeper
 file were the same format; the odca file is that format).
+
+**R-P6 (an unusable file is refused).** Every program checks each odca
+file it is given, before it does anything else, and exits 1 with a
+message naming the file and what is wrong with it when the file exists
+but cannot be used. A file that does not exist is not this requirement's
+business: `odca-select` makes its file on the first save (R-W1), and
+where a file is required to exist the requirement for that program says
+so (R-E1, R-X1). A file is unusable when it is not valid JSON, when its
+top level is not an object, when `pairs` (or the 3.0.0 `looks`) is
+present and is not a list, or when `seeds` is present and is not an
+object. Entries *within* those are still skipped rather than refused
+(R-P3), so a file a later version has added fields to still opens.
+
+Trailing commas — a comma closing nothing, as in `[1,]` or `{"a": 1,}` —
+make a file unusable even where the implementation's own JSON reader
+accepts them, because JSON forbids them and the implementations do not
+agree: Foundation's `JSONSerialization` reads them, Python's `json` does
+not. One format is one format, and a file only one implementation can
+open is a broken file. The message names the line.
+
+The point is that loading is deliberately forgiving, so a file that will
+not parse contributes *nothing*, and silently, there being no entry left
+to skip. Where the same file is also written back — `odca-select` always,
+`odca-evolve` whenever `-o` names an input — the next save then writes
+over everything it held. Refusing to start is the only safe reading of a
+file that cannot be read.
 
 ---
 

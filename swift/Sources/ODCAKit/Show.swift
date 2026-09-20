@@ -84,6 +84,9 @@ public enum Show {
                     throw ShowError("\(url.relativePath):\(line): cannot read \(name)")
                 }
                 guard isOdcaFile(target) else { throw ShowError("\(url.relativePath):\(line): \(name) is not an odca file") }
+                if let why = Store.rejection(target) {  // R-P6
+                    throw ShowError("\(url.relativePath):\(line): \(why)")
+                }
                 pairs += Store.loadOdcaFile(target) ?? []
                 seeds = Evolve.merge(seeds, Store.loadSeeds(target))
             case .play:
@@ -124,6 +127,7 @@ public enum Show {
     public static func load(_ files: [URL]) throws -> [Segment] {
         try files.map { file in
             if file.pathExtension == "odca" {
+                if let why = Store.rejection(file) { throw ShowError(why) }  // R-P6
                 guard let pairs = Store.loadOdcaFile(file) else { throw ShowError("\(file.relativePath): cannot read") }
                 return Segment(file: file.lastPathComponent, pairs: pairs, seeds: Store.loadSeeds(file))
             }
