@@ -61,7 +61,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .automaton import N_STATES, Automaton, Rule
+from .automaton import N_STATES, NONE, Automaton, Rule
 from .classify import find_candidate
 from .search import CandidateSearch
 from .store import DEFAULT_COLOR_SETS, SURVIVED, Store, load_odca_file, load_seeds, next_pair_name, save_odca_file
@@ -105,7 +105,7 @@ def _rgb(c):
 class Session:
     def __init__(self, cols, rows, store=None, search=None, rng=None,
                  review_mode=False, select_file=None, select_longest=False, show=None, shuffle=False, longest=False,
-                 play_survivors=False,
+                 play_survivors=False, experiment=NONE,
                  initial_delay=INITIAL_DELAY, play_timeout=PLAY_TIMEOUT, play_grace=PLAY_GRACE):
         self.cols = cols
         self.rows = rows
@@ -143,7 +143,11 @@ class Session:
         self.review_mode = bool(review_mode) and self.select_file is None and self.show is None
 
         # Startup per R-U1: previous rule (random fallback), random cells.
-        rule = self.store.load_rule() or Rule.random(self.rng)
+        # R-M12: under an experiment the saved rule is the wrong shape -- it
+        # is an ODCA rule -- so the session starts on a fresh one of its own.
+        self.experiment = experiment
+        rule = (self.store.load_rule() or Rule.random(self.rng)) if experiment == NONE \
+            else Rule.random(self.rng, experiment)
         self.automaton = Automaton(cols, rule=rule, seed="random", rng=self.rng)
         self.store.save_rule(rule)
 
@@ -538,7 +542,9 @@ class Session:
         """Compute one generation, display it, and apply auto-init (R-A)."""
         row = self.automaton.step()
         self._push(row)
-        self._observe(row)
+        # R-M12: what recurs must be the whole state, which under a
+        # second-order rule is the pair of rows, not the visible one.
+        self._observe(row, self.automaton.state)
         if self.screen_counter is not None:  # R-K14
             self._counted += 1
             if self._counted % self.rows == 0:
@@ -559,9 +565,13 @@ class Session:
                 self.init_cells()
                 print(f"auto-init ({reason})")  # R-O6
 
-    def _observe(self, row):
-        """Classify a computed generation as boring or not (R-A1)."""
-        key = row.tobytes()
+    def _observe(self, row, state=None):
+        """Classify a computed generation as boring or not (R-A1).
+
+        `state` is what the repetition tests compare -- the pair of rows under
+        a second-order rule (R-M12) -- while the census reads the visible row.
+        """
+        key = (row if state is None else state).tobytes()
         # The automaton is deterministic, so a recurring row means the future
         # is periodic forever. Brent's algorithm finds a cycle of any period
         # with a single saved row: compare each new row to the snapshot, and
@@ -706,7 +716,12 @@ class Session:
     def new_rule(self):  # R-K2
         self.undo_stack.append(self.automaton.rule)
         self._drain_search()
-        if self.candidates:
+        # R-M12: the screen of R-C is calibrated on ODCA rules and reads their
+        # table, and the stash (R-P2, R-S) holds ODCA rules, so an experiment
+        # draws unscreened and never from the stash.
+        if self.experiment != NONE:
+            rule = Rule.random(self.rng, self.experiment)
+        elif self.candidates:
             rule = self.candidates.pop(0)
             self.store.save_candidates(self.candidates)
         else:

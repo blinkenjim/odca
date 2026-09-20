@@ -3,6 +3,8 @@
 import sys
 from pathlib import Path
 
+from .automaton import EXPERIMENTS, NONE
+
 CELL_FLAGS = ("--4", "--3", "--2", "--1")  # pixels per cell for the run, both programs (R-U2)
 
 
@@ -83,6 +85,27 @@ def initial_delay(cell):
     """R-U5: 1/60 s at the default cell size, halved for each halving of the cell."""
     from .session import INITIAL_DELAY
     return INITIAL_DELAY * cell / 4
+
+
+def choose_experiment(program, values):
+    """R-M12: -x / --experiment, the rule class to run. Either spelling, both
+    meaning the same; the value is required and must name a class."""
+    given = [values[k] for k in ("-x", "--experiment") if k in values]
+    if not given:
+        return NONE
+    choices = ", ".join(str(e) for e in EXPERIMENTS)
+    if len(set(given)) > 1:
+        print(f"{program}: -x and --experiment disagree")
+        sys.exit(2)
+    text = given[0]
+    try:
+        experiment = int(text)
+    except ValueError:
+        experiment = None
+    if experiment not in EXPERIMENTS:
+        print(f"{program}: -x takes one of {choices}, not {text}")
+        sys.exit(2)
+    return experiment
 
 
 def run(session_kwargs, fullscreen=False, cell=2, cols=None):

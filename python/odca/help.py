@@ -7,8 +7,10 @@ odca: one-dimensional cellular automata as art
 
 usage: odca <file> [<file> ...] [--shuffle] [--fullscreen]
             [--4 | --3 | --2 | --1] [--watchdog SECONDS] [--grace SECONDS]
+            [-x N | --experiment N]
        odca <file.odca> [<file.odca> ...] --longest [--shuffle] [--cells N]
-            [--fullscreen] [--4 | --3 | --2 | --1]
+            [--play-survivors] [--fullscreen] [--4 | --3 | --2 | --1]
+            [-x N | --experiment N]
        odca --help
 
 Plays a show. Each file is a play script (below) or an odca file of
@@ -25,6 +27,24 @@ colors. The files play in turn, each its pairs in order, looping.
                 its script says shuffle
   --fullscreen  open the window full screen, for unattended runs; the
                 platform's own control leaves it, as it entered it before
+  -x N / --experiment N
+                run an experimental rule class instead of the ODCA (R-M12).
+                Every one but 0 brings the grandparent -- each cell's own
+                state two generations back -- into the rule, which makes it
+                a second-order automaton:
+                  0  the ODCA itself, 20 entries; no grandparent
+                  1  the grandparent picks among four sub-rules for each
+                     count vector, 80 entries; four equal columns is a
+                     case-0 rule, so this is a strict superset
+                  2  Fredkin's form, next = rule[counts] - grandparent,
+                     mod 4, the same 20 entries and so the same rule IDs.
+                     Reversible: nothing ever dies out for good
+                  3  the grandparent counted as a fourth cell, order-blind
+                     like the rest: 35 entries
+                The rules a file names are ODCA rules, so under an
+                experiment the show's pairs keep their colors and the rule
+                on screen is a fresh experimental one, r for another.
+
   --4 / --3 / --2 / --1
                 cells 4, 3, 2 (the default), or 1 points on a side
                 (pixels, in the Python version)
@@ -89,6 +109,7 @@ HELP_ODCA_SELECT = """\
 odca-select: compose pairs for odca
 
 usage: odca-select <file.odca> [--longest] [--4 | --3 | --2 | --1]
+                   [-x N | --experiment N]
        odca-select --help
 
 Shows random rules that passed the maybe-Class-IV screen, lets you dress
@@ -107,6 +128,24 @@ scrolls in from a fresh field below the old rows, as in odca.
                 still appends a copy of the screen, and s after m a new
                 pair, saved but not shown when its rule has no seeds (the
                 position stays). Nothing is seeded from the recorded rows.
+
+  -x N / --experiment N
+                run an experimental rule class instead of the ODCA (R-M12).
+                Every one but 0 brings the grandparent -- each cell's own
+                state two generations back -- into the rule, which makes it
+                a second-order automaton:
+                  0  the ODCA itself, 20 entries; no grandparent
+                  1  the grandparent picks among four sub-rules for each
+                     count vector, 80 entries; four equal columns is a
+                     case-0 rule, so this is a strict superset
+                  2  Fredkin's form, next = rule[counts] - grandparent,
+                     mod 4, the same 20 entries and so the same rule IDs.
+                     Reversible: nothing ever dies out for good
+                  3  the grandparent counted as a fourth cell, order-blind
+                     like the rest: 35 entries
+                An experiment draws unscreened rules (the screen reads an
+                ODCA table), and none of them is saved to the file: a rule
+                ID of 80 or 35 digits is not an odca rule ID.
 
   --4 / --3 / --2 / --1
                 cells 4, 3, 2 (the default), or 1 points on a side

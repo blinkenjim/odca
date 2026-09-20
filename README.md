@@ -49,6 +49,16 @@ its own directory.
 
 Planned: `cpp/`.
 
+`-x N` / `--experiment N` on either viewer runs an experimental rule class
+instead of the ODCA (R-M12). Classes 1 to 3 each bring the *grandparent* —
+each cell's own state two generations back — into the rule, which makes them
+second-order automata: 1 lets the grandparent pick among four sub-rules per
+count vector (80 entries, a strict superset of the ODCA), 2 is Fredkin's
+reversible form `rule[counts] - grandparent` (the same 20-digit rule IDs, and
+nothing ever dies out for good), 3 counts the grandparent as a fourth cell
+(35 entries). Class 0 is the ODCA itself and is the default. None of them is
+written to an odca file yet; they are for looking at.
+
 Every program refuses to start on an odca file it cannot read, naming the
 file and the fault, rather than reading it as empty. That matters because
 `odca-select` always writes back over the file it was given and

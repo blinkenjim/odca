@@ -151,6 +151,10 @@ public final class Session {
     /// because it never dies, and then leaving its seeds out means it cannot
     /// be watched at all.
     public let playSurvivors: Bool
+
+    /// R-M12: the rule class this session runs, `-x` / `--experiment`.
+    /// `.none` is the ODCA of R-M5 and changes nothing.
+    public let experiment: Experiment
     /// The pairs of the current pass, in order; `seed` is the rank of the
     /// seed played under `--longest`, nil otherwise.
     public private(set) var playOrder: [(segment: Int, index: Int, seed: Int?)] = []
@@ -196,7 +200,7 @@ public final class Session {
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
         reviewMode: Bool = false, selectFile: URL? = nil, selectLongest: Bool = false,
         show: [Segment]? = nil, shuffle: Bool = false, longest: Bool = false,
-        playSurvivors: Bool = false,
+        playSurvivors: Bool = false, experiment: Experiment = .none,
         initialDelay: Double = Session.initialDelay,
         playTimeout: Double = Session.playTimeout, playGrace: Double = Session.playGrace,
         output: @escaping (String) -> Void = { print($0) }
@@ -219,13 +223,20 @@ public final class Session {
         self.selectFile = selectFile
         self.selectLongest = selectLongest && selectFile != nil
         self.output = output
+        self.experiment = experiment
         var rng = rng
 
         // Startup per R-U1: previous rule (random fallback), random cells.
-        let rule = store.loadRule() ?? Rule.random(using: &rng)
-        automaton = try! Automaton(
+        // R-M12: under an experiment the saved rule is the wrong shape — it
+        // is an ODCA rule — so the session starts on a fresh one of its own.
+        let rule = experiment == .none
+            ? (store.loadRule() ?? Rule.random(using: &rng))
+            : Rule.random(using: &rng, experiment: experiment)
+        var start = try! Automaton(
             width: cols, rule: rule,
             cells: Automaton.randomCells(width: cols, using: &rng))
+        if experiment.secondOrder { start.resetRandom(using: &rng) }  // two rows to start from
+        automaton = start
         store.saveRule(rule)
         unsavedRule = rule  // the startup rule fills the unsaved slot (R-B3) unless a file opens on pair 1
 
@@ -909,7 +920,9 @@ public final class Session {
     private func advance() {
         let row = automaton.step()
         pushRow(row)
-        observe(row)
+        // R-M12: what recurs must be the whole state, which under a
+        // second-order rule is the pair of rows, not the visible one.
+        observe(row, state: automaton.state)
         if screenCounter != nil {  // R-K14
             counted += 1
             if counted % rows == 0 {
@@ -933,29 +946,32 @@ public final class Session {
     }
 
     /// Classify a computed generation as boring or not (R-A1).
-    func observe(_ row: [UInt8]) {
+    /// `state` is what the repetition tests compare — the pair of rows under
+    /// a second-order rule (R-M12) — while the census reads the visible row.
+    func observe(_ row: [UInt8], state: [UInt8]? = nil) {
+        let key = state ?? row
         // Brent's cycle detection: one saved row, refreshed at powers of two.
         // The automaton is deterministic, so a recurring row proves the
         // future periodic; steps since the snapshot are exactly the period.
         if cyclePeriod == nil {
             if brentSnapshot == nil {
-                brentSnapshot = row
+                brentSnapshot = key
             } else {
                 brentSteps += 1
-                if row == brentSnapshot! {
+                if key == brentSnapshot! {
                     cyclePeriod = brentSteps
                     output("cycle period \(brentSteps)")  // R-O8
                 } else if brentSteps == brentPower {
-                    brentSnapshot = row
+                    brentSnapshot = key
                     brentPower *= 2
                     brentSteps = 0
                 }
             }
         }
         // Window repetition: seen within the last repeatWindow generations.
-        let repeating = (recentCounts[row] ?? 0) > 0
-        recentRows.append(row)
-        recentCounts[row, default: 0] += 1
+        let repeating = (recentCounts[key] ?? 0) > 0
+        recentRows.append(key)
+        recentCounts[key, default: 0] += 1
         if recentRows.count > Session.repeatWindow {
             let old = recentRows.removeFirst()
             if let n = recentCounts[old] {
@@ -1115,15 +1131,23 @@ public final class Session {
         undoStack.append(automaton.rule)
         drainSearch()
         let rule: Rule
-        if !candidates.isEmpty {
+        // R-M12: the stash (R-P2, R-S) holds ODCA rules, which are the wrong
+        // shape for an experiment, so an experiment never draws from it.
+        if experiment == .none, !candidates.isEmpty {
             rule = candidates.removeFirst()
             store.saveCandidates(candidates)
         } else {
-            let (found, tries) = Classifier.findCandidate(using: &rng)
-            if tries > 1 {
-                output("discarded \(tries - 1) rule\(tries > 2 ? "s" : "")")  // R-O2
+            // R-M12: the screen of R-C is calibrated on ODCA rules and
+            // reads their table, so an experiment draws unscreened.
+            if experiment != .none {
+                rule = Rule.random(using: &rng, experiment: experiment)
+            } else {
+                let (found, tries) = Classifier.findCandidate(using: &rng)
+                if tries > 1 {
+                    output("discarded \(tries - 1) rule\(tries > 2 ? "s" : "")")  // R-O2
+                }
+                rule = found
             }
-            rule = found
         }
         setUnsavedRule(rule)
     }

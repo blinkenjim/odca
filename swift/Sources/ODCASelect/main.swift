@@ -3,7 +3,10 @@ import Foundation
 import ODCAKit
 import ODCAUI
 
-let (files, flags, _) = parseArguments(program: "odca-select", help: helpOdcaSelect, flags: ["--longest"] + cellFlags)
+let (files, flags, options) = parseArguments(program: "odca-select", help: helpOdcaSelect,
+                                            flags: ["--longest"] + cellFlags,
+                                            options: ["-x", "--experiment"],
+                                            valueNames: ["-x": "N", "--experiment": "N"])
 let file = files[0]
 // R-P6: a missing file is made on the first save (R-W1), but one that exists
 // and will not parse must not open a window: this program saves back over the
@@ -13,10 +16,12 @@ if let why = Store.rejection(file) {
     exit(1)
 }
 let cellSize = chooseCellSize(program: "odca-select", flags: flags)  // R-U2
+let experiment = chooseExperiment(program: "odca-select", options: options)  // R-M12
 MainActor.assumeIsolated {  // top-level code of an executable runs on the main thread
     launch(cellSize: cellSize) { cols, rows in
         Session(cols: cols, rows: rows, selectFile: file,  // R-W1: a missing file is created on the first save
                 selectLongest: flags.contains("--longest"),  // R-W9: only the pairs with seeds
+                experiment: experiment,  // R-M12
                 initialDelay: Session.initialDelay * Double(cellSize) / 4)  // R-U5
     }
 }

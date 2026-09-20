@@ -1,6 +1,14 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-20):** Spec 3.88.0, Swift 3.88.0, Python
+**YOU ARE HERE (2026-09-20):** Spec 3.90.0, Swift 3.90.0, Python
+3.91.0: 3.90.0 / 3.91.0: `-x` / `--experiment` runs one of three
+second-order rule classes (R-M12), the grandparent entering the rule:
+1 a modal 80-entry table (a strict superset of the ODCA), 2 Fredkin's
+reversible form on the same 20-digit IDs, 3 the grandparent counted
+as a fourth cell, 35 entries. Not saveable and not screened; for
+looking at. Open from this: whether any of them is worth a file
+format that can say which class a rule belongs to, and whether
+odca-evolve means anything for class 2, where nothing ever dies.
 3.87.0: Python is caught up on everything it can be: R-P6, R-A1's
 effective extinction and R-X9. The fourteen other releases since its
 3.73.0 are all `odca-evolve`, which Python does not have at all — the

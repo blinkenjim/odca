@@ -2,7 +2,7 @@
 
 import sys
 
-from .cli import CELL_FLAGS, cell_size, parse, run, whole_number, whole_seconds
+from .cli import choose_experiment, CELL_FLAGS, cell_size, parse, run, whole_number, whole_seconds
 from .help import HELP_ODCA
 from .session import MIN_COLS, PLAY_GRACE, PLAY_TIMEOUT
 from .show import ShowError, load_show, seed_width
@@ -10,8 +10,9 @@ from .show import ShowError, load_show, seed_width
 
 def main(argv=None):
     files, flags, values = parse(argv, "odca", HELP_ODCA, flags=("--shuffle", "--longest", "--play-survivors", "--fullscreen") + CELL_FLAGS,
-                                 options=("--watchdog", "--grace", "--cells"), positional="<file> [<file> ...]", many=True)
+                                 options=("--watchdog", "--grace", "--cells", "-x", "--experiment"), positional="<file> [<file> ...]", many=True)
     cell = cell_size("odca", flags)  # R-U2
+    experiment = choose_experiment("odca", values)  # R-M12
     longest = "--longest" in flags  # R-X8
     play_survivors = "--play-survivors" in flags  # R-X9
     if longest:
@@ -42,7 +43,7 @@ def main(argv=None):
         print(f"error: {e}")
         sys.exit(1)
     run({"show": show, "shuffle": "--shuffle" in flags, "longest": longest,
-         "play_survivors": play_survivors, **timing},
+         "play_survivors": play_survivors, "experiment": experiment, **timing},
         fullscreen="--fullscreen" in flags, cell=cell, cols=width)
 
 

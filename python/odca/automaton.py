@@ -33,6 +33,55 @@ def count_vectors():
 COUNT_VECTORS = count_vectors()
 RULE_SIZE = len(COUNT_VECTORS)  # 20
 
+# R-M12: experimental rule classes (-x / --experiment). Every one but 0 brings
+# the grandparent -- the cell's own state two generations back -- into the
+# rule, making it a second-order automaton. That is a studied family: case 2 is
+# Fredkin's construction, the standard way to make a reversible CA out of an
+# irreversible one (Toffoli and Margolus, Cellular Automata Machines, 1987). A
+# second-order rule is always a first-order rule on the doubled state
+# (current, previous), so none of it is more powerful -- it is a differently
+# shaped slice of that space. None of these is written to an odca file: a rule
+# ID of 80 or 35 digits is not an odca rule ID.
+EXPERIMENTS = (0, 1, 2, 3)
+NONE, MODAL, FREDKIN, TOTALISTIC4 = EXPERIMENTS
+
+
+def counted_cells(experiment):
+    """Cells whose states the rule counts: four under TOTALISTIC4, where the
+    grandparent is counted like a neighbor."""
+    return 4 if experiment == TOTALISTIC4 else NEIGHBORHOOD
+
+
+def experiment_weights(experiment):
+    """The summing trick of R-M7 generalized: one more than the counted cells
+    as the radix makes a plain sum a unique index. Three cells give the
+    familiar 0, 1, 4, 16; four give 0, 1, 5, 25."""
+    radix = counted_cells(experiment) + 1
+    return np.array([0, 1, radix, radix * radix], dtype=np.uint8)
+
+
+def experiment_count_vectors(experiment):
+    """The count vectors summing to the counted cells: 20 for three, 35 for four."""
+    total = counted_cells(experiment)
+    return [
+        (n0, n1, n2, total - n0 - n1 - n2)
+        for n0 in range(total + 1)
+        for n1 in range(total - n0 + 1)
+        for n2 in range(total - n0 - n1 + 1)
+    ]
+
+
+def experiment_dense_size(experiment):
+    """Entries a weighted sum indexes: 49 for three counted cells, 101 for four."""
+    return counted_cells(experiment) * int(experiment_weights(experiment)[3]) + 1
+
+
+def experiment_rule_size(experiment):
+    """Entries in a rule table, times four under MODAL where the grandparent
+    chooses a column."""
+    n = len(experiment_count_vectors(experiment))
+    return n * N_STATES if experiment == MODAL else n
+
 
 class Rule:
     """Maps each of the 20 neighborhood count-vectors to a next state.
@@ -41,44 +90,59 @@ class Rule:
     in COUNT_VECTORS order.
     """
 
-    def __init__(self, states):
+    def __init__(self, states, experiment=NONE):
         states = np.asarray(states, dtype=np.uint8)
-        if states.shape != (RULE_SIZE,):
-            raise ValueError(f"rule needs {RULE_SIZE} entries, got {states.shape}")
+        size = experiment_rule_size(experiment)
+        if states.shape != (size,):
+            raise ValueError(f"rule needs {size} entries, got {states.shape}")
         if (states >= N_STATES).any():
             raise ValueError(f"rule entries must be in 0..{N_STATES - 1}")
+        self.experiment = experiment
         self.states = states
-        self.dense = np.zeros(_DENSE_SIZE, dtype=np.uint8)
-        for (n0, n1, n2, n3), s in zip(COUNT_VECTORS, states):
-            self.dense[n1 + 4 * n2 + 16 * n3] = s
+        # One dense lookup per grandparent state under MODAL, one otherwise;
+        # a weighted neighborhood sum indexes within it (R-M7).
+        w = experiment_weights(experiment)
+        self.span = experiment_dense_size(experiment)
+        blocks = N_STATES if experiment == MODAL else 1
+        self.dense = np.zeros(self.span * blocks, dtype=np.uint8)
+        for i, (n0, n1, n2, n3) in enumerate(experiment_count_vectors(experiment)):
+            at = n1 * int(w[1]) + n2 * int(w[2]) + n3 * int(w[3])
+            if experiment == MODAL:
+                for g in range(N_STATES):
+                    self.dense[g * self.span + at] = states[i * N_STATES + g]
+            else:
+                self.dense[at] = states[i]
 
     @property
     def id(self):
         return "".join(str(s) for s in self.states)
 
     @classmethod
-    def from_id(cls, rule_id):
-        if len(rule_id) != RULE_SIZE or not set(rule_id) <= set("0123"):
+    def from_id(cls, rule_id, experiment=NONE):
+        size = experiment_rule_size(experiment)
+        if len(rule_id) != size or not set(rule_id) <= set("0123"):
             raise ValueError(
-                f"rule ID must be {RULE_SIZE} digits 0-3, got {rule_id!r}"
+                f"rule ID must be {size} digits 0-3, got {rule_id!r}"
             )
-        return cls([int(ch) for ch in rule_id])
+        return cls([int(ch) for ch in rule_id], experiment)
 
     @classmethod
-    def random(cls, rng=None):
+    def random(cls, rng=None, experiment=NONE):
         rng = rng if rng is not None else np.random.default_rng()
-        return cls(rng.integers(0, N_STATES, RULE_SIZE, dtype=np.uint8))
+        size = experiment_rule_size(experiment)
+        return cls(rng.integers(0, N_STATES, size, dtype=np.uint8), experiment)
 
     def mutated(self, rng=None):
         """Return a copy with one randomly chosen entry changed to a different state."""
         rng = rng if rng is not None else np.random.default_rng()
         states = self.states.copy()
-        i = rng.integers(RULE_SIZE)
+        i = rng.integers(len(states))
         states[i] = (states[i] + rng.integers(1, N_STATES)) % N_STATES
-        return Rule(states)
+        return Rule(states, self.experiment)
 
     def __eq__(self, other):
-        return isinstance(other, Rule) and np.array_equal(self.states, other.states)
+        return (isinstance(other, Rule) and self.experiment == other.experiment
+                and np.array_equal(self.states, other.states))
 
     def __repr__(self):
         return f"Rule({self.id})"
@@ -115,22 +179,57 @@ class Automaton:
             if (cells >= N_STATES).any():
                 raise ValueError(f"seed states must be in 0..{N_STATES - 1}")
             self.cells = cells
+        # R-M12: a second-order rule reads the row before this one as each
+        # cell's grandparent. Two independent random rows give it somewhere
+        # to go; seeding the grandparent equal to the seed would start every
+        # run from a standstill. Kept whatever the rule class, so the
+        # boringness detector can judge the pair (R-A1).
+        if self.rule.experiment != NONE and isinstance(seed, str) and seed == "random":
+            self.previous = self.rng.integers(0, N_STATES, self.width, dtype=np.uint8)
+        else:
+            self.previous = self.cells.copy()
         self.generation = 0
 
+    @property
+    def state(self):
+        """What is really the state of a second-order automaton (R-M12): the
+        visible row and the one behind it. The boringness detector compares
+        these rather than the row alone, since the same row reached from two
+        different pasts has two different futures."""
+        if self.rule.experiment == NONE:
+            return self.cells
+        return np.concatenate((self.cells, self.previous))
+
     def neighborhood_sums(self):
-        """Weighted neighborhood sums (rule-table indices) for the current row."""
-        w = _WEIGHTS[self.cells]
+        """Weighted neighborhood sums (rule-table indices) for the current row.
+        Under R-M12's TOTALISTIC4 the grandparent is counted as a fourth cell,
+        so the weights are that experiment's, not case 0's."""
+        weights = experiment_weights(self.rule.experiment)
+        w = weights[self.cells]
         if self.wrap:
             left, right = np.roll(w, 1), np.roll(w, -1)
         else:
             # Cells beyond the edges are permanently state 0 (weight 0).
             left = np.concatenate(([0], w[:-1])).astype(np.uint8)
             right = np.concatenate((w[1:], [0])).astype(np.uint8)
-        return left + w + right
+        sums = left + w + right
+        if self.rule.experiment == TOTALISTIC4:
+            sums = sums + weights[self.previous]
+        return sums
 
     def step(self):
         """Advance one generation and return the new row."""
-        self.cells = self.rule.dense[self.neighborhood_sums()]
+        sums = self.neighborhood_sums()
+        experiment = self.rule.experiment
+        if experiment == MODAL:  # the grandparent picks the column
+            nxt = self.rule.dense[self.previous.astype(np.intp) * self.rule.span + sums]
+        elif experiment == FREDKIN:  # reversible: subtract the grandparent, mod 4
+            nxt = (self.rule.dense[sums].astype(np.int16) - self.previous) % N_STATES
+            nxt = nxt.astype(np.uint8)
+        else:
+            nxt = self.rule.dense[sums]
+        self.previous = self.cells
+        self.cells = nxt
         self.generation += 1
         return self.cells
 

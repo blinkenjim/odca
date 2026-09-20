@@ -120,6 +120,70 @@ final class PropertyTests: XCTestCase {
         XCTAssertEqual(Store.loadOdcaFile(url), [])
     }
 
+    // PT-49: R-M12 — the experimental rule classes.
+    func testExperimentalRuleClasses() {
+        // Table shapes: 20, 80, 20, 35 entries; three counted cells but four
+        // under totalistic4, whose summing trick needs the wider weights.
+        XCTAssertEqual(Experiment.allCases.map(\.tableSize), [20, 80, 20, 35])
+        XCTAssertEqual(Experiment.allCases.map(\.countedCells), [3, 3, 3, 4])
+        XCTAssertEqual(Experiment.allCases.map(\.denseSize), [49, 49, 49, 101])
+        XCTAssertEqual(Experiment.totalistic4.weights, [0, 1, 5, 25])
+        XCTAssertEqual(Experiment.none.weights, [0, 1, 4, 16])
+        XCTAssertEqual(Experiment.parse("2"), .fredkin)
+        XCTAssertNil(Experiment.parse("4"))
+        XCTAssertNil(Experiment.parse("x"))
+
+        var rng = Xoshiro256(seed: 49)
+        let base = Rule.random(using: &rng)
+        let width = 24
+        let seed = Automaton.randomCells(width: width, using: &rng)
+
+        // modal with four equal columns is exactly a class-0 rule: the
+        // grandparent has nothing to choose between.
+        let widened = try! Rule(states: base.states.flatMap { [$0, $0, $0, $0] }, experiment: .modal)
+        var plain = try! Automaton(width: width, rule: base, cells: seed)
+        var wide = try! Automaton(width: width, rule: widened, cells: seed)
+        for _ in 0..<200 { XCTAssertEqual(plain.step(), wide.step()) }
+
+        // fredkin is reversible: from any two consecutive rows the row before
+        // them is rule[counts(previous)] - current, so walking back recovers
+        // exactly where it started.
+        let fred = try! Rule(states: base.states, experiment: .fredkin)
+        var table = [UInt8](repeating: 0, count: Experiment.fredkin.denseSize)
+        for (i, v) in Experiment.fredkin.countVectors.enumerated() {
+            table[Experiment.fredkin.denseIndex(of: v)] = fred.states[i]
+        }
+        let start = Automaton.randomCells(width: width, using: &rng)
+        let startPrevious = Automaton.randomCells(width: width, using: &rng)
+        var forward = try! Automaton(width: width, rule: fred, cells: start, previous: startPrevious)
+        for _ in 0..<300 { forward.step() }
+        var cur = forward.cells, prev = forward.previous
+        for _ in 0..<300 {
+            let probe = try! Automaton(width: width, rule: fred, cells: prev)
+            let sums = probe.neighborhoodSums()
+            var back = [UInt8](repeating: 0, count: width)
+            for i in 0..<width { back[i] = (table[Int(sums[i])] + 4 - cur[i]) % 4 }
+            cur = prev
+            prev = back
+        }
+        XCTAssertEqual(cur, start)
+        XCTAssertEqual(prev, startPrevious)
+
+        // Every class runs, and only class 0 ignores the grandparent: the
+        // state a repetition test compares is the pair of rows.
+        for experiment in Experiment.allCases {
+            let rule = Rule.random(using: &rng, experiment: experiment)
+            XCTAssertEqual(rule.id.count, experiment.tableSize)
+            XCTAssertEqual(try? Rule(id: rule.id, experiment: experiment), rule)
+            XCTAssertEqual(rule.mutated(using: &rng).experiment, experiment)
+            var a = try! Automaton(width: width, rule: rule, cells: seed)
+            a.resetRandom(using: &rng)
+            XCTAssertEqual(a.state.count, experiment == .none ? width : 2 * width)
+            for _ in 0..<50 { XCTAssertEqual(a.step().count, width) }
+            XCTAssertTrue(a.cells.allSatisfy { $0 < 4 })
+        }
+    }
+
     // PT-48: R-P6 — a file that cannot be used is named, not quietly ignored.
     func testUnusableOdcaFilesAreRejected() throws {
         let dir = FileManager.default.temporaryDirectory

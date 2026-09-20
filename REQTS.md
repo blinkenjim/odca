@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.88.0 — 2026-09-20
+Version 3.90.0 — 2026-09-20
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -126,7 +126,9 @@ as extinct though cells of it remain — R-A1. 3.86.0: `--play-survivors`
 plays the seeds that survived the cap too, and the refusal says which of
 the two emptinesses it is — R-X9, R-X8, R-U9. 3.88.0: the default cap
 is a million generations, not a hundred thousand — R-E2, R-U9. 3.87.0:
-Python catches up on R-P6, R-A1's effective extinction and R-X9.)
+Python catches up on R-P6, R-A1's effective extinction and R-X9.
+3.90.0 / 3.91.0: `-x` / `--experiment` runs one of three second-order
+rule classes, the grandparent entering the rule — R-M12, R-A1, R-U9.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -220,7 +222,61 @@ changed to a state chosen uniformly from the three states *different* from
 its current value. A mutation never yields the identical rule.
 
 **R-M11 (random rule).** A random rule assigns each of the 20 entries an
-independent, uniformly distributed state 0–3.
+independent, uniformly distributed state 0–3 — each of the class's
+entries, under R-M12.
+
+**R-M12 (experimental rule classes).** `-x N` / `--experiment N`, either
+spelling and both meaning the same, selects the class of rule a program
+runs. The value is required and must be one of the classes below; a
+missing one is `<program>: -x needs a value` and any other is
+`<program>: -x takes one of 0, 1, 2, 3, not <value>`, both exit 2 (R-U9).
+Class 0 is the ODCA of R-M1–R-M11 and is the default, so a program given
+no `-x` behaves exactly as it always has.
+
+Classes 1 to 3 each bring the *grandparent* — the cell's own state two
+generations back — into the rule, which makes them second-order cellular
+automata. Writing `p` for the previous row and `g` for the row before
+that, and `counts(…)` for the count vector of R-M6:
+
+- **1**: `next[i] = rule[counts(p[i-1], p[i], p[i+1])][g[i]]`. The
+  grandparent chooses among four sub-rules for each count vector, so the
+  table has 20 × 4 = 80 entries and a rule ID is 80 digits. Four equal
+  columns everywhere is exactly a class-0 rule, making this a strict
+  superset.
+- **2**: `next[i] = (rule[counts(p[i-1], p[i], p[i+1])] − g[i]) mod 4`.
+  Fredkin's second-order construction: 20 entries, so class-0 rule IDs
+  carry over unchanged. It is *reversible* — any two consecutive rows
+  determine the row before them — so there are no orphans, no transient,
+  and no state dies out for good.
+- **3**: `next[i] = rule[counts(p[i-1], p[i], p[i+1], g[i])]`, the
+  grandparent counted as a fourth cell and order-blind like the rest: 35
+  count vectors of four cells, so 35 entries. R-M7's summing trick
+  generalizes — one more than the counted cells as the radix, so weights
+  0, 1, 5, 25 and a 101-entry table.
+
+A second-order automaton's state is the *pair* of rows, not the visible
+one, so the repetition tests of R-A1 — the window and Brent's — compare
+pairs: the same row reached from two different pasts has two different
+futures. The census clauses read the visible row as ever. An
+initialization (R-K1, R-A2) draws both rows independently, a class-0
+automaton being its own grandparent.
+
+Under a class other than 0 the screen of R-C does not apply, being
+calibrated on ODCA rules and reading their table, so `r` draws an
+unscreened random rule and the stash of R-P2 is not used. Nothing of
+these classes is written to an odca file: a rule ID of 80 or 35 digits is
+not an odca rule ID (R-M8) and R-P3 has no room to record which class a
+rule belongs to. They are for looking at.
+
+*Note (informative).* This is a studied family. Class 2 is Fredkin's
+construction, the standard way to make a reversible CA out of an
+irreversible one, which Toffoli and Margolus build most of *Cellular
+Automata Machines* (1987) on, and which Vichniac used in 1984 for
+Ising-like dynamics; the looser idea of cells weighing a whole history is
+Alonso-Sanz's *Cellular Automata with Memory* (2009). A second-order rule
+is always a first-order rule on the doubled state (current, previous), so
+none of this is more powerful than R-M5 — it is a differently shaped
+slice of that larger space, which is the point.
 
 *Implementation note (informative).* The historical lookup trick: weight
 states 0,1,2,3 as 1, 4, 16, 64 and sum the three neighborhood cells; the

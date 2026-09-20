@@ -50,6 +50,22 @@ public func parseArguments(program: String, help: String, flags: [String] = [], 
     return (files.map { URL(fileURLWithPath: $0) }, given, values)
 }
 
+/// R-M12: `-x` / `--experiment`, the rule class to run. Either spelling,
+/// both meaning the same; the value is required and must name a class.
+public func chooseExperiment(program: String, options: [String: String]) -> Experiment {
+    let given = ["-x", "--experiment"].compactMap { options[$0] }
+    guard let text = given.first else { return .none }
+    guard let experiment = Experiment.parse(text) else {
+        print("\(program): -x takes one of \(Experiment.choices), not \(text)")
+        exit(2)
+    }
+    if given.count > 1, given.contains(where: { $0 != text }) {
+        print("\(program): -x and --experiment disagree")
+        exit(2)
+    }
+    return experiment
+}
+
 /// A whole number of `unit` given to `option`, at least `minimum`, or
 /// `default`; with no default the option is required (R-X2, R-X3, R-E1).
 /// Anything else is a usage error (exit 2).

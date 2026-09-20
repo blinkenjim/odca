@@ -5,9 +5,11 @@ import ODCAUI
 
 let (files, flags, options) = parseArguments(program: "odca", help: helpOdca,
                                              flags: ["--shuffle", "--longest", "--play-survivors", "--fullscreen"] + cellFlags,
-                                             options: ["--watchdog", "--grace", "--cells"],
+                                             options: ["--watchdog", "--grace", "--cells", "-x", "--experiment"],
+                                             valueNames: ["-x": "N", "--experiment": "N"],
                                              positional: "<file> [<file> ...]", many: true)
 let cellSize = chooseCellSize(program: "odca", flags: flags)  // R-U2
+let experiment = chooseExperiment(program: "odca", options: options)  // R-M12
 let longest = flags.contains("--longest")  // R-X8
 let playSurvivors = flags.contains("--play-survivors")  // R-X9
 if longest {
@@ -47,7 +49,7 @@ do {
 MainActor.assumeIsolated {  // top-level code of an executable runs on the main thread
     launch(fullScreen: flags.contains("--fullscreen"), cellSize: cellSize, cols: width) { cols, rows in  // R-U2
         Session(cols: cols, rows: rows, show: show, shuffle: flags.contains("--shuffle"), longest: longest,
-                playSurvivors: playSurvivors,  // R-X9
+                playSurvivors: playSurvivors, experiment: experiment,  // R-X9, R-M12
                 initialDelay: Session.initialDelay * Double(cellSize) / 4,  // R-U5
                 playTimeout: watchdog, playGrace: grace,
                 output: { TerminalStatus.shared.line($0) })  // R-O17: lines clear the in-place counter

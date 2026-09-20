@@ -119,3 +119,56 @@ def test_generation_counter_and_run_shape():
     assert (h < N_STATES).all()
     a.reset("random")
     assert a.generation == 0
+
+
+def test_experimental_rule_classes():  # PT-49, R-M12
+    """The three second-order classes: their table shapes, that class 1 with
+    four equal columns is exactly class 0, and that class 2 is reversible."""
+    from odca.automaton import (EXPERIMENTS, FREDKIN, MODAL, NONE, TOTALISTIC4,
+                                counted_cells, experiment_dense_size,
+                                experiment_rule_size, experiment_weights)
+    assert [experiment_rule_size(e) for e in EXPERIMENTS] == [20, 80, 20, 35]
+    assert [counted_cells(e) for e in EXPERIMENTS] == [3, 3, 3, 4]
+    assert [experiment_dense_size(e) for e in EXPERIMENTS] == [49, 49, 49, 101]
+    assert list(experiment_weights(TOTALISTIC4)) == [0, 1, 5, 25]
+    assert list(experiment_weights(NONE)) == [0, 1, 4, 16]
+
+    rng = np.random.default_rng(49)
+    base = Rule.random(rng)
+    width, seed = 24, rng.integers(0, 4, 24, dtype=np.uint8)
+
+    # Class 1 with four equal columns leaves the grandparent nothing to
+    # choose between, so it is exactly the class-0 rule.
+    widened = Rule(np.repeat(base.states, 4), MODAL)
+    plain = Automaton(width, base, seed=seed.copy())
+    wide = Automaton(width, widened, seed=seed.copy())
+    for _ in range(200):
+        assert np.array_equal(plain.step(), wide.step())
+
+    # Class 2 is reversible: from any two consecutive rows the row before
+    # them is rule[counts(previous)] - current, so walking back returns
+    # exactly to the start.
+    fred = Rule(base.states, FREDKIN)
+    forward = Automaton(width, fred, seed="random", rng=np.random.default_rng(7))
+    start, start_previous = forward.cells.copy(), forward.previous.copy()
+    for _ in range(300):
+        forward.step()
+    cur, prev = forward.cells.copy(), forward.previous.copy()
+    for _ in range(300):
+        probe = Automaton(width, fred, seed=prev.copy())
+        back = (fred.dense[probe.neighborhood_sums()].astype(np.int16) - cur) % N_STATES
+        cur, prev = prev, back.astype(np.uint8)
+    assert np.array_equal(cur, start) and np.array_equal(prev, start_previous)
+
+    # Every class runs, round-trips through its ID, and only class 0 ignores
+    # the grandparent -- the state a repetition test compares is the pair.
+    for experiment in EXPERIMENTS:
+        rule = Rule.random(rng, experiment)
+        assert len(rule.id) == experiment_rule_size(experiment)
+        assert Rule.from_id(rule.id, experiment) == rule
+        assert rule.mutated(rng).experiment == experiment
+        a = Automaton(width, rule, seed="random", rng=rng)
+        assert len(a.state) == (width if experiment == NONE else 2 * width)
+        for _ in range(50):
+            assert len(a.step()) == width
+        assert (a.cells < N_STATES).all()

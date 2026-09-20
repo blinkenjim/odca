@@ -31,6 +31,52 @@ failing on `test_help_texts_match_the_shared_copies` for a few hours.
 That is fixed here. Both implementations now agree on every shared
 constant: 4000, 0.10, 1600, 0.25, 12800.
 
+## 3.90.0 (Swift, spec) and 3.91.0 (Python) — 2026-09-20
+
+**`-x N` / `--experiment N`** on `odca` and `odca-select` runs an
+experimental rule class instead of the ODCA (R-M12). Classes 1 to 3 each
+bring the *grandparent* — each cell's own state two generations back —
+into the rule, which makes them second-order cellular automata. Class 0
+is the ODCA itself and is the default, so nothing changes without the
+flag.
+
+    1   next = rule[counts(l, s, r)][grandparent]        80 entries
+    2   next = (rule[counts(l, s, r)] - grandparent) % 4 20 entries
+    3   next = rule[counts(l, s, r, grandparent)]        35 entries
+
+Class 1 is a strict superset: four equal grandparent columns everywhere
+is exactly an ODCA rule, so the grandparent picks which of four moods the
+automaton is in. Class 2 is Fredkin's construction — the same 20-digit
+rule IDs you already have, and *reversible*, so any two consecutive rows
+determine the one before them. There are no orphans, no transient, and
+no state dies out for good; after 2000 generations a class-2 rule sits at
+a census like 75/84/81/80, which is what conservation of information
+looks like. Class 3 keeps the count-based spirit by counting the
+grandparent as a fourth cell, order-blind like the rest; R-M7's summing
+trick generalizes to weights 0, 1, 5, 25 and a 101-entry table.
+
+The state of a second-order automaton is the *pair* of rows, so the
+repetition tests of R-A1 compare pairs — the same row reached from two
+different pasts has two different futures, and comparing the visible row
+alone would call a cycle that is not there. An initialization draws both
+rows independently.
+
+Two things these do not do. The Class-IV screen of R-C reads an ODCA
+table, so `r` under an experiment draws unscreened and the stash is not
+used. And none of it is saved: a rule ID of 80 or 35 digits is not an
+odca rule ID, and the file format cannot say which class a rule belongs
+to. They are for looking at.
+
+Verified across implementations: the same rule and seed produce
+bit-identical rows in Swift and Python for all four classes, 300
+generations at 40 cells.
+
+This is a studied family — Fredkin's construction is the standard route
+to a reversible CA, and Toffoli and Margolus build most of *Cellular
+Automata Machines* (1987) on it. A second-order rule is always a
+first-order rule on the doubled state, so none of it is more powerful
+than the ODCA; it is a differently shaped slice of that space.
+
 ## 3.88.0 (Swift, spec) — 2026-09-20
 
 The default `--cap` is now **1,000,000 generations**, up from 100,000.
