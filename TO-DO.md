@@ -256,6 +256,38 @@ use odca-select to build a show and watch it, the shuffle constraints,
 the color set tool, and the vision items, starting with the declarative
 script design.
 
+- [x] (2026-09-20, user: "let's table the step-up, perhaps permanently")
+      Stepping `odca-evolve` up for the experimental rule classes. It needs
+      no work for class 3, which behaves like the ODCA: states reach zero,
+      minorities are common, R-A1 fires, and a short run produces real
+      finite lifetimes with confirmed cycles (the Brent fix on pairs, from
+      3.92.0, doing its job). It cannot be made to work for 1 or 2 without
+      a different measure, which is why this is tabled rather than open.
+      Measured over 40 random rules a class, 320 cells, 20,000 generations:
+
+        class | ever a minority | ever a zero | smallest share reached
+            0 |       38 of 40  |   11 of 40  |  0.040
+            1 |       23 of 40  |    0 of 40  |  0.084
+            2 |        0 of 40  |    0 of 40  |  0.150
+            3 |       31 of 40  |   11 of 40  |  0.050
+
+      Class 1 never once let a state reach zero, and its minorities do not
+      last the 12800 generations R-A1 wants, so every seed runs to the cap:
+      the search runs and measures nothing. Class 2 cannot fire any clause
+      at all -- the smallest share any state ever reaches is 15% of the row,
+      which is reversibility showing up as a number, information not being
+      destroyed so nothing thinning out.
+
+      A lifetime means *time until something dies*, and in classes 1 and 2
+      nothing dies. That is a measure that does not apply, not a bug. To
+      reopen would mean inventing a boringness test for balanced automata;
+      the Classifier's entropy variance is the nearest existing thing and
+      3.80.0's experiment showed it does not discriminate. Left undone and
+      cheap if it ever matters: evolve spends a full --time budget per
+      class-2 rule proving nothing can happen, where it could refuse them
+      outright. The open question this came from -- whether class 1 has
+      rare long-lived structures -- cannot be answered by evolve, since
+      what makes class 1 interesting is not survival.
 - [ ] Python has no `odca-evolve` (2026-09-20). The one real parity gap
       left: Python is at 3.87.0 and current on everything it shares with
       Swift, but there is no `evolve.py` at all, and fourteen of the
