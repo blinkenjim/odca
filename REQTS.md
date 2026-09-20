@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.86.0 — 2026-09-20
+Version 3.88.0 — 2026-09-20
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -124,7 +124,8 @@ asterisk trails rather than leads it — R-O16, R-E6. 3.84.0: a state
 under the minority share for 12800 generations without a break counts
 as extinct though cells of it remain — R-A1. 3.86.0: `--play-survivors`
 plays the seeds that survived the cap too, and the refusal says which of
-the two emptinesses it is — R-X9, R-X8, R-U9.)
+the two emptinesses it is — R-X9, R-X8, R-U9. 3.88.0: the default cap
+is a million generations, not a hundred thousand — R-E2, R-U9.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1096,7 +1097,7 @@ effect of being looked at. Naming the output makes it a choice.
 The remaining options are unaffected by any of this. `--cells`, the
 width of the rows, a whole number of 3 or more (R-M2), and `--time`, the budget per rule in whole
 seconds, are required; `--cap` (R-E2) is a whole number of generations,
-100000 by default; `--limit` (R-E5) is a whole number of rules, 0 by
+1000000 by default; `--limit` (R-E5) is a whole number of rules, 0 by
 default, and a usage error without `--parity` (`odca-evolve: --limit
 applies only with --parity`) (R-U9 for `--help` and the usage errors: a
 missing required option prints `odca-evolve: --cells is required`, exit

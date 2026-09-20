@@ -1,7 +1,14 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-20):** Spec 3.84.0, Swift 3.84.0, Python
-3.73.0: 3.84.0: a producible state under 10% of the row for 12800
+**YOU ARE HERE (2026-09-20):** Spec 3.88.0, Swift 3.88.0, Python
+3.73.0: 3.88.0: the default --cap is a million generations, not a
+hundred thousand — rules do legitimately run past it (the user watched
+one go boring near 135,000), and a cap most interesting rules reach
+measures the cap rather than the rules. Survivors recorded before this
+are worth re-searching. 3.86.0: `odca --longest --play-survivors`
+plays the capped seeds too (R-X9), the only way to watch a rule that
+is worth watching because it never dies; and the refusal now separates
+`no seeds to play` from `every seed survived the cap`. 3.84.0: a producible state under 10% of the row for 12800
 generations without a break counts as extinct though cells of it
 remain (R-A1). The user found a seed running to the cap in which two
 states sat at one to four percent forever: extinction could not fire

@@ -5,6 +5,31 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.88.0 (Swift, spec) — 2026-09-20
+
+The default `--cap` is now **1,000,000 generations**, up from 100,000.
+
+A hundred thousand was set when nothing but an extinction ended a row,
+and it has been quietly wrong for a while: rules do legitimately run past
+it. The user watched one go boring at about 135,000 generations — a
+number the search could not have recorded, since every such rule came
+back as `survived` at 100,000, which says only that the search gave up
+first. A cap that most of the interesting rules reach is measuring the
+cap, not the rules.
+
+`--cap` still takes any whole number, so a shorter run is a flag away.
+
+What it costs: a rule that genuinely never dies now takes ten times as
+long per seed to say so — about 1.7 s at 600 cells rather than 0.17 s —
+so a fixed `--time` budget measures fewer rows for those rules. Rules
+that die early are unaffected, since they never reach the cap either way.
+`--parity` and the early end on ten survivors (R-E3) both still work as
+before.
+
+Recorded survivors from before this release are worth searching again:
+each one is a rule whose real lifetime was never measured, and some of
+them have one.
+
 ## 3.86.0 (Swift, spec) — 2026-09-20
 
 **`odca <file.odca> --longest --play-survivors`** plays the seeds that

@@ -118,7 +118,7 @@ the keyboard:
   round trip after round trip through the rules until Ctrl-C. It
   opens no window. `odca` then starts a pair from its best seed whenever
   the file has one for exactly the width on screen. A recorded row that
-  outlives the cap (100000 generations by default) is kept as `survived`.
+  outlives the cap (1000000 generations by default) is kept as `survived`.
   `--parity` lets a rule far ahead give up its turn: when its shortest
   recorded lifetime times 0.9 outlives the longest of some other rule
   at that width, it is skipped and the time goes to the rules behind;

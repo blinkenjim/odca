@@ -7,7 +7,7 @@ import Foundation
 /// (Brent's, as the player runs it), or the cap.
 public enum Evolve {
     public static let keep = 10  // the seeds kept per rule and width (R-E3)
-    public static let defaultCap = 100_000  // generations a row may live before it counts as surviving (R-E2)
+    public static let defaultCap = 1_000_000  // generations a row may live before it counts as surviving (R-E2)
     public static let rateWindow = 10  // seconds the countdown's rows-per-second looks back over (R-E4)
     public static let parityMargin = 0.9  // --parity: a rule gives up its turn when its shortest × this outlives the rest (R-E5)
 
