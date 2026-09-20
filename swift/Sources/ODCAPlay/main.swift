@@ -4,11 +4,12 @@ import ODCAKit
 import ODCAUI
 
 let (files, flags, options) = parseArguments(program: "odca", help: helpOdca,
-                                             flags: ["--shuffle", "--longest", "--fullscreen"] + cellFlags,
+                                             flags: ["--shuffle", "--longest", "--play-survivors", "--fullscreen"] + cellFlags,
                                              options: ["--watchdog", "--grace", "--cells"],
                                              positional: "<file> [<file> ...]", many: true)
 let cellSize = chooseCellSize(program: "odca", flags: flags)  // R-U2
 let longest = flags.contains("--longest")  // R-X8
+let playSurvivors = flags.contains("--play-survivors")  // R-X9
 if longest {
     for option in ["--watchdog", "--grace"] where options[option] != nil {  // no clocks: a seed plays to its end
         print("odca: \(option) does not apply with --longest")
@@ -16,6 +17,10 @@ if longest {
     }
 } else if options["--cells"] != nil {
     print("odca: --cells applies only with --longest")
+    exit(2)
+}
+if playSurvivors && !longest {  // R-X9: there are no recorded seeds to play without it
+    print("odca: --play-survivors applies only with --longest")
     exit(2)
 }
 let watchdog = wholeSeconds(program: "odca", options: options, "--watchdog", default: Session.playTimeout)  // R-X2
@@ -34,7 +39,7 @@ let show: [Segment]
 let width: Int?
 do {
     show = try Show.load(files)  // R-X1, R-X7: scripts are read and checked before the window opens
-    width = longest ? try Show.seedWidth(show, cells: cells) : nil  // R-X8: the one width, or the chosen one
+    width = longest ? try Show.seedWidth(show, cells: cells, survivors: playSurvivors) : nil  // R-X8, R-X9
 } catch {
     print("error: \(error)")
     exit(1)
@@ -42,6 +47,7 @@ do {
 MainActor.assumeIsolated {  // top-level code of an executable runs on the main thread
     launch(fullScreen: flags.contains("--fullscreen"), cellSize: cellSize, cols: width) { cols, rows in  // R-U2
         Session(cols: cols, rows: rows, show: show, shuffle: flags.contains("--shuffle"), longest: longest,
+                playSurvivors: playSurvivors,  // R-X9
                 initialDelay: Session.initialDelay * Double(cellSize) / 4,  // R-U5
                 playTimeout: watchdog, playGrace: grace,
                 output: { TerminalStatus.shared.line($0) })  // R-O17: lines clear the in-place counter

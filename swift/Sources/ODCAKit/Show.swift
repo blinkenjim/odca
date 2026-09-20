@@ -102,17 +102,28 @@ public enum Show {
     /// The width of a `--longest` show (R-X8): the one width at which the
     /// files record seeds for their pairs' rules that did not survive the
     /// cap, or the `--cells` choice among several.
-    public static func seedWidth(_ segments: [Segment], cells: Int?) throws -> Int {
+    public static func seedWidth(_ segments: [Segment], cells: Int?, survivors: Bool = false) throws -> Int {
         var widths = Set<Int>()
+        var onlySurvivors = false  // seeds are recorded, but every one survived the cap
         for segment in segments {
             for pair in segment.pairs {
-                for (width, seeds) in segment.seeds[pair.rule] ?? [:] where seeds.contains(where: { $0.end != Seed.survived }) {
-                    widths.insert(width)
+                for (width, seeds) in segment.seeds[pair.rule] ?? [:] where !seeds.isEmpty {
+                    if survivors || seeds.contains(where: { $0.end != Seed.survived }) {
+                        widths.insert(width)
+                    } else {
+                        onlySurvivors = true
+                    }
                 }
             }
         }
         let sorted = widths.sorted().map(String.init).joined(separator: ", ")
-        guard !widths.isEmpty else { throw ShowError("no seeds to play") }
+        // R-X9: the two ways to have nothing to play are different problems
+        // with different answers, so they are not reported with one message.
+        guard !widths.isEmpty else {
+            throw ShowError(onlySurvivors
+                ? "every seed survived the cap: --play-survivors plays them anyway"
+                : "no seeds to play")
+        }
         if let cells = cells {
             guard widths.contains(cells) else { throw ShowError("no seeds at \(cells) cells (\(sorted))") }
             return cells

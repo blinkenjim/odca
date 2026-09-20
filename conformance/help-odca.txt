@@ -42,6 +42,12 @@ colors. The files play in turn, each its pairs in order, looping.
                 fresh random order each pass in which no rule and no
                 color set follows itself. r, m, u, U, and a do nothing;
                 i restarts the seed on screen
+  --play-survivors
+                with --longest: play the seeds that survived the cap too,
+                each for the generations it was measured for. Such a seed
+                has no measured end to play to, so it holds the screen for
+                as long as the cap ran -- which is the point when a rule is
+                worth watching because it does not die
   --cells N     with --longest: which width's seeds, when the files
                 record more than one
 

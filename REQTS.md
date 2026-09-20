@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.84.0 — 2026-09-20
+Version 3.86.0 — 2026-09-20
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -122,7 +122,9 @@ read instead of reading it as empty, trailing commas included — R-P6.
 3.82.1: the ages of the ten are two spaces apart and the joined row's
 asterisk trails rather than leads it — R-O16, R-E6. 3.84.0: a state
 under the minority share for 12800 generations without a break counts
-as extinct though cells of it remain — R-A1.)
+as extinct though cells of it remain — R-A1. 3.86.0: `--play-survivors`
+plays the seeds that survived the cap too, and the refusal says which of
+the two emptinesses it is — R-X9, R-X8, R-U9.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -969,8 +971,10 @@ several, `--cells N` chooses (N a whole number of 3 or more, R-U9;
 `error: seeds at 600, 1080 cells: choose
 one with --cells` without it; `error: no seeds at N cells (600, 1080)`
 for a width that has none); with no playable seed anywhere, `error: no
-seeds to play`. All of this is settled before any window opens, exit
-status 1.
+seeds to play`, or, when seeds *are* recorded and every one of them
+survived the cap, `error: every seed survived the cap: --play-survivors
+plays them anyway` (R-X9) — two different problems with two different
+answers. All of this is settled before any window opens, exit status 1.
 
 The show is the sequence of *items*, a pair with one of its playable
 seeds: every pair's longest, then every pair's second longest, and so on
@@ -1017,6 +1021,21 @@ natural size, and so the window's width at launch. (3.44.0 to 3.48.1
 kept the natural size and showed black bars or a centered crop
 instead.)
 
+
+**R-X9 (`--play-survivors`).** `--play-survivors` adds the seeds that
+survived the cap back to the playable seeds of R-X8, every one of them,
+at every width. It applies only with `--longest` (`odca:
+--play-survivors applies only with --longest`, exit 2, R-U9) and changes
+nothing else: the order, the widths, the shuffle and the counter are as
+R-X8 says, and a survivor takes its place among the rest by its recorded
+lifetime like any other seed.
+
+Such a seed has no measured end to play to, so it holds the screen for
+the whole of its recorded lifetime and then hands over — the cap's worth
+of generations, which is why they are left out by default. But the
+reason a row survived may be the reason it is worth watching, and R-X8
+alone makes exactly those rules the ones that cannot be watched at all.
+The flag does not change what is recorded, only what is played.
 ---
 
 ## 4e. odca-evolve (R-E)

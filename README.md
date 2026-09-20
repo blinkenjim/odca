@@ -91,12 +91,15 @@ the keyboard:
   `--watchdog` and `--grace` set the two clocks in whole seconds (120 and
   60 by default).
   `N`/`P` (or `n`/`p`) step by hand. No file is written.
-- **`odca <file.odca> [<file.odca> ...] --longest [--shuffle] [--cells N]`**
+- **`odca <file.odca> [<file.odca> ...] --longest [--shuffle] [--play-survivors] [--cells N]`**
   plays the seeds `odca-evolve` recorded instead: for every pair with
   seeds at the width, its longest-lived seed, then every pair's second
   longest, and so on, looping; each runs to the extinction that was
   measured, with no watchdog. Seeds that survived the cap are left out,
-  so a rule with nothing but survivors drops out of the show. The window
+  so a rule with nothing but survivors drops out of the show — unless
+  `--play-survivors` asks for them too, each holding the screen for the
+  cap's worth of generations, which is the only way to watch a rule that
+  is worth watching because it never dies. The window
   opens as wide as the seeds, and the picture is scaled to whatever
   width the window or screen has, cells staying square. The generation
   count stands in the lower-left corner, yellow on black; `o` hides it.

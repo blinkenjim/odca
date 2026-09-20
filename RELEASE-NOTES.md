@@ -5,6 +5,30 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.86.0 (Swift, spec) — 2026-09-20
+
+**`odca <file.odca> --longest --play-survivors`** plays the seeds that
+survived the cap as well, each for the generations it was measured for
+(R-X9).
+
+They are left out by default because a row that never died has no
+measured end to play to, so it holds the screen for the whole of the
+cap. That is the right default and the wrong absolute: a rule can be
+worth watching precisely because it does not die, and leaving its seeds
+out meant those rules were the ones that could not be watched at all.
+The flag changes only what is played, never what is recorded.
+
+The refusal now says which of two different problems you have:
+
+    error: no seeds to play
+    error: every seed survived the cap: --play-survivors plays them anyway
+
+The first means the file records nothing for your pairs, and the flag
+will not help. The second means it records plenty and all of it
+survived, and the flag is the answer. One message covered both before,
+which sent at least one person editing generation counts in a file to no
+effect — the exclusion tests `end`, not the number.
+
 ## 3.84.0 (Swift, spec) — 2026-09-20
 
 The patience that holds an extinction back while a minority state is

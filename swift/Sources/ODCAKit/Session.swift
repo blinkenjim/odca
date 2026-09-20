@@ -143,6 +143,14 @@ public final class Session {
     /// screen width, those that did not survive the cap; each plays to its
     /// extinction; the width is fixed; the rule keys are inert.
     public let longest: Bool
+
+    /// `--play-survivors` (R-X9): whether the seeds that survived the cap
+    /// play too. They are left out by default because a row that never dies
+    /// has no measured end to play to, so the show would sit on one seed for
+    /// as long as the cap allows; but a rule can be worth watching precisely
+    /// because it never dies, and then leaving its seeds out means it cannot
+    /// be watched at all.
+    public let playSurvivors: Bool
     /// The pairs of the current pass, in order; `seed` is the rank of the
     /// seed played under `--longest`, nil otherwise.
     public private(set) var playOrder: [(segment: Int, index: Int, seed: Int?)] = []
@@ -188,6 +196,7 @@ public final class Session {
         search: CandidateSearch = CandidateSearch(), rng: Xoshiro256 = Xoshiro256(),
         reviewMode: Bool = false, selectFile: URL? = nil, selectLongest: Bool = false,
         show: [Segment]? = nil, shuffle: Bool = false, longest: Bool = false,
+        playSurvivors: Bool = false,
         initialDelay: Double = Session.initialDelay,
         playTimeout: Double = Session.playTimeout, playGrace: Double = Session.playGrace,
         output: @escaping (String) -> Void = { print($0) }
@@ -204,6 +213,7 @@ public final class Session {
         self.show = show
         self.shuffle = shuffle && show != nil
         self.longest = longest && show != nil
+        self.playSurvivors = playSurvivors
         let selectFile = show == nil ? selectFile : nil
         self.reviewMode = reviewMode && selectFile == nil && show == nil
         self.selectFile = selectFile
@@ -708,9 +718,11 @@ public final class Session {
     }
 
     /// R-X8: the seeds a pair plays under `--longest` — its rule's at the
-    /// screen width, longest first, without those that survived the cap.
+    /// screen width, longest first, without those that survived the cap
+    /// unless `--play-survivors` asks for them too (R-X9).
     private func playableSeeds(_ segment: Int, _ index: Int) -> [Seed] {
-        (show![segment].seeds[show![segment].pairs[index].rule]?[cols] ?? []).filter { $0.end != Seed.survived }
+        let seeds = show![segment].seeds[show![segment].pairs[index].rule]?[cols] ?? []
+        return playSurvivors ? seeds : seeds.filter { $0.end != Seed.survived }
     }
 
     /// The `--longest` pass (R-X8): every pair's longest playable seed, then

@@ -1112,8 +1112,23 @@ final class SessionTests: XCTestCase {
         Store.saveOdcaFile([Pair(rule: b.id, colorset: "B", colors: grey(20))],
                            seeds: [b.id: [32: [Seed(row: [UInt8](repeating: 0, count: 32), generations: 9, end: Seed.survived)]]],
                            to: survivors)
+        // R-X8: survivors are not played, and R-X9: the message says which
+        // of the two problems this is, because they have different answers.
         XCTAssertThrowsError(try Show.seedWidth(try Show.load([survivors]), cells: nil)) {
-            XCTAssertEqual($0 as? ShowError, ShowError("no seeds to play"))  // survivors are not played
+            XCTAssertEqual($0 as? ShowError,
+                           ShowError("every seed survived the cap: --play-survivors plays them anyway"))
+        }
+        // R-X9: with the flag they play, taking their place by lifetime.
+        XCTAssertEqual(try Show.seedWidth(try Show.load([survivors]), cells: nil, survivors: true), 32)
+        // A file recording no seeds at all is the other problem, and the flag
+        // does not help: it plays survivors, it does not invent seeds.
+        let none = odcaFile(store, name: "none.odca")
+        Store.saveOdcaFile([Pair(rule: b.id, colorset: "B", colors: grey(20))], seeds: [:], to: none)
+        for survivorsToo in [false, true] {
+            XCTAssertThrowsError(try Show.seedWidth(try Show.load([none]), cells: nil,
+                                                    survivors: survivorsToo)) {
+                XCTAssertEqual($0 as? ShowError, ShowError("no seeds to play"))
+            }
         }
 
         let session = makeSession(store, lines: lines, show: show, longest: true, playTimeout: 1, playGrace: 1)
