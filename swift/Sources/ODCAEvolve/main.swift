@@ -18,22 +18,30 @@ let cells = wholeNumber(program: "odca-evolve", options: options, "--cells", uni
 let budget = wholeNumber(program: "odca-evolve", options: options, "--time", unit: "seconds")  // R-E1
 let cap = wholeNumber(program: "odca-evolve", options: options, "--cap", unit: "generations", default: Evolve.defaultCap)  // R-E2
 
-// R-E1: one input file writes its findings back to itself, as it always
-// has; several need `-o` to say where the union should go, since writing
-// to any one of them would be a guess. `-o` is allowed with one file
-// too, including when it names that same file.
-let output: URL
-if let path = options["-o"] {
-    output = URL(fileURLWithPath: path)
-} else if files.count == 1 {
-    output = files[0]
-} else {
-    print("odca-evolve: -o <file.odca> is required with more than one file")
+// R-E1: the output file is always named outright, however many inputs
+// there are. A single input used to be written back to implicitly, which
+// meant a file could be rewritten as a side effect of being searched;
+// having to say where the results go makes that a choice instead.
+guard let path = options["-o"] else {
+    print("odca-evolve: -o <file.odca> is required")
     exit(2)
 }
+let output = URL(fileURLWithPath: path)
 for file in files where !FileManager.default.fileExists(atPath: file.path) {  // R-E1: every input must exist
     print("error: \(file.relativePath) does not exist")
     exit(1)
+}
+
+// Naming an input as the output is allowed and is the ordinary way to
+// keep searching one file, but it overwrites that file, so it is said
+// out loud. Paths are compared resolved, so `f.odca`, `./f.odca` and an
+// absolute path to it are recognised as the same file.
+func sameFile(_ a: URL, _ b: URL) -> Bool {
+    a.resolvingSymlinksInPath().standardizedFileURL.path
+        == b.resolvingSymlinksInPath().standardizedFileURL.path
+}
+if let shared = files.first(where: { sameFile($0, output) }) {  // R-E1
+    print("odca-evolve: warning: \(shared.relativePath) is both an input and the output, and will be overwritten")
 }
 // The union is wholly in memory before anything is written, so naming an
 // input file as the output is safe.

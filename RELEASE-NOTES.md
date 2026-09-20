@@ -5,6 +5,32 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.76.0 (Swift, spec) — 2026-09-19
+
+`odca-evolve` now always requires `-o`, even for a single file.
+
+It used to write its findings back into the file you pointed it at. That
+made searching a file and rewriting it the same act, so a keeper file
+could be modified as a side effect of merely being looked at. Now the
+output is always named:
+
+    odca-evolve interesting.odca -o interesting.odca --cells 600 --time 300
+
+which is the same thing as before, but said rather than assumed. Point
+`-o` somewhere else and your input is left alone.
+
+Naming an input as the output is still perfectly normal — it is how you
+go on searching one file — but since it overwrites that file the program
+says so before it starts:
+
+    odca-evolve: warning: interesting.odca is both an input and the output, and will be overwritten
+
+Paths are compared resolved, so naming the same file as `f.odca` one
+side and an absolute path the other is still recognised as one file.
+
+This breaks existing invocations that relied on the implicit write-back.
+Adding `-o <the same file>` restores them exactly.
+
 ## 3.74.1 (Swift, spec) — 2026-09-19
 
 A fix to 3.74.0, which could silently drop pairs when uniting files.

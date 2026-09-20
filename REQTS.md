@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.74.1 — 2026-09-19
+Version 3.76.0 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -102,7 +102,9 @@ screenfuls — R-A1, R-U8. 3.74.0: `odca-evolve` takes several files and
 works on their union, with `-o` to say where the results go — R-E1,
 R-E2, R-E3, R-U9, section 4e, section 10. 3.74.1: that union loses
 nothing — pairs unite by content and a shared name is a clash of labels
-only, the later pair renamed rather than dropped — R-E1.)
+only, the later pair renamed rather than dropped — R-E1. 3.76.0: `-o` is
+required however many input files are given, and naming an input as the
+output is warned about — R-E1, R-U9.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1025,14 +1027,21 @@ nothing else:
   the command-line order does not affect the result. Nothing an earlier
   search recorded is discarded for having been named later.
 
-`-o` says where the results are written. It is required with more than
-one input file (else `odca-evolve: -o <file.odca> is required with more
-than one file`, exit 2), since writing to any one input would be a
-guess; with a single input file it is optional, that file being written
-back to as before. It may name one of the input files in either case,
-including the single-file case where it names that same file, which is
-simply the default spelled out. Only the output file is written; input
+`-o` says where the results are written and is always required, however
+many input files are given (else `odca-evolve: -o <file.odca> is
+required`, exit 2). It may name one of the input files, which is the
+ordinary way to go on searching one file; because that overwrites the
+file, the program says so before it begins:
+`odca-evolve: warning: <file> is both an input and the output, and will
+be overwritten`, on standard output, naming the input as it was given on
+the command line. Paths are compared resolved, so the same file named
+two ways is recognised as one. Only the output file is written; input
 files that are not the output are never modified.
+
+Requiring `-o` even for a single input is deliberate: a file was
+formerly written back to implicitly, so searching a file and rewriting
+it were the same act, and a keeper file could be modified as a side
+effect of being looked at. Naming the output makes it a choice.
 
 The remaining options are unaffected by any of this. `--cells`, the
 width of the rows, a whole number of 3 or more (R-M2), and `--time`, the budget per rule in whole

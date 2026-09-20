@@ -1,7 +1,7 @@
 odca-evolve: search an odca file's rules for their longest-lived seeds
 
-usage: odca-evolve <file.odca> [<file.odca> ...] --cells N --time SECONDS
-                   [--cap N] [--parity [--limit N]] [-o <file.odca>]
+usage: odca-evolve <file.odca> [<file.odca> ...] -o <file.odca>
+                   --cells N --time SECONDS [--cap N] [--parity [--limit N]]
        odca-evolve --help
 
 Given more than one file, works on the union of them all as though it
@@ -12,8 +12,12 @@ kept, the later renamed, since files number their own pairs from
 pair-0000 up and so collide by construction. Seeds are pooled rather
 than chosen between, the ten longest-lived kept for each rule and width
 whichever file they came from. The order of the files decides only who
-keeps a contested name, never what survives. With more than one file,
--o must say where the results go; it may name one of the input files.
+keeps a contested name, never what survives.
+
+-o says where the results go and is always required, however many files
+are given. It may name one of the input files, which is the ordinary way
+to go on searching one file, but that overwrites it and so is warned
+about.
 
 For every distinct rule in the union, in order, spends the time budget
 drawing random rows of N cells and evolving each, in wrap mode, until a
@@ -43,10 +47,10 @@ holds one for exactly the width on screen.
   --limit N       with --parity: at most N rules give up their turn per
                   round trip, those furthest ahead; 0, the default, is no
                   limit
-  -o FILE         where to write the results. Required with more than one
-                  input file, optional with one (which otherwise has its
-                  own results written back to it), and may name one of the
-                  input files either way
+  -o FILE         where to write the results; required. May name one of
+                  the input files, which is warned about since it
+                  overwrites that file. Input files that are not the
+                  output are never modified
 
 Output: a line as each round trip begins (and the parity plan after it),
 a line as each rule is taken up, a line for every row that joins the ten
