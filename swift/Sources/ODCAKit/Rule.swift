@@ -31,6 +31,11 @@ public struct Rule: Equatable {
 
     public let states: [UInt8]
     let dense: [UInt8]
+    /// Which states the rule can write, precomputed beside `dense`. The
+    /// census of R-A1 asks this of every generation and the answer depends
+    /// on the table alone, so it is settled once here rather than rebuilt
+    /// on each row.
+    public let producible: [Bool]
 
     public init(states: [UInt8]) throws {
         guard states.count == Rule.tableSize,
@@ -43,6 +48,9 @@ public struct Rule: Equatable {
             dense[v[1] + 4 * v[2] + 16 * v[3]] = states[i]
         }
         self.dense = dense
+        var producible = [Bool](repeating: false, count: Rule.stateCount)
+        for state in states { producible[Int(state)] = true }
+        self.producible = producible
     }
 
     /// Parse a canonical 20-digit base-4 rule ID (R-M8).

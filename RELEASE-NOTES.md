@@ -5,6 +5,19 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.78.7 (Swift, spec) — 2026-09-19
+
+Nothing changes on screen or in a file; `odca-evolve` simply measures
+faster. The test that decides whether a generation is boring by
+extinction was rebuilding the set of states a rule can write on every
+single generation — a map, a set, a sort and two filters, a hundred
+thousand times over for a seed that runs to the cap — to recompute
+something that depends only on the rule. The rule now settles it once,
+beside the lookup table it already precomputes.
+
+Measured on a real seed of 600 cells run to a cap of 100,000: 0.195 s
+before, 0.174 s after, about eleven percent off the search.
+
 ## 3.78.6 (Swift, spec) — 2026-09-19
 
 Each verbose join now carries the width on its first line, so it does

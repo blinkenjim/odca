@@ -100,7 +100,7 @@ PT-35, as it is from the `lifetimes` vectors; every other row binds it.
 | ID | Requirement | Property |
 |----|-------------|----------|
 | PT-1 | R-M10 | Across ≥ 50 successive mutations, each differs from its parent in exactly one of the 20 entries, and that entry's new value is a valid state different from the old. |
-| PT-2 | R-M11 | Random rules are valid (20 entries, states 0–3). |
+| PT-2 | R-M11 | Random rules are valid (20 entries, states 0–3), and the precomputed producible mask says exactly what the table says. |
 | PT-3 | R-M2 | Constructing an automaton with width < 3, a malformed seed row, or an out-of-range state fails cleanly. |
 | PT-4 | R-C1–R-C4 | Screening the all-zero rule reports a cycle of period 1 and rejects it. |
 | PT-5 | R-C6 | The synchronous search always returns a valid rule within its attempt bound, including when forced to its fallback (e.g. bound = 1). |

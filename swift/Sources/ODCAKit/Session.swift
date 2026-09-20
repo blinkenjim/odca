@@ -979,13 +979,22 @@ public final class Session {
     static func census(of row: [UInt8], rule: Rule) -> (extinction: String?, minorityPopulation: Int) {
         var census = [Int](repeating: 0, count: Rule.stateCount)
         for c in row { census[Int(c)] += 1 }
-        let producible = Set(rule.states.map { Int($0) }).sorted()
-        let extinct = producible.filter { census[$0] == 0 }
-        let minority = producible.filter {
-            census[$0] > 0 && Double(census[$0]) < Session.minorityFraction * Double(row.count)
+        // Walked by hand rather than filtered: this runs on every generation
+        // of every seed odca-evolve measures, and the intermediate arrays a
+        // filter pair builds cost more than the census itself.
+        let floor = Session.minorityFraction * Double(row.count)
+        var extinct: [Int] = []
+        var minority = false
+        var population = 0
+        for state in 0..<Rule.stateCount where rule.producible[state] {
+            if census[state] == 0 {
+                extinct.append(state)  // ascending, as the reason text wants them
+            } else if Double(census[state]) < floor {
+                minority = true
+                population += census[state]
+            }
         }
-        let population = minority.reduce(0) { $0 + census[$1] }
-        guard !extinct.isEmpty && minority.isEmpty else { return (nil, population) }
+        guard !extinct.isEmpty && !minority else { return (nil, population) }
         let names = extinct.map(String.init).joined(separator: ", ")
         return ("state\(extinct.count > 1 ? "s" : "") \(names) extinct", population)
     }

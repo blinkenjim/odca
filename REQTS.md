@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.78.6 — 2026-09-19
+Version 3.78.7 — 2026-09-19
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -112,7 +112,10 @@ with a blank line — R-E6. 3.78.2: the overwrite warning reads
 blank that separates bursts, and a burst reuses its line — R-E6, R-E4.
 3.78.4: the verbose pair lines come above the `kept` line, not below —
 R-E6. 3.78.5: the verbose ages star the row that has just joined —
-R-E6. 3.78.6: a verbose join's first line carries the width — R-E6.)
+R-E6. 3.78.6: a verbose join's first line carries the width — R-E6.
+3.78.7: the census of R-A1 reads a producible mask settled once with
+the rule rather than rebuilt on every generation — no behavioral
+change, R-M5.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are

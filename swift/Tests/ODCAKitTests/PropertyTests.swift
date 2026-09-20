@@ -37,6 +37,11 @@ final class PropertyTests: XCTestCase {
             let rule = Rule.random(using: &rng)
             XCTAssertEqual(rule.states.count, Rule.tableSize)
             XCTAssertTrue(rule.states.allSatisfy { $0 < UInt8(Rule.stateCount) })
+            // The precomputed producible mask says exactly what the table says.
+            XCTAssertEqual(rule.producible.count, Rule.stateCount)
+            for state in 0..<Rule.stateCount {
+                XCTAssertEqual(rule.producible[state], rule.states.contains(UInt8(state)))
+            }
         }
     }
 
