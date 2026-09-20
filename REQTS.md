@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.82.1 — 2026-09-20
+Version 3.84.0 — 2026-09-20
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -113,14 +113,16 @@ blank that separates bursts, and a burst reuses its line — R-E6, R-E4.
 3.78.4: the verbose pair lines come above the `kept` line, not below —
 R-E6. 3.78.5: the verbose ages star the row that has just joined —
 R-E6. 3.78.6: a verbose join's first line carries the width — R-E6.
-3.82.1: the ages of the ten are two spaces apart and the joined row's
-asterisk trails rather than leads it — R-O16, R-E6.
 3.78.7: the census of R-A1 reads a producible mask settled once with
 the rule rather than rebuilt on every generation — no behavioral
 change, R-M5. 3.80.0: a seed's lifetime ends at stagnation as well as at
 extinction and a confirmed cycle, so it ends where the player would
 re-seed — R-E2. 3.82.0: every program refuses an odca file it cannot
-read instead of reading it as empty, trailing commas included — R-P6.)
+read instead of reading it as empty, trailing commas included — R-P6.
+3.82.1: the ages of the ten are two spaces apart and the joined row's
+asterisk trails rather than leads it — R-O16, R-E6. 3.84.0: a state
+under the minority share for 12800 generations without a break counts
+as extinct though cells of it remain — R-A1.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -612,7 +614,18 @@ interesting row has just scrolled off the top of the display.
   fewer than 10% of the cells. A living minority is a shrinking or
   drifting group whose fate is unresolved (two domain walls converging,
   say); the extinction counts only once such groups have vanished, so the
-  user sees the collision; or
+  user sees the collision.
+
+  That patience has a limit. A producible state that has been under the
+  10% share without a break for EFFECTIVE_EXTINCTION_WINDOW generations
+  (12800, a fixed count) counts as extinct even while cells of it remain,
+  and stops being a living minority holding the verdict back. A group
+  whose fate is unresolved resolves it; one that has held one or two
+  percent of the row for twelve thousand generations has resolved
+  nothing, and is not going to. Such a state is present, invisible at
+  ordinary colours, and long past taking part — the row on screen has two
+  states in it, whatever the census says. The reason text names it among
+  the extinct like any other (R-O6); or
 - *repetition*: the automaton has entered a cycle. Because the automaton
   is deterministic, a row that recurs proves the future periodic forever,
   so once a cycle is recognized every later generation is boring. Two

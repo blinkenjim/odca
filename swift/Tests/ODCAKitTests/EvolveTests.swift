@@ -54,6 +54,39 @@ final class EvolveTests: XCTestCase {
                        "state 3 extinct")
     }
 
+    func testALastingMinorityCountsAsExtinct() {  // PT-40, R-A1
+        // A state under 10% of the row without a break for the whole window
+        // is extinct though cells of it remain, and until then it is still a
+        // living minority holding the verdict back. Driven directly, since a
+        // real rule takes 13,000 generations to show it.
+        let rule = try! Rule(id: "20113322210323221031")
+        var clock = Session.MinorityClock()
+        // 100 cells: state 3 holds 5 of them (under the 10 that 10% allows),
+        // states 0, 1 and 2 share the rest. Nothing is at zero, so without
+        // the window nothing is ever extinct.
+        var row = [UInt8](repeating: 1, count: 48) + [UInt8](repeating: 2, count: 47)
+        row += [UInt8](repeating: 3, count: 5)
+        XCTAssertEqual(row.count, 100)
+        // State 0 has no cells at all, but state 3's five hold the verdict.
+        for _ in 0..<(Session.effectiveExtinctionWindow - 1) {
+            XCTAssertNil(Session.census(of: row, rule: rule, clock: &clock).extinction)
+        }
+        // On the window's last generation state 3's patience runs out, and
+        // both it and the truly absent state 0 are named, ascending.
+        XCTAssertEqual(Session.census(of: row, rule: rule, clock: &clock).extinction,
+                       "states 0, 3 extinct")
+        // A break in the run resets the count: the clock is about the
+        // unbroken stretch, not the total time spent small.
+        var broken = Session.MinorityClock()
+        var big = row
+        for i in 0..<20 { big[i] = 3 }  // state 3 now well over 10%
+        for _ in 0..<(Session.effectiveExtinctionWindow - 1) {
+            _ = Session.census(of: row, rule: rule, clock: &broken)
+        }
+        _ = Session.census(of: big, rule: rule, clock: &broken)  // the break
+        XCTAssertNil(Session.census(of: row, rule: rule, clock: &broken).extinction)
+    }
+
     func testStagnationWindowMatchesRescanningTheWholeWindow() {  // PT-40, R-E2
         // The carried sum and the two monotonic deques must answer exactly
         // what the player gets by rescanning, on every prefix and for every

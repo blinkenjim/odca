@@ -1,7 +1,18 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-20):** Spec 3.82.1, Swift 3.82.1, Python
-3.73.0: 3.82.1: the verbose ages are two spaces apart and the joined
+**YOU ARE HERE (2026-09-20):** Spec 3.84.0, Swift 3.84.0, Python
+3.73.0: 3.84.0: a producible state under 10% of the row for 12800
+generations without a break counts as extinct though cells of it
+remain (R-A1). The user found a seed running to the cap in which two
+states sat at one to four percent forever: extinction could not fire
+(nothing reached zero) and stagnation could not either (7 cells of
+swing against a mean of 12.7 is 55%, twice the threshold — the
+relative test is least able to fire exactly where it is wanted).
+Ruled out along the way: a frozen-cell detector, since the 10 truly
+frozen cells were not the mechanism; and the user's cheaper gate of
+watching state populations for a constant value, since frozen cells
+pin a population's floor, not its value. Recorded lifetimes for rules
+that ran on past a vanished state are stale. 3.82.1: the verbose ages are two spaces apart and the joined
 row's asterisk trails rather than leads, standing in one of the two
 spaces so the columns hold. 3.82.0: every program refuses an odca file it cannot read
 rather than reading it as empty (R-P6), trailing commas included. This

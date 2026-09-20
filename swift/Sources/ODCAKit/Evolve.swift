@@ -127,9 +127,12 @@ struct StagnationWindow {
         // the player watches, so a seed's lifetime ends where the player
         // would re-seed rather than running on to the cap unwatchable.
         var steady = StagnationWindow(width: Session.stagnationWindow)
+        // R-A1: the extinction clause reads how long each state has been a
+        // minority, so the run carries that history rather than the row.
+        var clock = Session.MinorityClock()
         while automaton.generation < cap {
             let next = automaton.step()
-            let (end, minorityPopulation) = Session.census(of: next, rule: rule)
+            let (end, minorityPopulation) = Session.census(of: next, rule: rule, clock: &clock)
             if let end = end {
                 return Seed(row: row, generations: automaton.generation, end: end)
             }

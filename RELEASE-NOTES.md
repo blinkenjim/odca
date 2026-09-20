@@ -5,6 +5,50 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.84.0 (Swift, spec) — 2026-09-20
+
+The patience that holds an extinction back while a minority state is
+still alive now has a limit. A producible state that has stayed under
+10% of the row without a break for 12,800 generations counts as extinct
+even though cells of it remain (R-A1).
+
+The case that prompted it, from your own file: a rule where two states
+collapse to one to four percent of the row around generation 3,500 and
+then simply stay there — alive, fluctuating, never reaching zero — for
+the whole of a 100,000-generation run. Nothing caught it. Extinction
+could not fire, because no state ever reached zero. Stagnation could not
+fire either: the minority population runs 10 to 17 cells, and against a
+mean of 12.7 that seven-cell swing is 55%, twice the threshold. The
+nearer a state gets to extinction, the smaller the mean, and the more
+hypersensitive that relative test becomes — it is least able to fire
+exactly where you most want it to.
+
+A living minority is meant to be a group whose fate is unresolved, two
+domain walls converging, so you get to see the collision. One that has
+held two percent of the row for twelve thousand generations has resolved
+nothing and is not going to.
+
+Checked against every seed in that file: seventeen of twenty are
+unchanged to the generation, both cycling rules keep their Brent
+endings, and the chaotic survivor still survives. Two change:
+
+    20113322210323221031  320   100000 survived  ->  13287 states 0, 3 extinct
+    12113201332331012311  600    15222            ->  13284 state 0 extinct
+
+The first is the case above; the reason text names exactly the two
+states that had practically died. The second went effectively
+two-state about 2,000 generations before it went actually two-state.
+
+**Lifetimes recorded for rules that ran on past a vanished state are now
+wrong and worth re-searching.** Nothing rewrites them. The conformance
+vectors all cap at 400 generations, well inside the window, so they are
+unchanged.
+
+The window is 12,800 rather than something smaller because anything
+shorter cuts rules you would want to keep: at 1,600 it fires at about
+generation 2,000 on nearly everything, including a rule that honestly
+runs to 67,478.
+
 ## 3.82.1 (Swift, spec) — 2026-09-20
 
 The ages of the ten now sit two spaces apart, and the asterisk marking

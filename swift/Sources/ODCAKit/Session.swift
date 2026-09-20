@@ -41,6 +41,12 @@ public final class Session {
     public static let minorityFraction = 0.10  // a producible state below this share is a minority (R-A1)
     public static let stagnationWindow = 1600  // minority population steady this long -> stagnant, fixed (R-A1)
     public static let stagnationSwing = 0.25  // (max - min) / mean below this counts as steady
+    /// R-A1: a producible state that has been a minority this long without a
+    /// break counts as extinct though cells of it remain. The patience that
+    /// holds an extinction back while a minority still lives (2.3.1) has no
+    /// end otherwise, and a state can hold one or two percent of the row for
+    /// the whole of a run: present, invisible, and long past taking part.
+    public static let effectiveExtinctionWindow = 12800
     public static let playTimeout = 120.0  // odca: a pair's screen time before it may advance (R-X3)
     public static let playGrace = 60.0  // odca: no transition within this long of an initialization (R-X3)
     public static let shuffleTries = 100  // `shuffle`: draws tried for an order without repeats (R-X7)
@@ -172,6 +178,7 @@ public final class Session {
     private var recentRows: [[UInt8]] = []
     private var recentCounts: [[UInt8]: Int] = [:]
     private var minorityCounts: [Int] = []
+    private var minorityClock = Session.MinorityClock()  // R-A1
     private var brentSnapshot: [UInt8]?
     private var brentPower = 1
     private var brentSteps = 0
@@ -944,7 +951,8 @@ public final class Session {
             }
         }
         // Census: extinction with living-minority patience, and stagnation.
-        let (extinction, minorityPopulation) = Session.census(of: row, rule: automaton.rule)
+        let (extinction, minorityPopulation) = Session.census(of: row, rule: automaton.rule,
+                                                              clock: &minorityClock)
         minorityCounts.append(minorityPopulation)
         let window = Session.stagnationWindow
         if minorityCounts.count > window { minorityCounts.removeFirst() }
@@ -976,7 +984,8 @@ public final class Session {
     /// producible state has no cells and no other is a living minority, else
     /// nil; and the living-minority population, for the stagnation test.
     /// Shared with odca-evolve, whose whole notion of boring this is (R-E2).
-    static func census(of row: [UInt8], rule: Rule) -> (extinction: String?, minorityPopulation: Int) {
+    static func census(of row: [UInt8], rule: Rule, clock: inout MinorityClock)
+        -> (extinction: String?, minorityPopulation: Int) {
         var census = [Int](repeating: 0, count: Rule.stateCount)
         for c in row { census[Int(c)] += 1 }
         // Walked by hand rather than filtered: this runs on every generation
@@ -987,11 +996,13 @@ public final class Session {
         var minority = false
         var population = 0
         for state in 0..<Rule.stateCount where rule.producible[state] {
-            if census[state] == 0 {
+            let count = census[state]
+            clock.low[state] = Double(count) < floor ? clock.low[state] + 1 : 0
+            if count == 0 || clock.low[state] >= Session.effectiveExtinctionWindow {
                 extinct.append(state)  // ascending, as the reason text wants them
-            } else if Double(census[state]) < floor {
+            } else if Double(count) < floor {
                 minority = true
-                population += census[state]
+                population += count
             }
         }
         guard !extinct.isEmpty && !minority else { return (nil, population) }
@@ -999,10 +1010,14 @@ public final class Session {
         return ("state\(extinct.count > 1 ? "s" : "") \(names) extinct", population)
     }
 
-    /// R-A1's extinction clause alone: the reason a row is boring by
-    /// extinction, or nil.
-    public static func extinction(in row: [UInt8], rule: Rule) -> String? {
-        census(of: row, rule: rule).extinction
+    /// R-A1: how long each producible state has gone under the minority
+    /// share without a break. The extinction clause needs this history, so
+    /// it cannot be asked of a row on its own; a run carries one of these
+    /// and hands it to every census.
+    public struct MinorityClock {
+        var low = [Int](repeating: 0, count: Rule.stateCount)
+        public init() {}
+        public mutating func reset() { for i in low.indices { low[i] = 0 } }
     }
 
     private func resetBoredom() {  // R-A3
@@ -1011,6 +1026,7 @@ public final class Session {
         recentRows.removeAll()
         recentCounts.removeAll()
         minorityCounts.removeAll()
+        minorityClock.reset()
         brentSnapshot = nil
         brentPower = 1
         brentSteps = 0
