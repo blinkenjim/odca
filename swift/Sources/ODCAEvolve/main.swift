@@ -171,7 +171,12 @@ while true {
         let keptLine = "kept \(seed.generations) generations, rank \(rank) (\(seed.end))"
         // rank is 1-based and is where the row was inserted, so kept[rank - 1]
         // is the row this burst is announcing.
-        let lines = verbose ? pairLines(id) + [keptLine, ages(kept, marking: rank - 1)] : [keptLine]
+        var lines = verbose ? pairLines(id) + [keptLine, ages(kept, marking: rank - 1)] : [keptLine]
+        // The width is on the rule's own line, which scrolls away long
+        // before the rule's turn is over, so each burst carries it too.
+        // Appended to whatever line comes first rather than to the pair
+        // lines by name, so it stays on top however the burst is ordered.
+        if verbose { lines[0] += ", \(cells) cells" }
         for (i, line) in lines.enumerated() {
             say(line, at: deadline, blankBefore: verbose && i == 0)
         }

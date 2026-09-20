@@ -5,6 +5,19 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.78.6 (Swift, spec) — 2026-09-19
+
+Each verbose join now carries the width on its first line, so it does
+not have to be remembered from the rule's own line hundreds of lines
+back:
+
+    00:00:02 pair-0000, ODCA default, 33233022210132010013, 300 cells
+    00:00:02 kept 1604 generations, rank 1 (states 1, 2 extinct)
+    00:00:02 *1604
+
+Only the first line of a burst carries it; a rule belonging to several
+pairs does not repeat it on each.
+
 ## 3.78.5 (Swift, spec) — 2026-09-19
 
 The verbose ages now star the row that has just joined, so you can see
