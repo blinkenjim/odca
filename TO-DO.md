@@ -206,6 +206,41 @@ use odca-select to build a show and watch it, the shuffle constraints,
 the color set tool, and the vision items, starting with the declarative
 script design.
 
+- [x] (2026-09-19, user: "if it can't be done at 320 cells or more it's
+      really not worth investigating") Running an ODCA *backwards* to
+      extend a good seed. The goal: odca-evolve finds a long-lived
+      starting row, so run it forward a little to settle, then walk
+      backwards to prepend generations and get a longer sequence than
+      the search alone found.
+      It is sound in principle. A row's *ancestry depth* — the longest
+      chain of predecessors it has — can be tested exactly with a de
+      Bruijn sweep (nodes are 2k-tuples for a k-step lookback, so 4^2k
+      of them), and measured at width 320 on the default rule:
+      generation 1 is not in the image of F^2 and generation 2 is not in
+      the image of F^3, both pinned, but generation 3 *is* in the image
+      of F^4 — deeper than its own generation. Brute force over every
+      row at widths 10 and 12 shows why: a trajectory keeps merging with
+      older tributaries (at width 12, depth 3 at generation 2, 16 at
+      generation 6, 50 at generation 20) and eventually reaches the
+      limit set, inside which ancestry is unbounded. So there is real
+      history to recover, more than was put in.
+      It is not harvestable. A row of 320 cells has on the order of
+      10^13 parents; almost all are orphans and nothing local tells the
+      deep ones apart, so a greedy backward walk leaves the true path on
+      its first step and dies (measured: depth 1 of a possible 200, and
+      randomizing the choice does not help). The only exact remedy is a
+      k-step lookahead, which guarantees k backward steps and costs
+      4^2k: k=4 runs in about 3 seconds at width 320 and buys four
+      generations, against lifetimes of ~19,000. k=5 is some 65,000
+      times the work for five. A SAT encoding is the one technique that
+      might scale and was not tried.
+      Left aside because the economics are inverted even where it works:
+      seconds to minutes of search to gain generations a forward run
+      produces in microseconds, and the recovered rows are most likely
+      transient — the least interesting part of a run. Don't reopen
+      without a method that reaches useful depth at 320 cells.
+      (Unrelated to, and not affected by, the ruled-out lookup-table
+      boringness metric recorded in YOU ARE HERE.)
 - [x] (2026-09-17, user: "that's perfect!") platformio: shimmering across
       the whole display at base/2x/4x speed, not localized like tearing,
       worst once two of the four states had gone extinct. No TE pin on
