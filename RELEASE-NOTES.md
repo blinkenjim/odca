@@ -31,6 +31,51 @@ failing on `test_help_texts_match_the_shared_copies` for a few hours.
 That is fixed here. Both implementations now agree on every shared
 constant: 4000, 0.10, 1600, 0.25, 12800.
 
+## 3.92.0 (Swift, spec) and 3.93.0 (Python) — 2026-09-20
+
+An odca file now records which rule class a pair belongs to, so all four
+can live in one file (R-P3). A pair carries an `experiment` key naming
+its class:
+
+    {
+     "name": "pair-0031",
+     "rule": "21112223033323220231",
+     "experiment": "fredkin",
+     "colorset": "ODCA default",
+     "colors": ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]
+    }
+
+**The ODCA writes no key at all**, so a file of ordinary pairs is byte
+for byte what it was, and one written before this reads as exactly what
+it meant. Both `interesting.odca` and `interesting-esp32.odca` re-save
+byte-identically.
+
+The key is `experiment` rather than `class` because this project already
+says "class" for Wolfram's Class I to IV — the screener reports
+`maybeIV` — and two meanings of the word in one file would be a trap.
+
+The class is part of what a pair *is*, not a note about it. Two pairs
+whose 20 digits match under different classes are two different
+automata, so the union of R-E1 tells them apart, and seeds are keyed
+`<class>:<rule ID>` for anything but the ODCA — a bare 20-digit key would
+be ambiguous the moment `fredkin` exists. Verified: an ODCA pair and a
+fredkin pair sharing their digits keep separate seeds.
+
+`odca-evolve` follows, searching by class as well as by ID. Its cycle
+detection also needed fixing for these: Brent's was comparing the visible
+row, which under a second-order rule is not the state, and would have
+confirmed cycles that were not there.
+
+A pair naming a class this version does not know is skipped rather than
+read as an ODCA rule it is not, as is one whose rule ID has the wrong
+number of digits for its class.
+
+This is MINOR rather than MAJOR because the existing format is untouched
+and every old file reads identically. Worth knowing in the other
+direction: a binary older than this reading a *new* file would drop
+`modal` and `totalistic4` pairs (wrong ID length) and misplay `fredkin`
+ones as ODCA rules, the digits being indistinguishable.
+
 ## 3.90.0 (Swift, spec) and 3.91.0 (Python) — 2026-09-20
 
 **`-x N` / `--experiment N`** on `odca` and `odca-select` runs an

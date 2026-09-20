@@ -136,18 +136,22 @@ struct StagnationWindow {
             if let end = end {
                 return Seed(row: row, generations: automaton.generation, end: end)
             }
+            // R-M12: what recurs must be the whole state, which under a
+            // second-order rule is the pair of rows; comparing the visible
+            // row alone would confirm a cycle that is not there.
+            let state = automaton.state
             if let saved = snapshot {
                 steps += 1
-                if next == saved {
+                if state == saved {
                     return Seed(row: row, generations: automaton.generation, end: "repeating (period \(steps))")
                 }
                 if steps == power {
-                    snapshot = next
+                    snapshot = state
                     power *= 2
                     steps = 0
                 }
             } else {
-                snapshot = next
+                snapshot = state
             }
             // Last of the three: an extinction or a confirmed cycle says
             // outright what the row has become, where stagnation only says

@@ -1,6 +1,16 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-20):** Spec 3.90.0, Swift 3.90.0, Python
+**YOU ARE HERE (2026-09-20):** Spec 3.92.0, Swift 3.92.0, Python
+3.93.0: 3.92.0 / 3.93.0: an odca file records a pair's rule class in an
+`experiment` key (R-P3), so all four classes live in one file and the
+experiments are keepable. The ODCA writes no key, so old files are
+untouched and re-save byte-identically. Seeds are keyed
+`<class>:<id>` for non-ODCA rules, 20 digits being ambiguous once
+fredkin exists. The user's read of the classes: 2 has interesting
+textures but no long-lived structures and is not worth evolving, 1 is
+similar but less so, 3 is the most visually interesting and does make
+long-lived structures. Open: whether class 1 has rare long-lived
+structures that random sampling keeps missing.
 3.91.0: 3.90.0 / 3.91.0: `-x` / `--experiment` runs one of three
 second-order rule classes (R-M12), the grandparent entering the rule:
 1 a modal 80-entry table (a strict superset of the ODCA), 2 Fredkin's

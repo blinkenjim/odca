@@ -64,7 +64,8 @@ import numpy as np
 from .automaton import N_STATES, NONE, Automaton, Rule
 from .classify import find_candidate
 from .search import CandidateSearch
-from .store import DEFAULT_COLOR_SETS, SURVIVED, Store, load_odca_file, load_seeds, next_pair_name, save_odca_file
+from .store import (DEFAULT_COLOR_SETS, SURVIVED, Store, load_odca_file, load_seeds,
+                    next_pair_name, pair_seed_key, save_odca_file)
 
 DEFAULT_COLOR_SET = 1  # slot active at startup (R-U4)
 KEY_ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]  # digit keys in review order (R-V2, R-K17)
@@ -753,8 +754,11 @@ class Session:
                 self.unsaved_rule = rule  # the slot's mutations are undone with it
 
     def _current_pair(self):
-        return {"name": next_pair_name(self.pairs), "rule": self.automaton.rule.id,
+        pair = {"name": next_pair_name(self.pairs), "rule": self.automaton.rule.id,
                 "colorset": self.active_name, "colors": self._arranged_active_colors()}
+        if self.automaton.rule.experiment != NONE:  # R-M12
+            pair["experiment"] = self.automaton.rule.experiment
+        return pair
 
     @staticmethod
     def _label(pair):
@@ -776,7 +780,7 @@ class Session:
 
     def _shown(self, index):
         """R-W9: under odca-select --longest only pairs whose rule has seeds are presented."""
-        return not self.select_longest or bool(self.select_seeds.get(self.pairs[index]["rule"]))
+        return not self.select_longest or bool(self.select_seeds.get(pair_seed_key(self.pairs[index])))
 
     def _rebuild_view_order(self):  # R-W7: n/p order, file order or grouped by rule
         shown = [i for i in range(len(self.pairs)) if self._shown(i)]
@@ -805,12 +809,14 @@ class Session:
         index = self.view_order[position]
         pair = self.pairs[index]
         if self.grouped and (self.pair_index is None
-                             or self.pairs[self.pair_index]["rule"] != pair["rule"]):
+                             or self.pairs[self.pair_index]["rule"] != pair["rule"]
+                             or self.pairs[self.pair_index].get("experiment", NONE)
+                                != pair.get("experiment", NONE)):
             g, total = self._rule_group(index)
             print(f"--- rule group {g}/{total} ---")  # R-O12
         self.view_position = position
         self.pair_index = index
-        rule = Rule.from_id(pair["rule"])
+        rule = Rule.from_id(pair["rule"], pair.get("experiment", NONE))  # R-M12
         if rule != self.automaton.rule:
             if push_undo:
                 self.undo_stack.append(self.automaton.rule)
@@ -881,7 +887,8 @@ class Session:
             self.append_pair()
             return
         i = self.pair_index
-        if self.automaton.rule.id != self.pairs[i]["rule"]:
+        if (self.automaton.rule.id != self.pairs[i]["rule"]
+                or self.automaton.rule.experiment != self.pairs[i].get("experiment", NONE)):
             # R-K3: a mutated pair is a new pair; a kept rule is never overwritten.
             # The position moves onto the new pair, so further edits refine it —
             # except under --longest (R-W9), where the new pair, having no
@@ -909,7 +916,7 @@ class Session:
         position, shown = self.view_position, len(self.view_order)
         if self.select_longest:
             pair = self.pairs[self.pair_index]
-            self.select_seeds.pop(pair["rule"], None)
+            self.select_seeds.pop(pair_seed_key(pair), None)
             print(f"deleted seeds of pair {position + 1}/{shown} {self._label(pair)}")  # R-O12
         else:
             del self.pairs[self.pair_index]
@@ -952,7 +959,7 @@ class Session:
         screen width, longest first, without those that survived the cap
         unless --play-survivors asks for them too (R-X9)."""
         pair = self.show[segment]["pairs"][index]
-        seeds = self.show[segment].get("seeds", {}).get(pair["rule"], {}).get(self.cols, [])
+        seeds = self.show[segment].get("seeds", {}).get(pair_seed_key(pair), {}).get(self.cols, [])
         return list(seeds) if self.play_survivors else [s for s in seeds if s["end"] != SURVIVED]
 
     def _longest_pass(self):
@@ -1027,7 +1034,7 @@ class Session:
         self.pairs = self.show[segment]["pairs"]
         pair = self.pairs[index]
         self.pair_index = index
-        rule = Rule.from_id(pair["rule"])
+        rule = Rule.from_id(pair["rule"], pair.get("experiment", NONE))  # R-M12
         if rule != self.automaton.rule:
             self._set_rule(rule)
         self._undo_mark = len(self.undo_stack)  # R-K19: U returns to the pair as played
@@ -1036,7 +1043,7 @@ class Session:
         # width, when the file has one; a random row otherwise. R-X8: the seed
         # of the item's rank.
         if rank is None:
-            seeds = self.show[segment].get("seeds", {}).get(pair["rule"], {}).get(self.cols, [])
+            seeds = self.show[segment].get("seeds", {}).get(pair_seed_key(pair), {}).get(self.cols, [])
             self.init_cells(seeds[0]["row"] if seeds else None)
             which = ""
         else:

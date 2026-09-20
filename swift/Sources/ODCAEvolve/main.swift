@@ -64,17 +64,20 @@ guard !pairs.isEmpty else {  // R-E1: and between them hold pairs
     exit(1)
 }
 var seeds = Store.loadSeeds(files)
+// R-E2, R-M12: a rule is its ID *and* its class — 20 digits mean two
+// different automata once fredkin exists — so the search goes by the seed
+// key, which carries both and is what the file records seeds under.
 var rules: [String] = []  // distinct, in order of first appearance (R-E2)
-for pair in pairs where !rules.contains(pair.rule) { rules.append(pair.rule) }
+for pair in pairs where !rules.contains(pair.seedKey) { rules.append(pair.seedKey) }
 
 // R-E6: which pairs a rule belongs to, for the verbose lines. A rule can
 // belong to more than one — the same automaton under different colours is
 // a different pair — so this is a list, and each gets its own line rather
 // than one of them standing in for the rest.
 var pairsByRule: [String: [Pair]] = [:]
-for pair in pairs { pairsByRule[pair.rule, default: []].append(pair) }
-func pairLines(_ id: String) -> [String] {
-    (pairsByRule[id] ?? []).map { "\($0.name ?? "(unnamed)"), \($0.colorset), \(id)" }
+for pair in pairs { pairsByRule[pair.seedKey, default: []].append(pair) }
+func pairLines(_ key: String) -> [String] {
+    (pairsByRule[key] ?? []).map { "\($0.name ?? "(unnamed)"), \($0.colorset), \(key)" }
 }
 /// R-O16: generations, longest first, two spaces apart. `marking` stars one
 /// of them, which under verbose is the row that has just joined (R-E6) — the
@@ -164,7 +167,9 @@ while true {
   let toRun = rules.count - plan.count
   var ran = 0
   for (index, id) in rules.enumerated() {
-    let rule = try! Rule(id: id)  // loadOdcaFile keeps only valid rule IDs
+    // loadOdcaFile keeps only valid rule IDs, and only classes it knows.
+    let (experiment, ruleID) = Experiment.splitSeedKey(id)!
+    let rule = try! Rule(id: ruleID, experiment: experiment)
     let deadline = Date().addingTimeInterval(Double(budget))
     if let (shortest, longest) = plan[id] {
         say("rule \(id) (\(index + 1)/\(rules.count)): \(cells) cells, skipped: shortest \(shortest) × 0.9 outlives \(longest)", at: deadline)

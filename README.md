@@ -57,7 +57,9 @@ count vector (80 entries, a strict superset of the ODCA), 2 is Fredkin's
 reversible form `rule[counts] - grandparent` (the same 20-digit rule IDs, and
 nothing ever dies out for good), 3 counts the grandparent as a fourth cell
 (35 entries). Class 0 is the ODCA itself and is the default. None of them is
-written to an odca file yet; they are for looking at.
+recorded in the odca file that holds them: a pair carries an `experiment`
+key naming its class, absent for the ODCA itself, so one file can hold all
+four and every file written before this reads exactly as it always did.
 
 Every program refuses to start on an odca file it cannot read, naming the
 file and the fault, rather than reading it as empty. That matters because

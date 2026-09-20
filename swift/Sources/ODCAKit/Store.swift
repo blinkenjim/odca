@@ -240,12 +240,18 @@ public struct Store {
         else { return [] }
         var pairs: [Pair] = []
         for case let dict as [String: Any] in (root["pairs"] ?? root["looks"]) as? [Any] ?? [] {
-            guard let rule = dict["rule"] as? String, (try? Rule(id: rule)) != nil,
+            // R-P3, R-M12: `experiment` names the rule class, absent meaning
+            // the ODCA. A class this version does not know is skipped like
+            // any other entry it cannot use, rather than read as an ODCA
+            // rule it is not.
+            guard let experiment = Experiment.named(dict["experiment"] as? String) else { continue }
+            guard let rule = dict["rule"] as? String,
+                  (try? Rule(id: rule, experiment: experiment)) != nil,
                   let set = dict["colorset"] as? String,
                   let colors = dict["colors"] as? [String], colors.count == 4,
                   colors.allSatisfy(validColor) else { continue }
-            pairs.append(Pair(name: dict["name"] as? String, rule: rule, colorset: set,
-                              colors: colors.map { $0.uppercased() }))
+            pairs.append(Pair(name: dict["name"] as? String, rule: rule, experiment: experiment,
+                              colorset: set, colors: colors.map { $0.uppercased() }))
         }
         return pairs
     }
@@ -275,14 +281,15 @@ public struct Store {
         var names = Set<String>()
         for file in perFile {
             for pair in file {
-                guard seen.insert([pair.rule, pair.colorset] + pair.colors).inserted else { continue }
+                guard seen.insert([pair.rule, pair.experiment.fileName ?? "", pair.colorset] + pair.colors).inserted else { continue }
                 var name = pair.name
                 if let taken = name, names.contains(taken) {
                     name = String(format: "pair-%04d", nextNumber)
                     nextNumber += 1
                 }
                 if let name = name { names.insert(name) }
-                pairs.append(Pair(name: name, rule: pair.rule, colorset: pair.colorset, colors: pair.colors))
+                pairs.append(Pair(name: name, rule: pair.rule, experiment: pair.experiment,
+                              colorset: pair.colorset, colors: pair.colors))
             }
         }
         return pairs
@@ -314,7 +321,12 @@ public struct Store {
               let section = root["seeds"] as? [String: Any] else { return [:] }
         var seeds: Seeds = [:]
         for (id, byWidth) in section {
-            guard (try? Rule(id: id)) != nil, let byWidth = byWidth as? [String: Any] else { continue }
+            // R-P3, R-M12: a seed key is a bare rule ID for the ODCA and
+            // `<class>:<id>` for anything else, because 20 digits mean two
+            // different automata once fredkin exists.
+            guard let (experiment, ruleID) = Experiment.splitSeedKey(id),
+                  (try? Rule(id: ruleID, experiment: experiment)) != nil,
+                  let byWidth = byWidth as? [String: Any] else { continue }
             for (key, entries) in byWidth {
                 guard let width = Int(key), width >= Session.minCols, let entries = entries as? [Any] else { continue }
                 var list: [Seed] = []
@@ -339,7 +351,11 @@ public struct Store {
     public static func saveOdcaFile(_ pairs: [Pair], seeds: Seeds, to url: URL) {
         let entries = pairs.map { p -> JSON in
             .object((p.name.map { [("name", JSON.string($0))] } ?? [])
-                    + [("rule", .string(p.rule)), ("colorset", .string(p.colorset)),
+                    + [("rule", .string(p.rule))]
+                    // R-M12: the ODCA writes no key, so a file of ordinary
+                    // pairs is byte for byte what it was before R-M12.
+                    + (p.experiment.fileName.map { [("experiment", JSON.string($0))] } ?? [])
+                    + [("colorset", .string(p.colorset)),
                        ("colors", .array(p.colors.map(JSON.string)))])
         }
         var root: [(String, JSON)] = [("pairs", .array(entries))]
@@ -466,13 +482,23 @@ public typealias Seeds = [String: [Int: [Seed]]]
 public struct Pair: Equatable {
     public var name: String?
     public var rule: String
+    /// R-P3, R-M12: which rule class `rule` belongs to. The ODCA writes no
+    /// key, so a file from before R-M12 reads as exactly what it meant. It
+    /// is part of what a pair *is*: two pairs with the same 20 digits under
+    /// different classes are two different automata, not one.
+    public var experiment: Experiment
     public var colorset: String
     public var colors: [String]
 
-    public init(name: String? = nil, rule: String, colorset: String, colors: [String]) {
+    public init(name: String? = nil, rule: String, experiment: Experiment = .none,
+                colorset: String, colors: [String]) {
         self.name = name
         self.rule = rule
+        self.experiment = experiment
         self.colorset = colorset
         self.colors = colors
     }
+
+    /// The key this pair's seeds are recorded under (R-P3).
+    public var seedKey: String { experiment.seedKey(rule) }
 }

@@ -533,7 +533,7 @@ public final class Session {
     /// order of each rule's first appearance.
     /// R-W9: under odca-select --longest only pairs whose rule has seeds are presented.
     private func shown(_ index: Int) -> Bool {
-        !selectLongest || !(selectSeeds[pairs[index].rule] ?? [:]).isEmpty
+        !selectLongest || !(selectSeeds[pairs[index].seedKey] ?? [:]).isEmpty
     }
 
     private func rebuildViewOrder() {
@@ -561,7 +561,9 @@ public final class Session {
     }
 
     private func currentPair() -> Pair {
-        Pair(name: Store.nextPairName(pairs), rule: automaton.rule.id, colorset: activeName,
+        Pair(name: Store.nextPairName(pairs), rule: automaton.rule.id,
+             experiment: automaton.rule.experiment,  // R-M12
+             colorset: activeName,
              colors: arrangedActiveColors())
     }
 
@@ -585,7 +587,7 @@ public final class Session {
         }
         viewPosition = position
         pairIndex = index
-        if let rule = try? Rule(id: pair.rule), rule != automaton.rule {
+        if let rule = try? Rule(id: pair.rule, experiment: pair.experiment), rule != automaton.rule {
             if pushUndo { undoStack.append(automaton.rule) }
             setRule(rule)
         }
@@ -667,7 +669,9 @@ public final class Session {
             }
             return
         }
-        pairs[i] = Pair(name: pairs[i].name, rule: pairs[i].rule, colorset: activeName,
+        pairs[i] = Pair(name: pairs[i].name, rule: pairs[i].rule,
+                        experiment: pairs[i].experiment,  // R-M12: a recolor keeps the class
+                        colorset: activeName,
                         colors: arrangedActiveColors())  // the name and the rule stay
         saveLooks()
         output("saved pair \((viewPosition ?? i) + 1)/\(viewOrder.count)")  // R-O12
@@ -685,7 +689,7 @@ public final class Session {
         let shownCount = viewOrder.count
         if selectLongest {
             let pair = pairs[i]
-            selectSeeds[pair.rule] = nil
+            selectSeeds[pair.seedKey] = nil
             output("deleted seeds of pair \(position + 1)/\(shownCount) \(label(pair))")  // R-O12
         } else {
             pairs.remove(at: i)  // in place: later pairs keep their relative file order
@@ -732,7 +736,7 @@ public final class Session {
     /// screen width, longest first, without those that survived the cap
     /// unless `--play-survivors` asks for them too (R-X9).
     private func playableSeeds(_ segment: Int, _ index: Int) -> [Seed] {
-        let seeds = show![segment].seeds[show![segment].pairs[index].rule]?[cols] ?? []
+        let seeds = show![segment].seeds[show![segment].pairs[index].seedKey]?[cols] ?? []
         return playSurvivors ? seeds : seeds.filter { $0.end != Seed.survived }
     }
 
@@ -820,14 +824,14 @@ public final class Session {
         pairs = show![segment].pairs
         let pair = pairs[index]
         pairIndex = index
-        if let rule = try? Rule(id: pair.rule), rule != automaton.rule { setRule(rule) }
+        if let rule = try? Rule(id: pair.rule, experiment: pair.experiment), rule != automaton.rule { setRule(rule) }
         undoMark = undoStack.count  // R-K19: U returns to the pair as played
         showColors(name: pair.colorset, colors: pair.colors)
         // R-X4: the longest-lived recorded seed for this rule at exactly this
         // width, when the file has one; a random row otherwise. R-X8: the
         // seed of the item's rank.
         let seeds = playableSeeds(segment, index)
-        initCells(with: rank.map { seeds[$0].row } ?? show![segment].seeds[pair.rule]?[cols]?.first?.row)
+        initCells(with: rank.map { seeds[$0].row } ?? show![segment].seeds[pair.seedKey]?[cols]?.first?.row)
         playElapsed = 0  // the pair's screen time starts now
         if entered && show!.count > 1 { output("playing \(show![segment].file)") }  // R-O13: another file
         let which = rank.map { ", seed \($0 + 1)/\(seeds.count), \(seeds[$0].generations) generations" } ?? ""

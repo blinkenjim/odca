@@ -12,7 +12,7 @@ import importlib.util
 import json
 from pathlib import Path
 
-from .store import SURVIVED, load_odca_file, load_seeds, merge_seed_maps, rejection
+from .store import SURVIVED, load_odca_file, load_seeds, merge_seed_maps, pair_seed_key, rejection
 
 
 class ShowError(Exception):
@@ -106,7 +106,7 @@ def seed_width(segments, cells=None, survivors=False):
     only_survivors = False  # seeds are recorded, but every one survived the cap
     for segment in segments:
         for pair in segment["pairs"]:
-            for width, seeds in segment["seeds"].get(pair["rule"], {}).items():
+            for width, seeds in segment["seeds"].get(pair_seed_key(pair), {}).items():
                 if not seeds:
                     continue
                 if survivors or any(s["end"] != SURVIVED for s in seeds):

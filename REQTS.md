@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.90.0 — 2026-09-20
+Version 3.92.0 — 2026-09-20
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -128,7 +128,9 @@ the two emptinesses it is — R-X9, R-X8, R-U9. 3.88.0: the default cap
 is a million generations, not a hundred thousand — R-E2, R-U9. 3.87.0:
 Python catches up on R-P6, R-A1's effective extinction and R-X9.
 3.90.0 / 3.91.0: `-x` / `--experiment` runs one of three second-order
-rule classes, the grandparent entering the rule — R-M12, R-A1, R-U9.)
+rule classes, the grandparent entering the rule — R-M12, R-A1, R-U9.
+3.92.0 / 3.93.0: an odca file records a pair's rule class, so every
+class can be kept in one file — R-P3, R-M12, R-E1, R-E2.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
@@ -1334,8 +1336,23 @@ in use in the file, four digits and more once they are needed
 to every appended pair; the file records them at its next write, at exit
 at the latest. `odca` never writes, so a hand-made file's pairs may be
 nameless there. Until 3.26.0 the array key was `looks` and the pairs were
-called looks; the old key is still read, never written. Since 3.36.0 the
-object may also hold `seeds` (section 4e): an object keyed by rule ID,
+called looks; the old key is still read, never written.
+
+Since 3.92.0 a pair may also carry `experiment`, the name of its rule
+class (R-M12): `modal`, `fredkin` or `totalistic4`, written after `rule`.
+The ODCA writes no key at all, so a file of ordinary pairs is byte for
+byte what it was before, and one written earlier reads as exactly what it
+meant. The class is part of what a pair *is*: two pairs whose 20 digits
+match under different classes are two different automata, so the union of
+R-E1 unites pairs by class as well as by rule, colour set and colours. A
+pair naming a class this version does not know is skipped, like any other
+entry it cannot use — never read as an ODCA rule it is not — and so is one
+whose rule ID does not have the digits its class requires (R-M8, R-M12).
+
+Since 3.36.0 the object may also hold `seeds` (section 4e): an object
+keyed by rule ID — or, for a rule of a class other than the ODCA,
+`<class>:<rule ID>`, since 20 digits name two different automata once
+`fredkin` exists —
 each an object keyed by width (a whole number as a string), each an
 array of at most ten seeds, longest first, each `row` (one digit per
 cell, as many as the width), `generations` (the lifetime, R-E2), and

@@ -9,9 +9,8 @@
 /// (current, previous), so none of this is more powerful than what we have —
 /// but it is a differently shaped slice of that space, which is the point.
 ///
-/// Nothing here is written to an odca file yet: a rule ID of 80 or 35 digits
-/// is not an odca rule ID, and the format has no room to say which class a
-/// rule belongs to. The experiments are for looking at.
+/// Since 3.92.0 an odca file records which class a pair's rule belongs to
+/// (R-P3), so all four can be kept and played from one file.
 public enum Experiment: Int, CaseIterable {
     /// The ODCA of R-M5: no grandparent, three counted cells, 20 entries.
     case none = 0
@@ -77,6 +76,39 @@ public enum Experiment: Int, CaseIterable {
     public func denseIndex(of vector: [Int]) -> Int {
         let w = weights
         return vector[1] * Int(w[1]) + vector[2] * Int(w[2]) + vector[3] * Int(w[3])
+    }
+
+
+    /// R-P3: what an odca file's `experiment` key says, and reads back.
+    /// The ODCA writes no key at all, so every file written before R-M12
+    /// stays exactly what it was and reads as what it always meant.
+    public var fileName: String? {
+        switch self {
+        case .none: return nil
+        case .modal: return "modal"
+        case .fredkin: return "fredkin"
+        case .totalistic4: return "totalistic4"
+        }
+    }
+
+    public static func named(_ text: String?) -> Experiment? {
+        guard let text = text else { return Experiment.none }
+        return allCases.first { $0.fileName == text }
+    }
+
+    /// The key a rule's seeds are recorded under (R-P3). An ODCA rule keeps
+    /// the bare ID it always had; another class qualifies it, since a
+    /// 20-digit ID means two different automata once fredkin exists.
+    public func seedKey(_ id: String) -> String {
+        fileName.map { "\($0):\(id)" } ?? id
+    }
+
+    /// Split such a key back into its class and rule ID, or nil if it names
+    /// a class this version does not know.
+    public static func splitSeedKey(_ key: String) -> (Experiment, String)? {
+        guard let colon = key.firstIndex(of: ":") else { return (Experiment.none, key) }
+        guard let experiment = named(String(key[key.startIndex..<colon])) else { return nil }
+        return (experiment, String(key[key.index(after: colon)...]))
     }
 
     /// The spelling `-x` takes, and what a bad one is told.

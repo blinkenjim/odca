@@ -40,8 +40,8 @@ RULE_SIZE = len(COUNT_VECTORS)  # 20
 # irreversible one (Toffoli and Margolus, Cellular Automata Machines, 1987). A
 # second-order rule is always a first-order rule on the doubled state
 # (current, previous), so none of it is more powerful -- it is a differently
-# shaped slice of that space. None of these is written to an odca file: a rule
-# ID of 80 or 35 digits is not an odca rule ID.
+# shaped slice of that space. Since 3.93.0 an odca file records which class a
+# pair's rule belongs to (R-P3), so all four can be kept in one file.
 EXPERIMENTS = (0, 1, 2, 3)
 NONE, MODAL, FREDKIN, TOTALISTIC4 = EXPERIMENTS
 
@@ -81,6 +81,41 @@ def experiment_rule_size(experiment):
     chooses a column."""
     n = len(experiment_count_vectors(experiment))
     return n * N_STATES if experiment == MODAL else n
+
+
+# R-P3: what an odca file's `experiment` key says, and reads back. The ODCA
+# writes no key at all, so every file written before R-M12 stays exactly what
+# it was and reads as what it always meant.
+EXPERIMENT_NAMES = {MODAL: "modal", FREDKIN: "fredkin", TOTALISTIC4: "totalistic4"}
+
+
+def experiment_named(text):
+    """The class an `experiment` key names, or None for one this version does
+    not know. A missing key is the ODCA."""
+    if text is None:
+        return NONE
+    for experiment, name in EXPERIMENT_NAMES.items():
+        if name == text:
+            return experiment
+    return None
+
+
+def seed_key(experiment, rule_id):
+    """The key a rule's seeds are recorded under (R-P3). An ODCA rule keeps
+    the bare ID it always had; another class qualifies it, since 20 digits
+    mean two different automata once FREDKIN exists."""
+    name = EXPERIMENT_NAMES.get(experiment)
+    return f"{name}:{rule_id}" if name else rule_id
+
+
+def split_seed_key(key):
+    """(class, rule ID) from such a key, or None if it names a class this
+    version does not know."""
+    if ":" not in key:
+        return NONE, key
+    name, _, rule_id = key.partition(":")
+    experiment = experiment_named(name)
+    return None if experiment is None else (experiment, rule_id)
 
 
 class Rule:

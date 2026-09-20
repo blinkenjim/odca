@@ -3,7 +3,8 @@
 import json
 from pathlib import Path
 
-from .automaton import Rule
+from .automaton import (EXPERIMENT_NAMES, NONE, Rule, experiment_named, seed_key,
+                        split_seed_key)
 
 DEFAULT_PATH = Path.home() / ".odca" / "rule"
 CANDIDATES_PATH = Path.home() / ".odca" / "candidates"
@@ -86,17 +87,33 @@ def load_odca_file(path):
         return []
     pairs = []
     for e in entries if isinstance(entries, list) else []:
+        # R-P3, R-M12: `experiment` names the rule class, absent meaning the
+        # ODCA. A class this version does not know is skipped like any other
+        # entry it cannot use, rather than read as an ODCA rule it is not.
         try:
-            rule = Rule.from_id(str(e["rule"]))
+            experiment = experiment_named(e.get("experiment"))
+        except AttributeError:
+            continue
+        if experiment is None:
+            continue
+        try:
+            rule = Rule.from_id(str(e["rule"]), experiment)
             set_name, colors = str(e["colorset"]), list(e["colors"])
         except (KeyError, TypeError, ValueError):
             continue
         if len(colors) == 4 and all(_valid_color(c) for c in colors):
             pair = {"rule": rule.id, "colorset": set_name, "colors": [c.upper() for c in colors]}
+            if experiment != NONE:
+                pair = {**pair, "experiment": experiment}
             if isinstance(e.get("name"), str):
                 pair = {"name": e["name"], **pair}
             pairs.append(pair)
     return pairs
+
+
+def pair_seed_key(pair):
+    """The key this pair's seeds are recorded under (R-P3, R-M12)."""
+    return seed_key(pair.get("experiment", NONE), pair["rule"])
 
 
 SEEDS_KEPT = 10  # seeds kept per rule and width (R-E3)
@@ -136,8 +153,14 @@ def load_seeds(path):
         return {}
     seeds = {}
     for rule_id, by_width in section.items() if isinstance(section, dict) else []:
+        # R-P3, R-M12: a seed key is a bare rule ID for the ODCA and
+        # `<class>:<id>` for anything else, because 20 digits mean two
+        # different automata once FREDKIN exists.
+        split = split_seed_key(str(rule_id))
+        if split is None:
+            continue
         try:
-            Rule.from_id(str(rule_id))
+            Rule.from_id(split[1], split[0])
         except ValueError:
             continue
         for key, entries in by_width.items() if isinstance(by_width, dict) else []:
@@ -170,7 +193,13 @@ def save_odca_file(pairs, path, seeds=None):
     entries = []
     for p in pairs:
         e = {"name": p["name"]} if p.get("name") is not None else {}
-        e.update({"rule": p["rule"], "colorset": p["colorset"], "colors": list(p["colors"])})
+        e["rule"] = p["rule"]
+        # R-M12: the ODCA writes no key, so a file of ordinary pairs is byte
+        # for byte what it was before R-M12.
+        name = EXPERIMENT_NAMES.get(p.get("experiment", NONE))
+        if name:
+            e["experiment"] = name
+        e.update({"colorset": p["colorset"], "colors": list(p["colors"])})
         entries.append(e)
     root = {"pairs": entries}
     section = {}

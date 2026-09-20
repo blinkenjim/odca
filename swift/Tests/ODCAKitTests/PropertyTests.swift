@@ -222,6 +222,56 @@ final class PropertyTests: XCTestCase {
         XCTAssertEqual(Store.trailingComma(in: Data(#"{"a": "x,}",}"#.utf8)), 1)
     }
 
+    // PT-50: R-P3, R-M12 — every rule class round-trips through an odca file.
+    func testOdcaFileCarriesRuleClasses() throws {
+        let store = try tempStore()
+        let url = store.stateDir.appendingPathComponent("mixed.odca")
+        var rng = Xoshiro256(seed: 50)
+        let colors = ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]
+        var pairs: [Pair] = []
+        var seeds: Seeds = [:]
+        for experiment in Experiment.allCases {
+            let rule = Rule.random(using: &rng, experiment: experiment)
+            let pair = Pair(name: "pair-\(experiment.rawValue)", rule: rule.id, experiment: experiment,
+                            colorset: "ODCA default", colors: colors)
+            pairs.append(pair)
+            seeds[pair.seedKey] = [12: [Seed(row: Automaton.randomCells(width: 12, using: &rng),
+                                             generations: 100 + experiment.rawValue, end: "stagnant")]]
+        }
+        // The case the seed key exists for: a fredkin pair whose 20 digits are
+        // an ODCA pair's. Two different automata, so two sets of seeds.
+        let clash = Pair(name: "clash", rule: pairs[0].rule, experiment: .fredkin,
+                         colorset: "Mine", colors: colors)
+        pairs.append(clash)
+        seeds[clash.seedKey] = [12: [Seed(row: Automaton.randomCells(width: 12, using: &rng),
+                                          generations: 999, end: "stagnant")]]
+        Store.saveOdcaFile(pairs, seeds: seeds, to: url)
+
+        XCTAssertEqual(Store.loadOdcaFile(url), pairs)
+        let back = Store.loadSeeds(url)
+        XCTAssertEqual(back[pairs[0].seedKey]?[12]?.first?.generations, 100)
+        XCTAssertEqual(back[clash.seedKey]?[12]?.first?.generations, 999)
+        XCTAssertNotEqual(pairs[0].seedKey, clash.seedKey)
+        XCTAssertEqual(pairs[0].rule, clash.rule)
+
+        // The ODCA writes no key, so a file of ordinary pairs is what it was.
+        let plain = store.stateDir.appendingPathComponent("plain.odca")
+        Store.saveOdcaFile([pairs[0]], seeds: [:], to: plain)
+        let text = try String(contentsOf: plain, encoding: .utf8)
+        XCTAssertFalse(text.contains("experiment"))
+
+        // A class this version does not know is skipped, not read as an ODCA
+        // rule it is not; and a rule ID that does not fit its class is too.
+        let swatch = "[\"#000000\", \"#000000\", \"#000000\", \"#000000\"]"
+        let json = "{\"pairs\": ["
+            + "{\"rule\": \"" + pairs[0].rule + "\", \"experiment\": \"future\", "
+            + "\"colorset\": \"x\", \"colors\": " + swatch + "},"
+            + "{\"rule\": \"" + pairs[0].rule + "\", \"experiment\": \"modal\", "
+            + "\"colorset\": \"y\", \"colors\": " + swatch + "}]}"
+        try json.write(to: url, atomically: true, encoding: .utf8)
+        XCTAssertEqual(Store.loadOdcaFile(url), [])
+    }
+
     // PT-11: stop() terminates workers; stopping an unstarted search is safe.
     // PT-12: delivered candidates are valid rules.
     func testSearchFindsCandidatesAndStops() {

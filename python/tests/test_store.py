@@ -1,3 +1,4 @@
+import json
 import numpy as np
 
 from odca.automaton import Rule
@@ -192,3 +193,55 @@ def test_unusable_odca_files_are_rejected(tmp_path):  # PT-48, R-P6
     # json refuses it where Swift's JSONSerialization accepts it; one format,
     # so the stricter reading wins and both implementations refuse the file.
     assert "not valid JSON" in why('{\n "pairs": [\n ],\n}')
+
+
+def test_odca_file_carries_rule_classes(tmp_path):  # PT-50, R-P3, R-M12
+    """Every rule class round-trips, the ODCA writing no key at all, and two
+    pairs sharing 20 digits under different classes keep separate seeds."""
+    import numpy as np
+    from odca.automaton import EXPERIMENTS, FREDKIN, NONE
+    from odca.store import pair_seed_key
+
+    rng = np.random.default_rng(50)
+    colors = ["#121218", "#EBEBE1", "#FFA136", "#409CFF"]
+    pairs, seeds = [], {}
+    for experiment in EXPERIMENTS:
+        rule = Rule.random(rng, experiment)
+        pair = {"name": f"pair-{experiment}", "rule": rule.id,
+                "colorset": "ODCA default", "colors": colors}
+        if experiment != NONE:
+            pair["experiment"] = experiment
+        pairs.append(pair)
+        seeds[pair_seed_key(pair)] = {
+            12: [{"row": list(rng.integers(0, 4, 12)), "generations": 100 + experiment,
+                  "end": "stagnant"}]}
+    # The case the seed key exists for: a fredkin pair whose 20 digits are an
+    # ODCA pair's. Two different automata, so two sets of seeds.
+    clash = {"name": "clash", "rule": pairs[0]["rule"], "experiment": FREDKIN,
+             "colorset": "Mine", "colors": colors}
+    pairs.append(clash)
+    seeds[pair_seed_key(clash)] = {
+        12: [{"row": list(rng.integers(0, 4, 12)), "generations": 999, "end": "stagnant"}]}
+
+    f = tmp_path / "mixed.odca"
+    save_odca_file(pairs, f, seeds=seeds)
+    assert load_odca_file(f) == pairs
+    back = load_seeds(f)
+    assert back[pair_seed_key(pairs[0])][12][0]["generations"] == 100
+    assert back[pair_seed_key(clash)][12][0]["generations"] == 999
+    assert pair_seed_key(pairs[0]) != pair_seed_key(clash)
+    assert pairs[0]["rule"] == clash["rule"]
+
+    # The ODCA writes no key, so a file of ordinary pairs is what it was.
+    plain = tmp_path / "plain.odca"
+    save_odca_file([pairs[0]], plain, seeds={})
+    assert "experiment" not in plain.read_text()
+
+    # A class this version does not know is skipped, not read as an ODCA rule
+    # it is not; and a rule ID that does not fit its class is too.
+    swatch = ["#000000"] * 4
+    f.write_text(json.dumps({"pairs": [
+        {"rule": pairs[0]["rule"], "experiment": "future", "colorset": "x", "colors": swatch},
+        {"rule": pairs[0]["rule"], "experiment": "modal", "colorset": "y", "colors": swatch},
+    ]}))
+    assert load_odca_file(f) == []

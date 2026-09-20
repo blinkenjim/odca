@@ -107,7 +107,7 @@ public enum Show {
         var onlySurvivors = false  // seeds are recorded, but every one survived the cap
         for segment in segments {
             for pair in segment.pairs {
-                for (width, seeds) in segment.seeds[pair.rule] ?? [:] where !seeds.isEmpty {
+                for (width, seeds) in segment.seeds[pair.seedKey] ?? [:] where !seeds.isEmpty {
                     if survivors || seeds.contains(where: { $0.end != Seed.survived }) {
                         widths.insert(width)
                     } else {
