@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Drop every seed that survived the cap from an odca file, in place.
+
+    script/drop-survivors <file.odca> [<file.odca> ...]
+
+A seed's `end` is `survived` when it reached `--cap` generations without
+dying out, repeating or going stagnant (REQTS R-E2). That is not a
+measurement of how long it lives, only a statement that the search gave
+up first, so such a seed says nothing about the rule and its lifetime is
+not comparable with the others. When the definition of boring changes --
+3.60.0 taught odca-evolve about cycles, 3.80.0 about stagnation, 3.84.0
+about a state too small for too long -- every recorded survivor becomes a
+number measured under a rule that no longer holds, and the only honest
+thing to do with it is to search again.
+
+Pairs and rules are kept: dropping the seeds leaves the rule in the file
+to be re-measured. Only the seeds go.
+
+The file is rewritten in place, which is the point of the tool rather
+than a side effect of it, and nothing is written unless something is
+removed. A file that will not parse is refused outright and left alone
+(R-P6), the same as the programs do -- note that Python's json is the
+stricter of the two readers and rejects the trailing comma that deleting
+a block by hand leaves behind, which Swift's JSONSerialization accepts.
+"""
+import json
+import os
+import sys
+import tempfile
+
+SURVIVED = "survived"
+
+
+def prune(doc):
+    """Remove the survivors. Returns how many went, and how many were kept.
+
+    Widths left with no seeds, and rules left with no widths, are dropped
+    too, and the `seeds` key with them when nothing is left -- the shape
+    Store.saveOdcaFile writes, so a file this has touched is exactly a
+    file the programs would have written.
+    """
+    seeds = doc.get("seeds")
+    if not isinstance(seeds, dict):
+        return 0, 0
+    dropped = kept = 0
+    for rule in list(seeds):
+        by_width = seeds[rule]
+        for width in list(by_width):
+            before = by_width[width]
+            after = [s for s in before if s.get("end") != SURVIVED]
+            dropped += len(before) - len(after)
+            kept += len(after)
+            if after:
+                by_width[width] = after
+            else:
+                del by_width[width]
+        if not by_width:
+            del seeds[rule]
+    if not seeds:
+        del doc["seeds"]
+    return dropped, kept
+
+
+def write(path, doc):
+    """Replace the file in one step, so an interrupted run cannot leave a
+    half-written odca file behind."""
+    directory = os.path.dirname(os.path.abspath(path)) or "."
+    handle, temporary = tempfile.mkstemp(dir=directory, suffix=".odca")
+    try:
+        with os.fdopen(handle, "w") as out:
+            out.write(json.dumps(doc, indent=1) + "\n")
+        os.replace(temporary, path)
+    except BaseException:
+        os.unlink(temporary)
+        raise
+
+
+def main(paths):
+    if not paths:
+        print(__doc__.strip().split("\n\n")[1].strip())
+        return 2
+    status = 0
+    for path in paths:
+        try:
+            with open(path) as handle:
+                doc = json.load(handle)
+        except OSError as error:
+            print(f"error: {path}: {error.strerror}")
+            status = 1
+            continue
+        except ValueError as error:
+            print(f"error: {path}: not readable as an odca file: {error}")
+            status = 1
+            continue
+        if not isinstance(doc, dict):
+            print(f"error: {path}: not an odca file (the top level is not an object)")
+            status = 1
+            continue
+        dropped, kept = prune(doc)
+        if dropped:
+            write(path, doc)
+            print(f"{path}: dropped {dropped} survivor"
+                  f"{'' if dropped == 1 else 's'}, {kept} seed"
+                  f"{'' if kept == 1 else 's'} left")
+        else:
+            print(f"{path}: no survivors, left alone")
+    return status
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

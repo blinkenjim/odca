@@ -12,7 +12,10 @@ Ruled out along the way: a frozen-cell detector, since the 10 truly
 frozen cells were not the mechanism; and the user's cheaper gate of
 watching state populations for a constant value, since frozen cells
 pin a population's floor, not its value. Recorded lifetimes for rules
-that ran on past a vanished state are stale. 3.82.1: the verbose ages are two spaces apart and the joined
+that ran on past a vanished state are stale; `script/drop-survivors
+<file.odca> ...` clears them out in place, keeping pairs and rules, and
+is the thing to run whenever a release moves the definition of boring.
+3.82.1: the verbose ages are two spaces apart and the joined
 row's asterisk trails rather than leads, standing in one of the two
 spaces so the columns hold. 3.82.0: every program refuses an odca file it cannot read
 rather than reading it as empty (R-P6), trailing commas included. This

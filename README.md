@@ -40,7 +40,7 @@ its own directory.
 | `library.json` | the color set pool, shared by both implementations |
 | `interesting.odca` | the pairs (rule + color set) kept so far — an odca file, playable with `odca interesting.odca` |
 | `conformance/` | golden engine vectors, the `--help` texts, and the play script cases (`scripts/`), byte-identical across implementations |
-| `script/` | the play script grammar (`show.l`, `show.y`) and `regen`, which generates the C parser into both implementations |
+| `script/` | the play script grammar (`show.l`, `show.y`) and `regen`, which generates the C parser into both implementations; `drop-survivors <file.odca> ...` removes every seed that reached the cap, in place, keeping pairs and rules — what to run when a release changes what counts as boring and the recorded survivors stop meaning anything |
 | `python/` | the reference implementation (Python + pygame-ce); see `python/README.md` |
 | `REQ-python.md` | implementation notes for the Python version |
 | `swift/` | Swift implementation (macOS, `swift/run odca <file>`); see `swift/README.md` |
