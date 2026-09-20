@@ -1,7 +1,9 @@
 # ODCA to-do
 
-**YOU ARE HERE (2026-09-20):** Spec 3.82.0, Swift 3.82.0, Python
-3.73.0: 3.82.0: every program refuses an odca file it cannot read
+**YOU ARE HERE (2026-09-20):** Spec 3.82.1, Swift 3.82.1, Python
+3.73.0: 3.82.1: the verbose ages are two spaces apart and the joined
+row's asterisk trails rather than leads, standing in one of the two
+spaces so the columns hold. 3.82.0: every program refuses an odca file it cannot read
 rather than reading it as empty (R-P6), trailing commas included. This
 came out of nearly losing a night's search: a hand edit left a trailing
 comma, and since a file read as empty is a file about to be overwritten

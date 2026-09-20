@@ -5,6 +5,22 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.82.1 (Swift, spec) — 2026-09-20
+
+The ages of the ten now sit two spaces apart, and the asterisk marking
+the row that has just joined trails its number instead of leading it
+(user: it "doesn't make the added length jump out like I had hoped"):
+
+    00:00:04 14920  12010  10795  10776  10660  10532  10362  10168* 10155  9964
+
+The asterisk stands in the place of one of that row's two trailing
+spaces — one space follows it, not two — so every number past it keeps
+the column it would have had. Leading it buried it against the number
+before; in the gap there is nothing else for it to be confused with.
+
+The line closing a rule's turn still carries no asterisk, nothing having
+just arrived, and plain output is a join a line as before.
+
 ## 3.82.0 (Swift, spec) — 2026-09-20
 
 Every program now refuses to start on an odca file it cannot read,

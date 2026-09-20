@@ -215,7 +215,7 @@ from `REQTS.md`.
   this round trip, 8 of 8 ahead give up their turn, 5 run` and each
   running rule's line `rule <id> (4/13, running 2 of 5): 600 cells`, the `kept` lines scrolling up as rows join, every line
   opening with the time then left (`00:01:00 rule ...`, `00:00:41 kept
-  ...`), the ten ages on one line (`00:00:00 4821, 3990, ...`) as each
+  ...`), the ten ages on one line (`00:00:00 4821  3990  ...`) as each
   rule ends, Ctrl-C writing the rule in hand; then
   `odca my.odca` in a 1200-point-wide window (600 cells at the default
   size) opens each pair from its best seed and lives visibly longer than

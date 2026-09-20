@@ -1,6 +1,6 @@
 # ODCA — Requirements
 
-Version 3.82.0 — 2026-09-20
+Version 3.82.1 — 2026-09-20
 (1.1: startup cycle position matches a saved rule when possible — R-U1,
 R-B3. 1.2: pause on spacebar — R-K10. 1.3: single-step on Return while
 paused — R-K11. 2.0.0: version unified across the whole code base with
@@ -113,6 +113,8 @@ blank that separates bursts, and a burst reuses its line — R-E6, R-E4.
 3.78.4: the verbose pair lines come above the `kept` line, not below —
 R-E6. 3.78.5: the verbose ages star the row that has just joined —
 R-E6. 3.78.6: a verbose join's first line carries the width — R-E6.
+3.82.1: the ages of the ten are two spaces apart and the joined row's
+asterisk trails rather than leads it — R-O16, R-E6.
 3.78.7: the census of R-A1 reads a producible mask settled once with
 the rule rather than rebuilt on every generation — no behavioral
 change, R-M5. 3.80.0: a seed's lifetime ends at stagnation as well as at
@@ -1083,9 +1085,11 @@ first of those lines also carrying the width the search is running at
 before its turn is over; then the
 `kept` line of R-O16; then the ages of the ten as they now stand, in the
 same form R-O16 prints when a rule's turn ends, except that the row
-which has just joined is preceded by a single asterisk (`4381, 1781,
-*1390, 535`) — the point of a join is which of the ten is new, and the
-ages alone do not say. The asterisk marks the join only: the ages
+which has just joined is followed by a single asterisk (`4381  1781
+1390* 535`) — the point of a join is which of the ten is new, and the
+ages alone do not say. The asterisk stands in the place of one of that
+row's two trailing spaces, so every number past it keeps the column it
+would have had; one space follows it, not two. The asterisk marks the join only: the ages
 printed as a turn ends carry none, no row having just arrived. The pairs come first
 because they name what is being improved, which reads better above the
 news of the improvement than below it. And as a rule's turn ends, the
@@ -1378,7 +1382,7 @@ The program prints single-line, human-readable status to standard output:
   (budget spent, interrupted, or ended early on ten survivors, R-E3),
   before the file is written and the next
   rule taken up, the ages of the kept rows in generations, longest first,
-  as bare numbers separated by `, ` (`4821, 3990, 2210, ...`; no line
+  as bare numbers two spaces apart (`4821  3990  2210  ...`; no line
   when none was kept); and on a terminal the countdown of R-E4. The R-O1
   rule line is not printed: no rule becomes current.
 - **R-O13.** In `odca` (section 4d): on entry `odca <file>: <n> pairs`

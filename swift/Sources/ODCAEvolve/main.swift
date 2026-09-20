@@ -76,13 +76,21 @@ for pair in pairs { pairsByRule[pair.rule, default: []].append(pair) }
 func pairLines(_ id: String) -> [String] {
     (pairsByRule[id] ?? []).map { "\($0.name ?? "(unnamed)"), \($0.colorset), \(id)" }
 }
-/// R-O16: generations, longest first. `marking` stars one of them, which
-/// under verbose is the row that has just joined (R-E6) — the point of a
-/// join is which of the ten is new, and the ages alone do not say.
+/// R-O16: generations, longest first, two spaces apart. `marking` stars one
+/// of them, which under verbose is the row that has just joined (R-E6) — the
+/// point of a join is which of the ten is new, and the ages alone do not say.
+///
+/// The star goes after its number and takes the place of one of the two
+/// spaces, so every number past it stays in the column it would have been
+/// in. Leading it, as this did until 3.82.1, buried it against the number
+/// before; trailing it puts it in the gap, where nothing else ever is.
 func ages(_ seeds: [Seed], marking marked: Int? = nil) -> String {
-    seeds.enumerated()
-        .map { (i, seed) in (i == marked ? "*" : "") + String(seed.generations) }
-        .joined(separator: ", ")
+    var line = ""
+    for (i, seed) in seeds.enumerated() {
+        if i > 0 { line += i - 1 == marked ? " " : "  " }
+        line += String(seed.generations) + (i == marked ? "*" : "")
+    }
+    return line
 }
 
 // Ctrl-C: finish the rule in hand by writing what it has, then leave (R-E4).
