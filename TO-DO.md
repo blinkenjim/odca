@@ -238,6 +238,18 @@ use odca-select to build a show and watch it, the shuffle constraints,
 the color set tool, and the vision items, starting with the declarative
 script design.
 
+- [ ] Python has no `odca-evolve` (2026-09-20). The one real parity gap
+      left: Python is at 3.87.0 and current on everything it shares with
+      Swift, but there is no `evolve.py` at all, and fourteen of the
+      seventeen releases since its 3.73.0 were about the search. A port
+      means the whole of section 4e -- the seed search, a worker pool
+      escaping the GIL (processes, as the Swift comment in Search.swift
+      notes), the ten-longest merge per rule and width, `--parity` and
+      `--limit`, `-v`, and the `-o` union of several files. Not a
+      catch-up; a program. Until then `odca-evolve` is Swift-only and
+      `python/odca/cli.py` says so outright ("odca and odca-select").
+      Nothing depends on it: Python reads and plays the seeds the Swift
+      search records, which is the half that matters for the art.
 - [x] (2026-09-19, user: "if it can't be done at 320 cells or more it's
       really not worth investigating") Running an ODCA *backwards* to
       extend a good seed. The goal: odca-evolve finds a long-lived
