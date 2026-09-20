@@ -29,7 +29,7 @@ def test_help_prints_and_exits_zero(main, text, capsys, tmp_path, monkeypatch): 
 def test_usage_errors(capsys, tmp_path):  # R-W1, R-X1
     with pytest.raises(SystemExit) as e:
         play_main([])
-    assert e.value.code == 2 and "usage: odca <file> [<file> ...] [--shuffle] [--longest] [--fullscreen] [--4] [--3] [--2] [--1] [--watchdog N] [--grace N] [--cells N]" in capsys.readouterr().out
+    assert e.value.code == 2 and "usage: odca <file> [<file> ...] [--shuffle] [--longest] [--play-survivors] [--fullscreen] [--4] [--3] [--2] [--1] [--watchdog N] [--grace N] [--cells N]" in capsys.readouterr().out
     with pytest.raises(SystemExit) as e:
         play_main([str(tmp_path / "nope.odca")])
     assert e.value.code == 1 and "does not exist" in capsys.readouterr().out
@@ -72,10 +72,10 @@ def test_odca_flags_are_parsed(monkeypatch, tmp_path):  # R-U2, R-X1
     play.main(["--watchdog", "20", str(file), "--grace", "10"])
     clocks = {"play_timeout": 120.0, "play_grace": 60.0}  # the defaults (R-X2, R-X3)
     show = [{"file": "show.odca", "pairs": [], "shuffle": False, "seeds": {}}]
-    assert calls == [({"show": show, "shuffle": False, "longest": False, **clocks}, True, 2),  # 2-point cells by default
-                     ({"show": show, "shuffle": True, "longest": False, **clocks}, False, 2),
-                     ({"show": show, "shuffle": False, "longest": False, **clocks}, False, 1),
-                     ({"show": show, "shuffle": False, "longest": False, "play_timeout": 20, "play_grace": 10}, False, 2)]
+    assert calls == [({"show": show, "shuffle": False, "longest": False, "play_survivors": False, **clocks}, True, 2),  # 2-point cells by default
+                     ({"show": show, "shuffle": True, "longest": False, "play_survivors": False, **clocks}, False, 2),
+                     ({"show": show, "shuffle": False, "longest": False, "play_survivors": False, **clocks}, False, 1),
+                     ({"show": show, "shuffle": False, "longest": False, "play_survivors": False, "play_timeout": 20, "play_grace": 10}, False, 2)]
 
 
 def test_odca_takes_scripts_and_odca_files_in_order(monkeypatch, tmp_path, capsys):  # PT-38, R-X1, R-X7

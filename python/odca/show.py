@@ -12,7 +12,7 @@ import importlib.util
 import json
 from pathlib import Path
 
-from .store import SURVIVED, load_odca_file, load_seeds, merge_seed_maps
+from .store import SURVIVED, load_odca_file, load_seeds, merge_seed_maps, rejection
 
 
 class ShowError(Exception):
@@ -88,6 +88,9 @@ def load_script(path):
                 raise ShowError(f"{path}:{statement['line']}: cannot read {name}")
             if not _is_odca_file(target):
                 raise ShowError(f"{path}:{statement['line']}: {name} is not an odca file")
+            why = rejection(target)  # R-P6
+            if why is not None:
+                raise ShowError(f"{path}:{statement['line']}: {why}")
             pairs.extend(load_odca_file(target))
             seeds = merge_seed_maps(seeds, load_seeds(target))
         else:
@@ -95,19 +98,27 @@ def load_script(path):
     return (pairs, shuffle, seeds) if plays else ([], False, {})
 
 
-def seed_width(segments, cells=None):
+def seed_width(segments, cells=None, survivors=False):
     """The width of a --longest show (R-X8): the one width at which the files
     record seeds for their pairs' rules that did not survive the cap, or the
-    --cells choice among several."""
+    --cells choice among several. With survivors=True those count too (R-X9)."""
     widths = set()
+    only_survivors = False  # seeds are recorded, but every one survived the cap
     for segment in segments:
         for pair in segment["pairs"]:
             for width, seeds in segment["seeds"].get(pair["rule"], {}).items():
-                if any(s["end"] != SURVIVED for s in seeds):
+                if not seeds:
+                    continue
+                if survivors or any(s["end"] != SURVIVED for s in seeds):
                     widths.add(width)
+                else:
+                    only_survivors = True
     listed = ", ".join(str(w) for w in sorted(widths))
+    # R-X9: the two ways to have nothing to play are different problems with
+    # different answers, so they are not reported with one message.
     if not widths:
-        raise ShowError("no seeds to play")
+        raise ShowError("every seed survived the cap: --play-survivors plays them anyway"
+                        if only_survivors else "no seeds to play")
     if cells is not None:
         if cells not in widths:
             raise ShowError(f"no seeds at {cells} cells ({listed})")
@@ -127,6 +138,9 @@ def load_show(files):
     for file in files:
         file = Path(file)
         if file.suffix == ".odca":
+            why = rejection(file)  # R-P6
+            if why is not None:
+                raise ShowError(why)
             pairs, shuffle, seeds = load_odca_file(file), False, load_seeds(file)
             if pairs is None:
                 raise ShowError(f"{file}: cannot read")

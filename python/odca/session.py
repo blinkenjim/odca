@@ -77,6 +77,12 @@ REPEAT_WINDOW = 4000  # a row recurring within this many generations is repeatin
 MINORITY_FRACTION = 0.10  # a producible state below this share is a minority (R-A1)
 STAGNATION_WINDOW = 1600  # minority population steady this many generations -> stagnant; fixed
 STAGNATION_SWING = 0.25  # (max - min) / mean below this counts as steady
+# R-A1: a producible state that has been a minority this long without a
+# break counts as extinct though cells of it remain. The patience that
+# holds an extinction back while a minority still lives (2.3.1) has no end
+# otherwise, and a state can hold one or two percent of the row for the
+# whole of a run: present, invisible, and long past taking part.
+EFFECTIVE_EXTINCTION_WINDOW = 12800
 STEP_CAP = 2000  # per-tick catch-up cap so a stall can't freeze the UI (R-U5)
 SMOOTH_SCROLL_DELAY = 2 * INITIAL_DELAY  # slower than this: continuous scrolling (R-U3)
 SCREEN_SPEEDUP = 8  # paused 's' zips a screenful at delay / SCREEN_SPEEDUP (R-K13)
@@ -99,6 +105,7 @@ def _rgb(c):
 class Session:
     def __init__(self, cols, rows, store=None, search=None, rng=None,
                  review_mode=False, select_file=None, select_longest=False, show=None, shuffle=False, longest=False,
+                 play_survivors=False,
                  initial_delay=INITIAL_DELAY, play_timeout=PLAY_TIMEOUT, play_grace=PLAY_GRACE):
         self.cols = cols
         self.rows = rows
@@ -120,6 +127,12 @@ class Session:
         # screen width, those that did not survive the cap; each plays to its
         # extinction; the width is fixed; the rule keys are inert.
         self.longest = bool(longest) and self.show is not None
+        # --play-survivors (R-X9): the seeds that survived the cap play too.
+        # They are left out by default because a row that never dies has no
+        # measured end to play to; but a rule can be worth watching because
+        # it does not die, and then leaving its seeds out means it cannot be
+        # watched at all.
+        self.play_survivors = bool(play_survivors)
         if self.show is not None:
             select_file = None
         self.select_file = Path(select_file) if select_file else None
@@ -172,6 +185,8 @@ class Session:
         self.cycle_period = None  # exact period once a cycle is detected
         # minority-state cell counts over the last STAGNATION_WINDOW generations, fixed
         self._minority_counts = deque(maxlen=STAGNATION_WINDOW)
+        # generations each state has gone under the minority share unbroken (R-A1)
+        self._minority_run = [0] * N_STATES
 
         # Colors (R-U4, R-K17): every mode but color set review draws through
         # the active set, which may be any pool member; it starts as the
@@ -574,10 +589,18 @@ class Session:
                 del self._recent_counts[old]
         census = np.bincount(row, minlength=N_STATES)
         producible = sorted(set(int(s) for s in self.automaton.rule.states))
-        extinct = [s for s in producible if census[s] == 0]
         # A living minority is a shrinking (or drifting) group whose fate is
-        # still unresolved; an extinction only counts once none remain.
-        minority = [s for s in producible if 0 < census[s] < MINORITY_FRACTION * len(row)]
+        # still unresolved; an extinction only counts once none remain. That
+        # patience has a limit: a state under the share without a break for
+        # EFFECTIVE_EXTINCTION_WINDOW generations has resolved nothing and is
+        # not going to, so it counts as extinct though cells of it remain.
+        floor = MINORITY_FRACTION * len(row)
+        for s in producible:
+            self._minority_run[s] = self._minority_run[s] + 1 if census[s] < floor else 0
+        extinct = [s for s in producible
+                   if census[s] == 0 or self._minority_run[s] >= EFFECTIVE_EXTINCTION_WINDOW]
+        minority = [s for s in producible
+                    if s not in extinct and 0 < census[s] < floor]
         living_minority = bool(minority)
         self._minority_counts.append(int(sum(census[s] for s in minority)))
         stagnant = False
@@ -612,6 +635,7 @@ class Session:
         self._recent_rows.clear()
         self._recent_counts.clear()
         self._minority_counts.clear()
+        self._minority_run = [0] * N_STATES
         self._brent_snapshot = None
         self._brent_power = 1
         self._brent_steps = 0
@@ -910,10 +934,11 @@ class Session:
 
     def _playable_seeds(self, segment, index):
         """R-X8: the seeds a pair plays under --longest: its rule's at the
-        screen width, longest first, without those that survived the cap."""
+        screen width, longest first, without those that survived the cap
+        unless --play-survivors asks for them too (R-X9)."""
         pair = self.show[segment]["pairs"][index]
         seeds = self.show[segment].get("seeds", {}).get(pair["rule"], {}).get(self.cols, [])
-        return [s for s in seeds if s["end"] != SURVIVED]
+        return list(seeds) if self.play_survivors else [s for s in seeds if s["end"] != SURVIVED]
 
     def _longest_pass(self):
         """The --longest pass (R-X8): every pair's longest playable seed, then

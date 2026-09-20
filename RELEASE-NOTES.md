@@ -5,6 +5,32 @@ Newest first. The commit history and the version notes at the top of
 `REQTS.md` carry the fine grain; this file says what changed for your
 hands and what to try.
 
+## 3.87.0 (Python) — 2026-09-20
+
+Python catches up on the three things Swift changed that it could also
+do. It has no `odca-evolve`, so the fourteen releases that were about
+the search do not apply to it; these three are about `odca` and
+`odca-select`, which it has.
+
+- **R-P6 (from 3.82.0)**: both programs refuse an odca file they cannot
+  read instead of reading it as empty. This mattered more in Python than
+  in Swift: `json` is the stricter of the two readers and rejects the
+  trailing comma that `JSONSerialization` accepts, so Python met the bad
+  file more often and said nothing about it — while `odca-select`, which
+  always writes back over the file it was given, stood ready to overwrite
+  it with the empty reading.
+- **R-A1 (from 3.84.0)**: a producible state under 10% of the row without
+  a break for 12,800 generations counts as extinct though cells of it
+  remain. Python's player would otherwise still sit forever on a picture
+  whose other two states died long ago.
+- **R-X9 (from 3.86.0)**: `--play-survivors`.
+
+The help text for `odca` is shared between the implementations, and
+3.86.0 changed it without Python following, which left Python's suite
+failing on `test_help_texts_match_the_shared_copies` for a few hours.
+That is fixed here. Both implementations now agree on every shared
+constant: 4000, 0.10, 1600, 0.25, 12800.
+
 ## 3.88.0 (Swift, spec) — 2026-09-20
 
 The default `--cap` is now **1,000,000 generations**, up from 100,000.

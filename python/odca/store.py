@@ -36,6 +36,39 @@ def _valid_color(c):
             and all(ch in "0123456789abcdefABCDEF" for ch in c[1:]))
 
 
+def rejection(path):
+    """R-P6: why an odca file cannot be used, or None when it can be.
+
+    Loading skips whatever it does not understand, which is right for an
+    entry a later version added, but a file that will not parse at all
+    contributes *nothing*, and silently, there being no entry left to skip.
+    When that file is also written back afterwards -- odca-select always --
+    the next save writes over everything it held. So both programs ask this
+    of their file before they start and refuse to run on a bad one.
+
+    A file that does not exist is not this test's business: odca-select
+    makes its file on the first save (R-W1), and where a file is required
+    to exist the program says so itself.
+    """
+    try:
+        text = Path(path).read_text()
+    except OSError:
+        return None  # missing
+    try:
+        root = json.loads(text)
+    except ValueError as error:
+        return f"{path}: not valid JSON: {error}"
+    if not isinstance(root, dict):
+        return f"{path}: not an odca file (the top level is not an object)"
+    entries = root.get("pairs", root.get("looks"))
+    if entries is not None and not isinstance(entries, list):
+        return f'{path}: "pairs" is not a list'
+    seeds = root.get("seeds")
+    if seeds is not None and not isinstance(seeds, dict):
+        return f'{path}: "seeds" is not an object'
+    return None
+
+
 def load_odca_file(path):
     """Return an odca file's pairs [{'name'?, 'rule', 'colorset', 'colors'}] (R-P3),
     None if the file is missing, [] if unparseable; malformed pairs are skipped.

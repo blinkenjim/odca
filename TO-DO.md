@@ -1,7 +1,10 @@
 # ODCA to-do
 
 **YOU ARE HERE (2026-09-20):** Spec 3.88.0, Swift 3.88.0, Python
-3.73.0: 3.88.0: the default --cap is a million generations, not a
+3.87.0: Python is caught up on everything it can be: R-P6, R-A1's
+effective extinction and R-X9. The fourteen other releases since its
+3.73.0 are all `odca-evolve`, which Python does not have at all — the
+one real parity gap left, and a large one. 3.88.0: the default --cap is a million generations, not a
 hundred thousand — rules do legitimately run past it (the user watched
 one go boring near 135,000), and a cap most interesting rules reach
 measures the cap rather than the rules. Survivors recorded before this

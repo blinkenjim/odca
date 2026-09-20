@@ -9,10 +9,11 @@ from .show import ShowError, load_show, seed_width
 
 
 def main(argv=None):
-    files, flags, values = parse(argv, "odca", HELP_ODCA, flags=("--shuffle", "--longest", "--fullscreen") + CELL_FLAGS,
+    files, flags, values = parse(argv, "odca", HELP_ODCA, flags=("--shuffle", "--longest", "--play-survivors", "--fullscreen") + CELL_FLAGS,
                                  options=("--watchdog", "--grace", "--cells"), positional="<file> [<file> ...]", many=True)
     cell = cell_size("odca", flags)  # R-U2
     longest = "--longest" in flags  # R-X8
+    play_survivors = "--play-survivors" in flags  # R-X9
     if longest:
         for option in ("--watchdog", "--grace"):  # no clocks: a seed plays to its end
             if option in values:
@@ -20,6 +21,9 @@ def main(argv=None):
                 sys.exit(2)
     elif "--cells" in values:
         print("odca: --cells applies only with --longest")
+        sys.exit(2)
+    if play_survivors and not longest:  # R-X9: there are no recorded seeds to play without it
+        print("odca: --play-survivors applies only with --longest")
         sys.exit(2)
     timing = {"play_timeout": whole_seconds("odca", values, "--watchdog", PLAY_TIMEOUT),  # R-X2
               "play_grace": whole_seconds("odca", values, "--grace", PLAY_GRACE)}  # R-X3
@@ -33,11 +37,12 @@ def main(argv=None):
             sys.exit(1)
     try:
         show = load_show(files)  # R-X1, R-X7: scripts are read and checked before the window opens
-        width = seed_width(show, cells) if longest else None  # R-X8: the one width, or the chosen one
+        width = seed_width(show, cells, play_survivors) if longest else None  # R-X8, R-X9
     except ShowError as e:
         print(f"error: {e}")
         sys.exit(1)
-    run({"show": show, "shuffle": "--shuffle" in flags, "longest": longest, **timing},
+    run({"show": show, "shuffle": "--shuffle" in flags, "longest": longest,
+         "play_survivors": play_survivors, **timing},
         fullscreen="--fullscreen" in flags, cell=cell, cols=width)
 
 

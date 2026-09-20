@@ -1,7 +1,8 @@
 import numpy as np
 
 from odca.automaton import Rule
-from odca.store import load_odca_file, load_rule, load_seeds, merge_seeds, save_odca_file, save_rule
+from odca.store import (load_odca_file, load_rule, load_seeds, merge_seeds, rejection,
+                        save_odca_file, save_rule)
 
 
 def test_save_and_load_round_trip(tmp_path):
@@ -165,3 +166,29 @@ def test_seeds_round_trip_layout_and_carry_through(tmp_path):  # PT-43, R-P3
     assert [s["generations"] for s in merged] == [110, 100, 90, 80, 70, 60, 50, 40, 30, 20]
     assert merge_seeds(merged, merged) == merged
     assert [ "".join(map(str, s["row"])) for s in merge_seeds([seed("11111131", 5), seed("11111113", 5)])] == ["11111113", "11111131"]
+
+
+def test_unusable_odca_files_are_rejected(tmp_path):  # PT-48, R-P6
+    """A file that cannot be used is named, not quietly ignored."""
+    f = tmp_path / "f.odca"
+
+    def why(text):
+        f.write_text(text)
+        return rejection(f)
+
+    # A file that is not there yet is not this test's business (R-W1).
+    assert rejection(tmp_path / "absent.odca") is None
+    assert why('{"pairs": []}') is None
+    assert why("{}") is None  # nothing in it, but readable
+
+    assert "not valid JSON" in why("")
+    assert "not valid JSON" in why("garbage")
+    assert why("[1, 2]").endswith("(the top level is not an object)")
+    assert why('{"pairs": "x"}').endswith('"pairs" is not a list')
+    assert why('{"looks": 3}').endswith('"pairs" is not a list')
+    assert why('{"seeds": []}').endswith('"seeds" is not an object')
+
+    # A trailing comma is what deleting a block by hand leaves behind. Python's
+    # json refuses it where Swift's JSONSerialization accepts it; one format,
+    # so the stricter reading wins and both implementations refuse the file.
+    assert "not valid JSON" in why('{\n "pairs": [\n ],\n}')

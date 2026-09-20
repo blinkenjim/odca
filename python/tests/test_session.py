@@ -349,6 +349,48 @@ def _rows_with_minority(rng, n, count):
         yield row
 
 
+def _varying_minority(rng, n, width=64):
+    """Rows of 2s and 3s carrying 1 to 6 state-1 cells -- always a minority of
+    64, never a steady population, and never twice the same."""
+    for _ in range(n):
+        row = rng.integers(2, 4, width).astype(np.uint8)
+        row[rng.choice(width, int(rng.integers(1, 7)), replace=False)] = 1
+        yield row
+
+
+def test_a_lasting_minority_counts_as_extinct(make_store):  # PT-18, R-A1
+    """A state under the share without a break for the whole window counts as
+    extinct though cells of it remain; until then it is a living minority
+    holding the verdict back, and a generation that puts it back over the
+    share resets the count.
+
+    The population varies so that stagnation does not fire first (it needs a
+    steady one, and only 1600 generations), and the backgrounds vary so that
+    neither repetition mechanism does.
+    """
+    from odca.session import EFFECTIVE_EXTINCTION_WINDOW as WINDOW
+    s = make_session(make_store(current=Rule.from_id("0123" * 5)))  # all 4 producible
+    rng = np.random.default_rng(11)
+    rows = list(_varying_minority(rng, WINDOW + 2))  # state 0 absent throughout
+    for row in rows[: WINDOW - 1]:
+        s._observe(row)
+    assert s._boring_reason is None  # the minority still holds the verdict back
+    s._observe(rows[WINDOW - 1])
+    # Patience spent: state 1 joins the absent state 0, named ascending.
+    assert s._boring_reason == "states 0, 1 extinct"
+
+    # A break resets the count, the clock being about the unbroken stretch.
+    s._reset_boredom()
+    more = list(_varying_minority(rng, WINDOW + 2))
+    for row in more[: WINDOW - 1]:
+        s._observe(row)
+    big = more[WINDOW - 1].copy()
+    big[:16] = 1  # state 1 at 25%, well over the share
+    s._observe(big)
+    s._observe(more[WINDOW])
+    assert s._boring_reason is None
+
+
 def test_stagnant_minority_is_boring_after_a_fixed_window(make_store):  # PT-18, R-A1: STAGNATION_WINDOW
     from odca.session import STAGNATION_WINDOW
     s = make_session(make_store(current=Rule.from_id("0123" * 5)))
@@ -1049,9 +1091,21 @@ def test_longest_plays_the_recorded_seeds_rank_by_rank(make_store, odca_file, ca
     survivors = odca_file(name="survivors.odca")
     save_odca_file([{"rule": b.id, "colorset": "B", "colors": grey(20)}], survivors,
                    seeds={b.id: {32: [{"row": [0] * 32, "generations": 9, "end": SURVIVED}]}})
+    # R-X8: survivors are not played; R-X9: the message says which of the two
+    # problems this is, because they have different answers.
     with pytest.raises(ShowError) as e:
         seed_width(load_show([survivors]))
-    assert str(e.value) == "no seeds to play"  # survivors are not played
+    assert str(e.value) == "every seed survived the cap: --play-survivors plays them anyway"
+    # R-X9: with the flag they play, taking their place by lifetime.
+    assert seed_width(load_show([survivors]), None, True) == 32
+    # A file recording no seeds at all is the other problem, and the flag does
+    # not help: it plays survivors, it does not invent seeds.
+    none = odca_file(name="none.odca")
+    save_odca_file([{"rule": b.id, "colorset": "B", "colors": grey(20)}], none, seeds={})
+    for survivors_too in (False, True):
+        with pytest.raises(ShowError) as e:
+            seed_width(load_show([none]), None, survivors_too)
+        assert str(e.value) == "no seeds to play"
 
     s = make_session(store, show=show, longest=True, play_timeout=1, play_grace=1)
     assert s.longest and s.play_mode

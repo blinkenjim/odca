@@ -125,7 +125,8 @@ under the minority share for 12800 generations without a break counts
 as extinct though cells of it remain — R-A1. 3.86.0: `--play-survivors`
 plays the seeds that survived the cap too, and the refusal says which of
 the two emptinesses it is — R-X9, R-X8, R-U9. 3.88.0: the default cap
-is a million generations, not a hundred thousand — R-E2, R-U9.)
+is a million generations, not a hundred thousand — R-E2, R-U9. 3.87.0:
+Python catches up on R-P6, R-A1's effective extinction and R-X9.)
 
 Versioning is semantic and shared by the whole code base: the
 specification and every implementation carry the same version and are
